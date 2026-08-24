@@ -1,0 +1,10 @@
+geopandas
+shapely
+pyproj
+rasterio
+numpy
+pandas
+osmnx
+networkx
+httpx
+python-dotenv

@@ -2,6 +2,7 @@ import hashlib
 import math
 
 from pipeline.config import TILES
+from pipeline.nces_schools import build_schools_payload
 
 AOI_BBOX = TILES[0]["bbox"]
 
@@ -10,26 +11,7 @@ N_EDGE_ROWS = 18
 N_BLOCK_COLS = 12
 N_BLOCK_ROWS = 10
 
-SCHOOLS_FIXTURE = [
-    {
-        "id": "sch_fixture_west",
-        "name": "Fixture Elementary",
-        "level": "elementary",
-        "walk_radius_mi": 2.0,
-        "grid_col": 2,
-        "grid_row": 5,
-        "policy_source": "OCPS Transportation FAQs (ocps.net/transportation-faqs), radius 2 mi per FS 1006.23 — FIXTURE placeholder untuk lokasi/enrollment, diganti data sekolah asli di Fase 1.5.5.",
-    },
-    {
-        "id": "sch_fixture_east",
-        "name": "Fixture Middle School",
-        "level": "middle",
-        "walk_radius_mi": 2.0,
-        "grid_col": 17,
-        "grid_row": 12,
-        "policy_source": "OCPS Transportation FAQs (ocps.net/transportation-faqs), radius 2 mi per FS 1006.23 — FIXTURE placeholder untuk lokasi/enrollment, diganti data sekolah asli di Fase 1.5.5.",
-    },
-]
+SCHOOLS_FIXTURE = build_schools_payload(TILES[0]["id"], AOI_BBOX)
 
 
 def _seeded_unit(*parts: object) -> float:
@@ -143,12 +125,5 @@ def build_block_grid(bbox: tuple[float, float, float, float] = AOI_BBOX) -> list
     return blocks
 
 
-def school_lonlat(school: dict, bbox: tuple[float, float, float, float] = AOI_BBOX) -> list[float]:
-    return _lonlat(bbox, school["grid_col"], school["grid_row"], N_EDGE_COLS, N_EDGE_ROWS)
-
-
-def distance_km(a_lonlat: list[float], b_lonlat: list[float]) -> float:
-    lat_mid = math.radians((a_lonlat[1] + b_lonlat[1]) / 2)
-    dx_km = (a_lonlat[0] - b_lonlat[0]) * 111.320 * math.cos(lat_mid)
-    dy_km = (a_lonlat[1] - b_lonlat[1]) * 110.540
-    return math.hypot(dx_km, dy_km)
+def school_lonlat(school: dict) -> list[float]:
+    return [school["lon"], school["lat"]]

@@ -1,0 +1,123 @@
+[
+  {
+    "NCESSCH": "120144001404",
+    "SCH_NAME": "MAYNARD EVANS HIGH",
+    "SCHOOL_LEVEL": "High",
+    "GSLO": "09",
+    "GSHI": "12",
+    "TOTAL": 2403,
+    "STATUS": "1",
+    "LATCOD": 28.579398,
+    "LONCOD": -81.448574
+  },
+  {
+    "NCESSCH": "120144001421",
+    "SCH_NAME": "ROLLING HILLS ELEMENTARY",
+    "SCHOOL_LEVEL": "Elementary",
+    "GSLO": "PK",
+    "GSHI": "05",
+    "TOTAL": 513,
+    "STATUS": "1",
+    "LATCOD": 28.590221,
+    "LONCOD": -81.447017
+  },
+  {
+    "NCESSCH": "120144001435",
+    "SCH_NAME": "MEADOWBROOK MIDDLE",
+    "SCHOOL_LEVEL": "Middle",
+    "GSLO": "06",
+    "GSHI": "08",
+    "TOTAL": 894,
+    "STATUS": "1",
+    "LATCOD": 28.594696,
+    "LONCOD": -81.463364
+  },
+  {
+    "NCESSCH": "120144001449",
+    "SCH_NAME": "RIDGEWOOD PARK ELEMENTARY",
+    "SCHOOL_LEVEL": "Elementary",
+    "GSLO": "PK",
+    "GSHI": "05",
+    "TOTAL": 469,
+    "STATUS": "1",
+    "LATCOD": 28.586106,
+    "LONCOD": -81.462762
+  },
+  {
+    "NCESSCH": "120144001908",
+    "SCH_NAME": "DEVEREUX TREATMENT PROGRAM",
+    "SCHOOL_LEVEL": "Other",
+    "GSLO": "KG",
+    "GSHI": "12",
+    "TOTAL": 32,
+    "STATUS": "1",
+    "LATCOD": 28.605,
+    "LONCOD": -81.4656
+  },
+  {
+    "NCESSCH": "120144003218",
+    "SCH_NAME": "ROSEMONT ELEMENTARY",
+    "SCHOOL_LEVEL": "Elementary",
+    "GSLO": "PK",
+    "GSHI": "05",
+    "TOTAL": 561,
+    "STATUS": "1",
+    "LATCOD": 28.603794,
+    "LONCOD": -81.440623
+  },
+  {
+    "NCESSCH": "120144004114",
+    "SCH_NAME": "UCP PINE HILLS CHARTER",
+    "SCHOOL_LEVEL": "Elementary",
+    "GSLO": "PK",
+    "GSHI": "05",
+    "TOTAL": 160,
+    "STATUS": "1",
+    "LATCOD": 28.57705,
+    "LONCOD": -81.456864
+  },
+  {
+    "NCESSCH": "120144007536",
+    "SCH_NAME": "POSITIVE PATHWAYS TRANSITION CENTER",
+    "SCHOOL_LEVEL": "Other",
+    "GSLO": "KG",
+    "GSHI": "12",
+    "TOTAL": 306,
+    "STATUS": "1",
+    "LATCOD": 28.611908,
+    "LONCOD": -81.428329
+  },
+  {
+    "NCESSCH": "120144007712",
+    "SCH_NAME": "OCVS VIRTUAL INSTRUCTION PROGRAM",
+    "SCHOOL_LEVEL": "Other",
+    "GSLO": "KG",
+    "GSHI": "12",
+    "TOTAL": 20,
+    "STATUS": "1",
+    "LATCOD": 28.576957,
+    "LONCOD": -81.431387
+  },
+  {
+    "NCESSCH": "120144007846",
+    "SCH_NAME": "OCVS VIRTUAL FRANCHISE",
+    "SCHOOL_LEVEL": "Other",
+    "GSLO": "KG",
+    "GSHI": "12",
+    "TOTAL": 1032,
+    "STATUS": "1",
+    "LATCOD": 28.576957,
+    "LONCOD": -81.431387
+  },
+  {
+    "NCESSCH": "120144008328",
+    "SCH_NAME": "OCVS DIGITAL ACADEMY",
+    "SCHOOL_LEVEL": "Other",
+    "GSLO": "KG",
+    "GSHI": "12",
+    "TOTAL": 0,
+    "STATUS": "1",
+    "LATCOD": 28.576957,
+    "LONCOD": -81.431387
+  }
+]

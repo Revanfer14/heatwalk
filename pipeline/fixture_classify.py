@@ -8,7 +8,8 @@ from pipeline.config import (
     THRESHOLD_DOSE_C_MIN,
     WALK_SPEED_MPS,
 )
-from pipeline.fixture_geometry import block_heat_factor, distance_km, school_lonlat
+from pipeline.fixture_geometry import block_heat_factor, school_lonlat
+from pipeline.geo_distance import distance_km
 from pipeline.fixture_temps import CANONICAL_HOUR, HOUR_OFFSET_C, ORLANDO_SPREAD_C
 
 MI_PER_KM = 0.621371
@@ -134,7 +135,7 @@ def classify_blocks(blocks: list[dict], schools: list[dict]) -> list[dict]:
     return classified
 
 
-def build_summary(classified_blocks: list[dict], schools: list[dict]) -> dict:
+def build_summary(classified_blocks: list[dict], schools: list[dict], correction_factors: dict[str, float | None]) -> dict:
     summary: dict[str, dict] = {}
     for school in schools:
         school_blocks = [b for b in classified_blocks if b["school_id"] == school["id"]]
@@ -167,6 +168,6 @@ def build_summary(classified_blocks: list[dict], schools: list[dict]) -> dict:
             "dose_eliminated_per_child_per_day": round(avg_eliminated, 1),
             "dose_eliminated_per_child_per_year": round(avg_eliminated * SCHOOL_DAYS_PER_YEAR, 1),
             "equivalent_minutes_at_42c": round(avg_eliminated / (42.0 - BASELINE_C), 1) if avg_eliminated else 0.0,
-            "correction_factor": 1.0,
+            "correction_factor": correction_factors[school["id"]],
         }
     return summary

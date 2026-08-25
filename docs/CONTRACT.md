@@ -12,7 +12,7 @@ Geometri dipisah dari suhu (PRD §5.6): `graph.json` sekali per sekolah, `temps.
 
 ## `tiles.json`
 
-Manifest mosaik tile. Dihasilkan `pipeline/step1_fetch_data.py` (asli, belum ditulis) / `pipeline/make_fixtures.py` (fixture).
+Manifest mosaik tile. Dihasilkan `pipeline/step1_fetch_data.py` — real sejak Fase 1.5.4 (heatmap 10 jam ditarik untuk `orl_pine_hills_n`, nol NaN per jam, 42.200 kredit). `make_fixtures.py` **tidak lagi menulis file ini** — akan menimpa hasil real dengan asumsi status statis kalau dijalankan lagi.
 
 ```json
 [
@@ -107,7 +107,7 @@ Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jala
       "geometry": { "type": "Polygon", "coordinates": [[[0, 0]]] },
       "properties": {
         "block_id": "FIXTURE-0900",
-        "school_id": "sch_fixture_east",
+        "school_id": "sch_meadowbrook_middle",
         "kids_est": 33,
         "class": "red",
         "shortest": { "len_m": 3810, "mean_c": 37.65, "peak_c": 38.85, "dose": 246.1 },
@@ -145,7 +145,7 @@ Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jala
 
 ## `schools.json`
 
-Array objek, satu per sekolah dalam AOI. Dihasilkan `pipeline/step1_fetch_data.py` (asli, belum ditulis) / `pipeline/make_fixtures.py` (fixture).
+Array objek, satu per sekolah dalam AOI. **Real sejak Fase 1.5.5** — `pipeline/nces_schools.py` menarik NCES CCD (`EDGE_ADMINDATA_PUBLICSCH_2324`, cache `data/raw/nces_ccd_<tile_id>.json`), `pipeline/fixture_geometry.py:SCHOOLS_FIXTURE` mengimpornya, `pipeline/make_fixtures.py` menulisnya ke `schools.json` apa adanya (nol entri fixture, meski ditulis lewat skrip yang sama dengan `by_school/` yang masih placeholder — lihat §aturan lintas file).
 
 ```json
 [
@@ -171,6 +171,7 @@ Array objek, satu per sekolah dalam AOI. Dihasilkan `pipeline/step1_fetch_data.p
 | `walk_radius_mi` | `number` | mil | tidak | kebijakan transportasi distrik |
 | `lon`, `lat` | `number` | derajat | tidak | NCES CCD |
 | `policy_source` | `string` | — | tidak | sitasi sumber kebijakan |
+| `nces_id` | `string` | NCESSCH id | tidak | traceability ke CCD, tidak dipakai frontend |
 
 ---
 
@@ -225,7 +226,7 @@ Objek keyed by `school_id`. Dihasilkan `pipeline/step4_classify.py` (asli, belum
 | `dose_eliminated_per_child_per_day` | `number` | °C·menit | tidak | `shortest.dose - coolest.dose` rata-rata blok merah |
 | `dose_eliminated_per_child_per_year` | `number` | °C·menit | tidak | `× SCHOOL_DAYS_PER_YEAR` |
 | `equivalent_minutes_at_42c` | `number` | menit | tidak | `dose_eliminated_per_day / (42.0 - baseline_c)` |
-| `correction_factor` | `number` | — | tidak, rentang `0.3–3.0` | `enrollment_CCD / estimasi_dasymetric` |
+| `correction_factor` | `number` | — | tidak | `enrollment_CCD / estimasi_dasymetric`, rentang **diharapkan** `0.3–3.0` — 2 dari 6 sekolah AOI ini melenceng dengan sebab terdiagnosis (bukan bug), lihat `docs/METHODOLOGY.md` §1.5.6 |
 
 Belum di `summary.json` (menyusul Fase 3): `radius_setara_dosis_mi` / `radius_kebijakan_mi` (FR-18, G2) dan `days_exceedance_per_year` (FR-19, G9, P1).
 
@@ -233,6 +234,7 @@ Belum di `summary.json` (menyusul Fase 3): `radius_setara_dosis_mi` / `radius_ke
 
 ## Aturan lintas file
 
+- **Status Fase 1.5 (25 Agustus 2026):** `tiles.json` dan `schools.json` sudah **real** (heatmap 10 jam + NCES CCD asli). `by_school/<school_id>/{graph.json,temps.json,blocks.geojson}` **masih placeholder** — geometri jalan & blok sintetis, dianchor ke lokasi sekolah asli tapi belum di-routing lewat OSM/dosis nyata (menunggu `step2_build_graph.py`…`step4_classify.py`, Fase 2–4). Frontend tetap tidak bisa membedakan lewat skema; bedanya baru kelihatan kalau angka blok dibandingkan ke peta jalan asli.
 - Setiap angka yang tampil di UI harus bisa ditelusuri ke satu baris tabel di atas.
 - Setiap tempat yang menampilkan °C·menit **wajib** menampilkan °C di sebelahnya; setiap angka headline wajib punya °F.
 - `edge_id` di `temps.json` **wajib** cocok satu-satu dengan `graph.json` sekolah yang sama — dicek programatik di setiap build (`make_fixtures.py:_check_no_orphan_edges`), bukan dengan mata.

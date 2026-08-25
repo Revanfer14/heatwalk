@@ -183,9 +183,74 @@ Untuk menyentuh 220 dibutuhkan suhu rata-rata edge **42,8°C pada rute 1 mil**, 
 
 **Nilai indikatif dipakai sementara di `pipeline/config.py`: `THRESHOLD_DOSE_C_MIN = 110,0`.** Dipilih supaya distribusi fixture (`pipeline/make_fixtures.py`, kurva jam diurnal 07:00–16:00 rentang 33–38°C, bukan lagi rentang Phoenix) tidak degenerate — hasil aktual **79 hijau / 30 kuning / 11 merah** dari 120 blok. Ini **bukan kalibrasi final**: begitu kurva jam asli dari data FortyGuard sungguhan tersedia (Fase 1.5.7 dan Fase 2), nilai ini wajib direvisi ulang di Fase 4.1 berdasarkan data panas nyata — keputusan produk, bukan keputusan pipeline. `BUS_NOT_NEEDED_MAX_EXCESS_MI = 0,25` mil juga masih placeholder untuk definisi "sedikit di luar radius" (G6), didokumentasikan ulang saat kalibrasi asli.
 
-## [Pending Fase 1] Faktor kalibrasi enrollment per sekolah
+## [Fase 1.5.5] Akuisisi data pendukung
 
-_Diisi per sekolah: `faktor_koreksi = enrollment_CCD / estimasi_dasymetric`._
+**Jaringan jalan (OSM).** `osmnx.graph_from_bbox(bbox=orl_pine_hills_n, network_type='walk')` → **3.557 node, 9.930 edge**, jauh di atas gerbang minimum 3.000. Disimpan `data/interim/osm/orl_pine_hills_n_walk.graphml`. Overpass API (`overpass-api.de`) menolak request tanpa header `User-Agent` eksplisit (`406 Not Acceptable`) — bukan masalah cakupan data, sudah ditangani di `pipeline/osm_network.py` (osmnx mengatur User-Agent sendiri secara default).
+
+**Sekolah + enrollment (NCES CCD, real — bukan fixture).** Query ulang ke service admin data terkini `EDGE_ADMINDATA_PUBLICSCH_2324` (tahun ajaran 2023–24, punya field `TOTAL` enrollment dan `SCHOOL_LEVEL`, tidak seperti service geocode `EDGE_GEOCODE_PUBLICSCH_1920` yang dipakai di §1.3 untuk hitung kepadatan saja). Envelope `bbox` `orl_pine_hills_n` mengembalikan 11 record; 5 dibuang (`SCHOOL_LEVEL = "Other"` — program virtual/treatment center yang berbagi satu koordinat kantor distrik, bukan gedung sekolah dengan walk zone nyata). **6 sekolah fisik nyata masuk `schools.json`:**
+
+| Sekolah | Level | Enrollment | NCES id |
+|---|---|---|---|
+| Maynard Evans High | high | 2.403 | 120144001404 |
+| Rolling Hills Elementary | elementary | 513 | 120144001421 |
+| Meadowbrook Middle | middle | 894 | 120144001435 |
+| Ridgewood Park Elementary | elementary | 469 | 120144001449 |
+| Rosemont Elementary | elementary | 561 | 120144003218 |
+| UCP Pine Hills Charter | elementary | 160 | 120144004114 |
+
+`walk_radius_mi = 2,0` dan `policy_source` dipakai sama untuk keenamnya, dari kutipan OCPS FAQ §1.3 di atas — bukan asumsi baru.
+
+**Batas attendance — fallback nearest-school dikonfirmasi dipakai.** ArcGIS OCPS tetap tidak bisa diakses otomatis (lihat §1.3). NCES tidak menyediakan SABS (School Attendance Boundary Survey) sebagai REST service — hanya `K12_School_Locations`, `School_District_Boundaries` (level distrik, terlalu kasar), `Postsecondary_School_Locations`, `Locale_Boundaries`, `Social_Economic`, `Utilities` yang tersedia di `nces.ed.gov/opengis/rest/services`. Percobaan unduh langsung pola URL SABS bulk (`.../edge/data/SABS_2122_PUBSCH.zip`, `.../edge/Geographic/SchoolBoundaries`) kembali `404`. **Assignment blok→sekolah dipakai nearest-school by centroid distance** (fallback ketiga yang sudah diantisipasi dev plan §1.5.5) — dijalankan nanti di Fase 2/4 saat geometri blok Census sudah ada, dicatat di sini supaya keputusannya terkunci sebelum kode ditulis. Limitasi ini masuk `docs/LIMITATIONS.md` di Fase 7.
+
+**Blokir sementara — Census API key (selesai, lihat lanjutan di bawah).** `.env` sempat punya `CENSUS_API_KEY=` kosong; `api.census.gov` menolak **semua** query data (bahkan satu variabel, level negara bagian) tanpa key — balasan `200 OK` tapi body HTML "Missing Key", bukan JSON. Revan mendaftar key gratis lewat `api.census.gov/data/key_signup.html` dan menempelnya ke `.env` sendiri (tindakan pendaftaran akun tidak diambil alih otomatis, sesuai batas di `CLAUDE.md`). Key butuh waktu aktivasi (percobaan pertama `Invalid Key`, lihat §1.5.5 lanjutan) sebelum akhirnya bekerja.
+
+## [Fase 1.5.5 lanjutan] Census DHC P12, ACS B19013/B17001 — key aktif
+
+Key Census sempat ditolak (`Invalid Key`) pada percobaan pertama (25 Agustus 2026) — key terbaca tapi belum aktif, kemungkinan menunggu konfirmasi email/propagasi. Setelah Revan konfirmasi ulang, key aktif dan seluruh query di bawah berhasil tanpa perubahan kode.
+
+**Geometri blok nyata.** TIGERweb (`tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer/2`, layer "2020 Census Blocks") dipakai untuk menemukan **454 blok sensus** yang berpotongan dengan bbox `orl_pine_hills_n`, merentang **20 tract**. Layer ini juga membawa `POP100` (populasi total 2020) dan titik-dalam (`INTPTLAT`/`INTPTLON`) per blok secara gratis — dipakai sebagai centroid untuk assignment nearest-school, bukan geometri poligon penuh (poligon sebenarnya menunggu Fase 4 kalau dibutuhkan untuk `blocks.geojson` asli).
+
+**Anak 5–17 (Census 2020 DHC P12).** Ditarik per-tract (20 panggilan, gratis, di-cache `data/raw/census_dhc_p12_*.json`) untuk 3 kelompok umur × 2 jenis kelamin (`P12_004N/005N/006N` laki-laki, `P12_028N/029N/030N` perempuan, kelompok 5–9/10–14/15–17). **Total 11.417 anak 5–17 tahun** di 454 blok dalam bbox.
+
+**Pendapatan (ACS 2022 5-year, B19013).** Level **block group** (lebih detail dari tract) — 56 block group dalam bbox, **53 bernilai valid**, 3 disupresi (estimasi tidak reliable, ditandai `-666666666` oleh Census sendiri — bukan kegagalan pipeline). Rentang pendapatan median `$16.190–$237.351`.
+
+**Kemiskinan (ACS 2022 5-year, B17001).** **Disupresi total di level block group** untuk seluruh AOI ini (`null` di semua 56 block group, dikonfirmasi bukan bug — variabel yang sama bekerja normal di level county). Turun ke **level tract** (20 tract, semua valid): rentang tingkat kemiskinan **1,9%–32,1%**. Dicatat sebagai limitasi granularitas: `lowest_income_quartile` di `summary.json` idealnya butuh join blok→block-group (income) tapi blok→tract (kemiskinan) — dua level geografi berbeda, bukan pilihan sembarangan.
+
+## [Fase 1.5.6] Faktor kalibrasi enrollment per sekolah
+
+`faktor_koreksi = enrollment_CCD / estimasi_dasymetric`. `estimasi_dasymetric` = jumlah anak per blok (Census DHC P12 di atas) dijumlahkan ke sekolah terdekat (nearest-school, fallback §1.5.5), **dibatasi pita umur sesuai jenjang sekolah** — bukan sekadar total 5–17 tahun mentah.
+
+Percobaan pertama (total 5–17 tanpa pembatasan jenjang) menghasilkan **3 dari 6 sekolah di luar rentang 0,3–3,0**, semuanya under-estimate parah (faktor 0,12–0,28) — gejala jelas: setiap blok menyumbang SEMUA anak 5–17 ke sekolah terdekatnya, jadi remaja SMA di dekat sebuah SD ikut membengkakkan penyebut SD itu padahal mereka tidak akan pernah bersekolah di sana. Diperbaiki dengan realokasi bracket 5-tahunan Census (`5–9`, `10–14`, `15–17`) ke rentang kelas riil pakai asumsi distribusi seragam dalam tiap bracket: SD (K–5) = `5–9` penuh + 1/5 dari `10–14`; SMP (6–8) = 3/5 dari `10–14`; SMA (9–12) = 1/5 dari `10–14` + `15–17` penuh. Ini perbaikan metodologi (bug nyata: pita umur salah), bukan pergeseran ambang untuk memperbagus hasil.
+
+| Sekolah | `enrollment_CCD` | `estimasi_dasymetric` (pita umur) | `faktor_koreksi` |
+|---|---|---|---|
+| Maynard Evans High | 2.403 | 487,8 | **4,926** — di luar rentang |
+| Rolling Hills Elementary | 513 | 400,0 | 1,282 |
+| Meadowbrook Middle | 894 | 513,6 | 1,741 |
+| Ridgewood Park Elementary | 469 | 740,8 | 0,633 |
+| Rosemont Elementary | 561 | 1.777,8 | 0,316 |
+| UCP Pine Hills Charter | 160 | 618,0 | **0,259** — di luar rentang |
+
+**4 dari 6 sekolah masuk rentang 0,3–3,0 setelah perbaikan pita umur.** Dua sisanya punya sebab terdiagnosis, bukan pipeline yang salah:
+
+- **Maynard Evans High (4,93×):** ini satu-satunya SMA dalam bbox kecil `orl_pine_hills_n` (~5×5 km). Catchment SMA nyata jauh lebih besar dari catchment SD/SMP — sebagian besar dari 2.403 siswa terdaftarnya tinggal **di luar bbox**, jadi estimasi dasymetric yang dibatasi ke blok-blok dalam bbox otomatis under-estimate. Bukan kesalahan assignment, tapi keterbatasan AOI yang sengaja kecil (§Fase 1).
+- **UCP Pine Hills Charter (0,26×):** sekolah charter beroperasi lewat **lotere se-distrik**, bukan zona geografis. Asumsi inti nearest-school assignment (anak bersekolah di sekolah terdekat) tidak berlaku untuknya sama sekali — faktor ini secara struktural tidak bisa dipercaya berapa pun metodenya diperhalus, kecuali data enrollment by-address sungguhan tersedia (tidak ada, di luar cakupan hackathon).
+
+Sesuai fail branch dev plan (`faktor_koreksi di luar 0,3–3,0` → "jangan pakai angkanya, cek batas attendance dulu"): kedua angka **tetap ditulis apa adanya** ke `summary.json` (bukan disembunyikan di balik placeholder `1.0`) karena keduanya informatif dan sebabnya terjelaskan, tapi **tidak dipakai sebagai pengali tervalidasi** di perhitungan dose-eliminated manapun — `correction_factor` di `summary.json` saat ini murni deskriptif. Revisit di Fase 4 kalau batas attendance nyata (ArcGIS/SABS, §1.3/1.5.5) akhirnya bisa diakses.
+
+## [Fase 1.5.7] Kurva jam & `canonical_hour` — dari data asli
+
+Dihitung dari 10 GeoTIFF hasil fetch nyata (§1.5.4, `data/interim/heatmap/orl_pine_hills_n/*.tif`), disampel di titik tengah setiap edge jaringan jalan OSM asli (`data/interim/osm/orl_pine_hills_n_walk.graphml`, 9.930 edge), dirata-ratakan berbobot `length` (meter) per edge — `pipeline/hourly_curve.py`.
+
+| Jam | 07:00 | 08:00 | 09:00 | 10:00 | 11:00 | 12:00 | 13:00 | 14:00 | 15:00 | 16:00 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| °C (berbobot panjang jalan) | 28,186 | 29,605 | 31,647 | 33,925 | 33,994 | 35,534 | 35,483 | 36,391 | **37,409** | 36,912 |
+
+**`canonical_hour = "15:00"`** — diturunkan dari data (rata-rata tertinggi), bukan dikonstantakan. Kebetulan cocok dengan asumsi fixture sebelumnya, tapi angka di baliknya sekarang nyata.
+
+**`delta_temporal_c = 9,223°C`** (15:00 − 07:00) — rentang variasi suhu sepanjang hari sekolah jauh lebih besar dari kontras spasial AOI (§Fase 0/1, p95−p05 ≈ 1,8°C pada satu jam). Implikasi: **kapan** anak berjalan pulang jauh lebih menentukan dosis panas daripada **rute mana** yang mereka ambil — ini G7, dilaporkan apa adanya sesuai dev plan, bukan hasil yang dicari-cari.
+
+Metode: `edges.geometry.interpolate(0.5, normalized=True)` pada GeoDataFrame OSM (CRS geografis) memicu warning akurasi dari GeoPandas untuk operasi jarak — diabaikan dengan sengaja di sini karena yang dihitung hanya **lokasi sampel** (bukan panjang; panjang tetap dari kolom `length` OSM dalam meter, hasil proyeksi UTM osmnx sendiri), sehingga distorsi CRS-geografis pada interpolasi titik tengah segmen pendek (median puluhan meter) dapat diabaikan.
 
 ## [Pending] Sumber data & sitasi
 

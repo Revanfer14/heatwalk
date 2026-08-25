@@ -1,11 +1,11 @@
-from pipeline.config import DATA_OUT_DIR, FETCH_HOURS, TILES
+from pipeline import enrollment_calibration
+from pipeline.config import DATA_OUT_DIR, TILES
 from pipeline.fixture_classify import build_summary, classify_blocks
 from pipeline.fixture_geometry import (
     SCHOOLS_FIXTURE,
     build_block_grid,
     build_edge_topology,
     build_nodes,
-    school_lonlat,
 )
 from pipeline.fixture_temps import build_temps_payload
 from pipeline.write_out import mirror_to_web, write_json
@@ -19,42 +19,12 @@ GEOJSON_PROPERTY_KEYS = (
 )
 
 
-def build_tiles_payload() -> list[dict]:
-    return [
-        {
-            "id": tile["id"],
-            "bbox": list(tile["bbox"]),
-            "status": "done",
-            "hours_fetched": list(FETCH_HOURS),
-        }
-        for tile in TILES
-    ]
-
-
 def build_graph_payload(school: dict, edge_topology: dict[str, dict]) -> dict:
     return {
         "meta": {"school_id": school["id"], "tile_id": FIXTURE_TILE["id"], "crs": "EPSG:4326"},
         "nodes": build_nodes(),
         "edges": edge_topology,
     }
-
-
-def build_schools_payload(classified_blocks: list[dict]) -> list[dict]:
-    schools_payload = []
-    for school in SCHOOLS_FIXTURE:
-        enrollment = sum(b["kids_est"] for b in classified_blocks if b["school_id"] == school["id"])
-        lonlat = school_lonlat(school)
-        schools_payload.append({
-            "id": school["id"],
-            "name": school["name"],
-            "level": school["level"],
-            "enrollment": enrollment,
-            "walk_radius_mi": school["walk_radius_mi"],
-            "lon": lonlat[0],
-            "lat": lonlat[1],
-            "policy_source": school["policy_source"],
-        })
-    return schools_payload
 
 
 def build_blocks_geojson(classified_blocks: list[dict], school_id: str) -> dict:
@@ -89,9 +59,14 @@ def main() -> None:
     temps_payload = build_temps_payload(edge_topology)
     _check_no_orphan_edges(edge_topology, temps_payload)
 
-    write_json(DATA_OUT_DIR / "tiles.json", build_tiles_payload())
-    write_json(DATA_OUT_DIR / "schools.json", build_schools_payload(classified_blocks))
-    write_json(DATA_OUT_DIR / "summary.json", build_summary(classified_blocks, SCHOOLS_FIXTURE))
+    dasymetric_totals = enrollment_calibration.dasymetric_children_by_school(
+        FIXTURE_TILE["id"], FIXTURE_TILE["bbox"], SCHOOLS_FIXTURE
+    )
+    correction_factors = enrollment_calibration.correction_factors(SCHOOLS_FIXTURE, dasymetric_totals)
+    enrollment_calibration.print_calibration_report(SCHOOLS_FIXTURE, dasymetric_totals, correction_factors)
+
+    write_json(DATA_OUT_DIR / "schools.json", SCHOOLS_FIXTURE)
+    write_json(DATA_OUT_DIR / "summary.json", build_summary(classified_blocks, SCHOOLS_FIXTURE, correction_factors))
 
     for school in SCHOOLS_FIXTURE:
         school_dir = DATA_OUT_DIR / "by_school" / school["id"]

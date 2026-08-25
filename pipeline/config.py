@@ -14,6 +14,7 @@ WEB_PUBLIC_DATA_DIR = REPO_ROOT / "web" / "public" / "data"
 
 FG_BASE_URL = "https://api.fortyguard.com/v1"
 FG_API_KEY_ENV = "FORTYGUARD_API_KEY"
+CENSUS_API_KEY_ENV = "CENSUS_API_KEY"
 
 GRANULARITY_M = 60
 GRANULARITY_M_ALLOWED = (60, 80, 100)
@@ -81,5 +82,14 @@ def fortyguard_api_key() -> str:
     if not key:
         raise RuntimeError(
             f"{FG_API_KEY_ENV} tidak ditemukan di environment. Isi file .env."
+        )
+    return key
+
+
+def census_api_key() -> str:
+    key = os.environ.get(CENSUS_API_KEY_ENV, "")
+    if not key:
+        raise RuntimeError(
+            f"{CENSUS_API_KEY_ENV} tidak ditemukan di environment. Isi file .env."
         )
     return key

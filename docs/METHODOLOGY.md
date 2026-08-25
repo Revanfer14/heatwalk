@@ -125,48 +125,17 @@ Konsekuensi: fondasi hukum FR-5 (teks permohonan) dan §1.2 PRD tidak punya sand
 
 `PRD §5.4` dan `§11` sudah diperbarui untuk mencatat keputusan ini. `pipeline/config.py` konstanta `VERIFY_*` (KPHX/METAR) **tidak diubah** — itu catatan Fase 0 yang sudah lulus dan independen dari kota demo (properti `tcm` sebagai suhu udara berlaku di mana pun, bukan spesifik lokasi).
 
-## [Fase 1] AOI — hasil scouting kontras (BELUM DIKUNCI)
+## [Fase 1] AOI terpilih & pencabutan gerbang kontras
 
-**Gerbang GAGAL pada seluruh 8 kandidat yang diuji.** Kandidat terbaik mencapai 31% dari syarat gerbang. AOI **belum dikunci** — ini laporan status, bukan keputusan akhir; keputusan lanjut/pivot ada di Revan.
+**Gerbang kontras spasial gagal pada seluruh 8 kandidat yang diuji** — terbaik `orl_pine_hills_n` 1,84°C (31% dari syarat 6°C). Hasil ini justru mengonfirmasi ulang properti `tcm` hasil Fase 0: suhu udara 2m AGL tercampur konvektif sehingga variasi intra-urban dalam radius 5 km memang hanya 1–3°C. Kontras 15–25°C pada peta panas kota adalah suhu **permukaan**, bukan suhu udara.
 
-Dijalankan `pipeline/step1_scout_aoi.py`, granularity 60m (resolusi final, tidak ada penghematan biaya dari granularity kasar — lihat catatan biaya di atas), tanggal `2026-08-18`, jam `15:00` lokal, kotak ~10 mi² (≈5,1×5,1 km) tiap kandidat:
+Keputusan produk 25 Agustus 2026 (PRD §1.3), sudah dieksekusi:
 
-| Kandidat | Mekanisme fisik yang diuji | `p95−p05` | Verdict |
-|---|---|---|---|
-| `orl_pine_hills_n` | Orlando, kanopi padat vs jalan arteri | **1,84°C** | GAGAL |
-| `phx_south_phoenix` | Phoenix, elevasi South Mountain vs lembah kota | 1,62°C | GAGAL |
-| `orl_pine_hills_sw` | Orlando, kanopi vs komersial | 1,44°C | GAGAL |
-| `phx_south_mountain_centered` | Phoenix, puncak South Mountain di tengah kotak | 1,32°C | GAGAL |
-| `orl_pine_hills_s` | Orlando, kanopi campuran | 0,83°C | GAGAL |
-| `phx_south_mountain_laveen` | Phoenix, lereng gunung vs lahan pertanian Laveen | 0,55°C | GAGAL |
-| `phx_arcadia_camelback` | Phoenix, kebun jeruk irigasi vs batuan Camelback Mountain | 0,36°C | GAGAL |
-| `phx_papago_tempe` | Phoenix, gurun Papago vs urban Tempe/Sky Harbor | 0,25°C | GAGAL |
+- Gerbang kontras spasial **dicabut**; klaim "pilih rute lain, hemat 4°C" tidak dipakai lagi. Kontras berpindah ke tiga sumbu yang tetap bersumber FortyGuard: waktu (G1′, target ≥6°C antar-slice pada rute yang sama), durasi × circuity (radius setara-dosis), dan exceedance (offset spasial per blok terhadap distribusi ASOS). Delta antar-rute menjadi G2b — dilaporkan apa adanya.
+- **AOI terkunci: `orl_pine_hills_n`**, dipilih lewat kriteria hukum-dulu PRD §5.4 (statuta hazardous walking Florida terkuat, 19.693 siswa TA 2019–2020). Kontras kanopi hanya tie-breaker, tidak lagi menentukan.
+- Phoenix dipertahankan **pipeline-only** sebagai bukti portabilitas (G10), tidak pernah dirender di UI.
 
-Syarat gerbang (dev plan §1 Verification): **≥6°C LULUS**, **<4°C = ganti AOI sekarang**. Kandidat terbaik (Pine Hills North, 1,84°C) berada jauh di bawah ambang darurat 4°C, apalagi syarat 6°C. Data lengkap: `data/out/aoi_scout.csv`.
-
-**Ini bukan kegagalan memilih kotak.** Tiga mekanisme fisik berbeda diuji — gradien elevasi (South Mountain, delta ~700m), efek oasis irigasi (Arcadia vs batuan telanjang), dan kontras urban/gurun (Papago/Tempe) — dan kanopi padat vs arteri tanpa pohon (Pine Hills) — dan tidak satu pun mendekati. Ini konsisten dengan properti `tcm` yang sudah diverifikasi Fase 0: **suhu udara 2m AGL secara fisik jauh lebih homogen secara spasial daripada suhu permukaan**, karena percampuran udara (mixing) meredam kontras yang tajam di permukaan tanah. Rentang tile individual di kotak verifikasi Fase 0 (0,17°C pada ~1 mi²) sudah memberi sinyal ini; skala 10 mi² memperbesarnya tapi tidak sampai 6°C.
-
-**Catatan validitas tambahan (belum ditutup):**
-- Kandidat Phoenix diuji pada `2026-08-18`, yang **persentil ke-91,9** suhu maksimum harian PHX 2019–2026 (METAR, `metar_client.daily_max_temps_c`) — dekat p90, bukan p95 sesuai dev plan §1.2. Lima hari terpanas dalam rentang itu: `2023-07-20` (48,33°C), `2023-07-18`/`2023-07-19` (47,78°C), `2025-08-07` (47,78°C), `2020-07-30` (47,22°C). Kontras belum diuji ulang pada hari-hari ini.
-- Kandidat Orlando diuji pada tanggal yang sama (`2026-08-18`), yang **belum diverifikasi** posisi persentilnya terhadap riwayat METAR MCO (`data/raw/metar_range_MCO_*.csv` sudah tersedia, belum dianalisis).
-- Karena kontras berasal dari tutupan lahan/elevasi (properti spasial hari-ke-hari relatif stabil), hari yang lebih panas kemungkinan menggeser p05 dan p95 bersamaan (menaikkan keduanya), bukan melebarkan jaraknya — tapi ini asumsi, bukan yang sudah diverifikasi.
-
-**Opsi ke depan (keputusan produk, bukan teknis — lihat dev plan §3.3 & Ringkasan gerbang):**
-1. Uji ulang kandidat teratas pada hari p95 sungguhan (murah: 4.220 kredit/kandidat, tidak ada penalti biaya granularity).
-2. Pindah bobot rute dari Δsuhu ke Δdosis (`BASELINE_C` dikalibrasi ulang mendekati p05 AOI) — dosis punya penyebut yang lebih sensitif terhadap selisih kecil karena `max(temp_c - baseline_c, 0)` bisa membuat spread relatif besar meski spread absolut suhu kecil.
-3. Pakai `env_params.heat_index_celsius` (terbukti tersedia di Basic tier) sebagai bobot — pada sampel Orlando RH 39,7%, heat index memperbesar kontras ~2,1× dibanding `tcm` mentah (lihat sampel di bawah), meski begitu belum tentu cukup mencapai 6°C.
-4. Terima kontras yang ada, revisi gerbang G1 PRD §1.4, dan dokumentasikan sebagai batasan jujur (PRD §10 mengizinkan ini secara eksplisit).
-
-Sampel `env_params` (Orlando, `2023-08-11 15:00` lokal, RH 39,7% konstan di seluruh titik):
-
-| lat, lon | `tcm` | `heat_index_celsius` |
-|---|---|---|
-| 28,5753, −81,4708 | 37,37 | 41,9 |
-| 28,5753, −81,4604 | 37,51 | 42,2 |
-| 28,5845, −81,4708 | 35,97 | 38,9 |
-| 28,5937, −81,4604 | 36,08 | 39,2 |
-
-Rentang `tcm` di sampel ini 1,56°C; rentang `heat_index` 3,30°C (amplifikasi ×2,1). RH regional konstan pada tanggal ini, jadi `heat_index = f(tcm)` murni bisa dihitung offline dari `tcm` yang sudah ada — tidak perlu panggilan `env_params` per titik.
+Tabel lengkap 8 kandidat, catatan persentil hari uji (PHX p91,9; MCO belum dianalisis), dan temuan tambahan (tiga slice waktu `orl_pine_hills_n` dari arsip pra-kalibrasi; amplifikasi `heat_index` ×2,1 pada sampel `env_params` 2023-08-11): **`docs/phase1-scouting.md`**. Respons mentahnya diarsipkan di `data/raw/phase1_scouting/` dan tetap berfungsi sebagai cache `fg_client`.
 
 ## [Pending Fase 2] Rumus dosis & kalibrasi
 

@@ -24,3 +24,5 @@ Thumbs.db
 data/interim/
 
 tools/
+
+start_claude.sh

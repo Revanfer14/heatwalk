@@ -33,13 +33,10 @@ Kandidat terbaik cuma **1,84°C** — 31% dari syarat, dan itu pun masih di bawa
 - **Biaya API itu flat**, bukan tergantung ukuran kotak: setiap panggilan `heatmap` kena **4.220 kredit**, entah kotaknya kecil atau besar. Ini juga menjelaskan kenapa 22 dari 36 panggilan sesi lalu yang hasilnya kosong tetap membakar total ~93.000 kredit sia-sia.
 - Kredit yang sudah terpakai sampai sekarang: **213.100 dari 2.000.000 (10,7%)**. Masih banyak sisa.
 
-## Status sekarang
+## Status akhir (diperbarui 25 Agustus sore)
 
-**AOI belum dikunci.** Ini keputusan produk yang bukan wewenang saya ambil sendiri. Empat opsi tercatat lengkap di `docs/METHODOLOGY.md`:
+**Selesai — AOI terkunci `orl_pine_hills_n`, gerbang kontras spasial dicabut.** Empat opsi yang sempat terbuka (uji ulang hari p95, pindah ke dosis, pakai heat index, revisi gerbang) sudah diputuskan di PRD §1.3: kontras dipindahkan ke sumbu waktu, durasi × circuity, dan exceedance; delta antar-rute menjadi G2b yang dilaporkan apa adanya.
 
-1. Uji ulang di hari betul-betul terpanas (hari yang dipakai kemarin ternyata baru persentil ke-92, bukan 95).
-2. Ganti dasar perhitungan dari "beda suhu" ke "beda dosis panas" — lebih sensitif ke selisih kecil.
-3. Pakai `heat_index` (suhu terasa) alih-alih suhu udara mentah — di sampel Orlando ini memperbesar kontras sekitar 2×.
-4. Terima kontrasnya kecil, dan revisi syarat gerbang di PRD secara terbuka.
+Analisis lengkap + tabel 8 kandidat + catatan persentil hari uji: `docs/phase1-scouting.md`.
 
-Saya juga menemukan file-file lama yang sebaiknya dibereskan (folder `data/raw/` sudah 110MB dengan 22 file kosong, satu file scratch di root yang sudah tidak kepakai) — tapi belum saya hapus, tunggu keputusan Anda.
+File lama juga sudah beres: 22 respons kosong, file scratch, dan seluruh heatmap kandidat dipindah ke `data/raw/phase1_scouting/` (arsip bukti, bukan sampah). Cache `fg_client` tetap hit lewat lookup rekursif — diuji dengan re-run `step1_scout_aoi.py`, nol kredit terpakai.

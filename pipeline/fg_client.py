@@ -68,10 +68,18 @@ def _read_cached_response(cache_path: Path) -> dict[str, Any]:
     return cached
 
 
+def _find_cached_file(cache_path: Path) -> Path | None:
+    if cache_path.exists():
+        return cache_path
+    archived_candidates = sorted(cache_path.parent.rglob(cache_path.name))
+    return archived_candidates[0] if archived_candidates else None
+
+
 def run(endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
     cache_path = _cache_path(endpoint, payload)
-    if cache_path.exists():
-        return _read_cached_response(cache_path)
+    cached_file = _find_cached_file(cache_path)
+    if cached_file is not None:
+        return _read_cached_response(cached_file)
 
     activity_id = submit(endpoint, payload)
     result = poll(activity_id)

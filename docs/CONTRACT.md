@@ -36,7 +36,7 @@ Manifest mosaik tile. Dihasilkan `pipeline/step1_fetch_data.py` — real sejak F
 
 ## `by_school/<school_id>/graph.json`
 
-Geometri + topologi jalan untuk satu sekolah, **sekali saja**, tanpa suhu. Dihasilkan `pipeline/step2_build_graph.py` (asli, belum ditulis) / `pipeline/make_fixtures.py` (fixture). Target ukuran **≤5 MB** (real; toleransi Douglas-Peucker dinaikkan dulu kalau lewat, sebelum ganti format).
+Geometri + topologi jalan untuk satu sekolah, **sekali saja**, tanpa suhu. Dihasilkan `pipeline/step2_build_graph.py` (asli, real sejak Fase 2) / `pipeline/make_fixtures.py` (fixture). Target ukuran **≤5 MB** (real; toleransi Douglas-Peucker dinaikkan dulu kalau lewat, sebelum ganti format).
 
 ```json
 {
@@ -64,7 +64,7 @@ Geometri + topologi jalan untuk satu sekolah, **sekali saja**, tanpa suhu. Dihas
 
 ## `by_school/<school_id>/temps.json`
 
-Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jalan. Dihasilkan `pipeline/step2_build_graph.py` (asli, belum ditulis) / `pipeline/make_fixtures.py` (fixture). Target ukuran **≤500 KB** untuk seluruh jam.
+Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jalan. Dihasilkan `pipeline/step2_build_graph.py` (asli, real sejak Fase 2) / `pipeline/make_fixtures.py` (fixture). Target ukuran **≤500 KB** untuk seluruh jam — dilewati saat ini (~1,3 MB, cakupan seluruh tile), lihat `docs/METHODOLOGY.md`.
 
 ```json
 {
@@ -135,7 +135,7 @@ Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jala
 | `properties.coolest.*` | sama seperti `shortest.*` | — | tidak | Dijkstra `weight=weight_cool` pada `meta.canonical_hour` |
 | `properties.delta_mean_c` | `number` | °C | tidak | `coolest.mean_c - shortest.mean_c` |
 | `properties.delta_dose_pct` | `number` | % (bulat) | tidak | `(coolest.dose - shortest.dose) / shortest.dose * 100` |
-| `properties.distance_mi` | `number` | mil | tidak, `>= 0` | jarak lurus centroid blok ke sekolah — dasar `status_now` dan G6 `bus_not_needed` |
+| `properties.distance_mi` | `number` | mil | tidak, `>= 0` | jarak lurus centroid blok ke sekolah — dasar `status_now` dan G4 `bus_not_needed` |
 | `properties.status_now` | `"walk" \| "bus"` | — | tidak | radius resmi distrik (`walk_radius_mi`) |
 | `properties.status_rec` | `"walk" \| "reroute" \| "bus_eligible"` | — | tidak | turunan `class` |
 | `properties.reason` | `string` | — | tidak untuk `red`/`yellow`, kosong diperbolehkan untuk `green` | template + angka konkret |
@@ -221,20 +221,46 @@ Objek keyed by `school_id`. Dihasilkan `pipeline/step4_classify.py` (asli, belum
 | `reroute_enough` | `integer` | anak | tidak | jumlah `kids_est` blok kuning |
 | `no_safe_route` | `integer` | anak | tidak | jumlah `kids_est` blok merah |
 | `lowest_income_quartile` | `integer` | anak | tidak | ACS B19013 kuartil terbawah, dalam blok merah |
-| `misclassified.bus_not_needed` | `integer` | anak | tidak | definisi G6 di `docs/METHODOLOGY.md`, ambang `BUS_NOT_NEEDED_MAX_EXCESS_MI` |
+| `misclassified.bus_not_needed` | `integer` | anak | tidak | definisi G4 di `docs/METHODOLOGY.md`, ambang `BUS_NOT_NEEDED_MAX_EXCESS_MI` |
 | `misclassified.walk_should_bus` | `integer` | anak | tidak | = jumlah anak blok merah di dalam walk zone resmi |
 | `dose_eliminated_per_child_per_day` | `number` | °C·menit | tidak | `shortest.dose - coolest.dose` rata-rata blok merah |
 | `dose_eliminated_per_child_per_year` | `number` | °C·menit | tidak | `× SCHOOL_DAYS_PER_YEAR` |
 | `equivalent_minutes_at_42c` | `number` | menit | tidak | `dose_eliminated_per_day / (42.0 - baseline_c)` |
 | `correction_factor` | `number` | — | tidak | `enrollment_CCD / estimasi_dasymetric`, rentang **diharapkan** `0.3–3.0` — 2 dari 6 sekolah AOI ini melenceng dengan sebab terdiagnosis (bukan bug), lihat `docs/METHODOLOGY.md` §1.5.6 |
+| `radius_setara_dosis_mi` | `number` | mil | tidak, `> 0` | **Real sejak Fase 3**, `pipeline/dose_radius.py` + `pipeline/step3b_outcomes.py`. Jarak lurus terjauh dari sekolah ke centroid blok yang rute teradem-nya masih ≤ `THRESHOLD_DOSE_C_MIN`, pada `canonical_hour`. Wajib `≤ radius_kebijakan_mi` (G2 fail branch) |
+| `radius_kebijakan_mi` | `number` | mil | tidak | **Real sejak Fase 3**. Salinan `schools.json.walk_radius_mi` untuk sekolah yang sama, ditulis berdampingan supaya panel FR-12 tidak perlu join dua file |
+| `days_exceedance_per_year` | `number` | hari/tahun ajaran | tidak, `>= 0` | **Real sejak Fase 3**, `pipeline/exceedance.py`. Rata-rata, atas blok merah pada `canonical_hour`, dari jumlah hari sekolah (Agustus–Mei, 2019–2025) di mana `dose(suhu_stasiun_ASOS_MCO + offset_spasial_blok) > THRESHOLD_DOSE_C_MIN`, dibagi jumlah tahun ajaran dalam rentang. `offset_spasial_blok = coolest.mean_c blok pada canonical_hour − suhu stasiun MCO pada canonical_hour tanggal `FETCH_DATE``, diasumsikan stabil antar-hari (PRD §8 poin 14, tidak diuji) |
 
-Belum di `summary.json` (menyusul Fase 3): `radius_setara_dosis_mi` / `radius_kebijakan_mi` (FR-18, G2) dan `days_exceedance_per_year` (FR-19, G9, P1).
+Field klasifikasi lain (`in_walk_zone`, `reroute_enough`, `no_safe_route`, `misclassified`, `dose_eliminated_*`, `equivalent_minutes_at_42c`) **tetap milik `step4_classify.py` (Fase 4, belum ditulis)** — Fase 3 tidak menyentuhnya, sumbernya masih `pipeline/fixture_classify.py`.
+
+---
+
+## `contrast_report.csv`
+
+Top-`CONTRAST_REPORT_TOP_N` (20) pasangan blok–sekolah berdasarkan `|delta_mean_c|` terbesar pada `canonical_hour`, seluruh sekolah gelombang 1 digabung satu file. Dihasilkan `pipeline/contrast_report.py` + `pipeline/step3b_outcomes.py`, **real sejak Fase 3**. Populasi penuh (368 baris pada gelombang 1) dan rentang delta selalu dihitung dan dilaporkan apa adanya di `docs/METHODOLOGY.md` — pemotongan ke 20 baris CSV murni untuk keterbacaan tabel, bukan penyaringan berdasarkan besar-kecilnya angka.
+
+```
+school_id,block_id,hour,shortest_len_m,coolest_len_m,shortest_mean_c,coolest_mean_c,delta_mean_c,shortest_dose,coolest_dose,delta_dose_pct,detour_ratio
+sch_ridgewood_park_elementary,120950123052001,15:00,3083.2,3342.6,37.97,37.22,-0.75,212.83,195.82,-8.0,1.084
+```
+
+| Kolom | Tipe | Satuan | Sumber |
+|---|---|---|---|
+| `school_id` | `string` | — | id di `schools.json` |
+| `block_id` | `string` | Census block GEOID | assignment blok→sekolah |
+| `hour` | `string` (`HH:MM`) | — | selalu `canonical_hour` sekolah itu |
+| `shortest_len_m`, `coolest_len_m` | `number` | meter | panjang fisik rute |
+| `shortest_mean_c`, `coolest_mean_c` | `number` | °C | rata-rata berbobot panjang |
+| `delta_mean_c` | `number` | °C | `coolest_mean_c - shortest_mean_c` |
+| `shortest_dose`, `coolest_dose` | `number` | °C·menit | dosis total rute |
+| `delta_dose_pct` | `number` | % | `(coolest_dose - shortest_dose) / shortest_dose * 100` |
+| `detour_ratio` | `number` | — | `coolest_len_m / shortest_len_m` |
 
 ---
 
 ## Aturan lintas file
 
-- **Status Fase 1.5 (25 Agustus 2026):** `tiles.json` dan `schools.json` sudah **real** (heatmap 10 jam + NCES CCD asli). `by_school/<school_id>/{graph.json,temps.json,blocks.geojson}` **masih placeholder** — geometri jalan & blok sintetis, dianchor ke lokasi sekolah asli tapi belum di-routing lewat OSM/dosis nyata (menunggu `step2_build_graph.py`…`step4_classify.py`, Fase 2–4). Frontend tetap tidak bisa membedakan lewat skema; bedanya baru kelihatan kalau angka blok dibandingkan ke peta jalan asli.
+- **Status Fase 3 (26 Agustus 2026):** `tiles.json`, `schools.json`, `by_school/<school_id>/{graph.json,temps.json}` sudah **real** (OSM + heatmap 10 jam + dosis dua-bobot, gelombang 1). `contrast_report.csv` dan tiga field `summary.json` (`radius_setara_dosis_mi`, `radius_kebijakan_mi`, `days_exceedance_per_year`) juga **real**, dari routing centroid blok Census asli ke node sekolah. `by_school/<school_id>/blocks.geojson` dan field klasifikasi lain di `summary.json` (`in_walk_zone`, `reroute_enough`, `no_safe_route`, `misclassified`, `dose_eliminated_*`, `equivalent_minutes_at_42c`) **masih placeholder** dari `pipeline/fixture_classify.py` — blok sintetis, menunggu `step4_classify.py` (Fase 4) memakai census block asli + poligon TIGERweb. Frontend tetap tidak bisa membedakan lewat skema; bedanya baru kelihatan kalau angka blok dibandingkan ke peta jalan asli.
 - Setiap angka yang tampil di UI harus bisa ditelusuri ke satu baris tabel di atas.
 - Setiap tempat yang menampilkan °C·menit **wajib** menampilkan °C di sebelahnya; setiap angka headline wajib punya °F.
 - `edge_id` di `temps.json` **wajib** cocok satu-satu dengan `graph.json` sekolah yang sama — dicek programatik di setiap build (`make_fixtures.py:_check_no_orphan_edges`), bukan dengan mata.

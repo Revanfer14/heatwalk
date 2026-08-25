@@ -152,13 +152,34 @@ Tidak ditemukan **PDF kebijakan** dengan nomor halaman eksplisit — pencarian k
 - `BASELINE_C = 33.0°C` (Lanza dkk. 2023) — dicatat sebagai pilihan kalibrasi, bukan konstanta alam.
 - `WALK_SPEED_MPS = 1.2`.
 - `dose = max(temp_c - BASELINE_C, 0) × (len_m / WALK_SPEED_MPS) / 60` (°C·menit). Rumus ini hidup satu kali di `pipeline/dose.py`, dipakai baik oleh pipeline asli (`step2_build_graph.py`) maupun `fixture_temps.py` — tidak ada salinan kedua.
-- **Konsekuensi clamp di 07:00–09:00**: rata-rata raster tiga jam pertama (28,19–31,65°C) berada di bawah `BASELINE_C = 33,0`, jadi `dose = 0` untuk hampir seluruh edge di jam-jam itu dan routing berbobot dosis degenerate ke rute terpendek. Ini efek samping clamp yang diantisipasi (dev plan §2.2 poin 3), bukan bug.
+- **Konsekuensi clamp di 07:00–09:00**: rata-rata raster tiga jam pertama (28,19–31,65°C) berada di bawah `BASELINE_C = 33,0`, jadi `dose = 0` untuk **seluruh** 4.931 edge di jam-jam itu. Ini efek samping clamp yang diantisipasi (dev plan §2.2 poin 3), bukan bug — tapi ia punya konsekuensi langsung pada kalibrasi λ, lihat di bawah.
 
-### `LAMBDA_DETOUR` — hasil kalibrasi Fase 2.3
+### `LAMBDA_DETOUR` — hasil kalibrasi Fase 2.3, direvisi lintas-jam di Fase 3
 
-`LAMBDA_DETOUR_CANDIDATES = [0.0, 0.005, 0.02, 0.05, 0.2, 1.0]`, `DETOUR_CAP_RATIO = 1.4`. Kalibrasi dilakukan per sekolah: dari node sekolah (di-snap manual ke node OSM terdekat di UTM zone 17N, `pipeline/step2_build_graph.py:snap_nearest_node` — `ox.distance.nearest_nodes` gagal pada graph tak-terproyeksi karena butuh scikit-learn, sengaja tidak ditambahkan sebagai dependency), dijalankan `single_source_dijkstra` sekali dengan `weight='len_m'` dan sekali dengan `weight='dose + λ·len_m'` pada jam kanonik (15:00), lalu diambil rasio terburuk `panjang_fisik(rute_teradem) / panjang_fisik(rute_terpendek)` di seluruh node tujuan yang jaraknya ≥100 m (ambang ini menyaring artefak rasio pada pasangan node yang jaraknya sangat pendek, bukan kalibrasi ambang produk).
+`LAMBDA_DETOUR_CANDIDATES = [0.0, 0.005, 0.02, 0.05, 0.2, 1.0]`, `DETOUR_CAP_RATIO = 1.4`. Kalibrasi dilakukan per sekolah dari node sekolah (di-snap ke node OSM terdekat di UTM zone 17N, `pipeline/node_snapping.py` — tervektorisasi numpy sejak Fase 3, sebelumnya `step2_build_graph.py:snap_nearest_node` membuat `Transformer` baru di dalam loop per node; `ox.distance.nearest_nodes` tetap tidak dipakai karena butuh scikit-learn, sengaja tidak ditambahkan sebagai dependency).
 
-**Hasil: `LAMBDA_DETOUR = 0.0` untuk keenam sekolah** — kandidat terkecil sudah lolos gerbang 1,4× tanpa perlu penalti panjang sama sekali. Rasio detour maksimum terukur pada `sch_maynard_evans_high` (representatif keenamnya): **1,188×** di `lambda=0`. Ini **bukan bug** — ini konsekuensi langsung temuan §1.5: kontras suhu spasial AOI kecil (p95−p05 ≈ 1,8°C pada satu jam), sehingga `dose` per edge kurang lebih proporsional terhadap panjangnya di seluruh tile. Meminimalkan dosis tanpa penalti jarak sudah hampir sama dengan meminimalkan jarak — rute "teradem" tidak pernah menyimpang jauh untuk mengejar kantong sejuk kecil, karena kantong sejuk sebesar itu tidak ada di data suhu udara 2m. Nilai `LAMBDA_DETOUR = 0.0` **tidak digeser** untuk memaksa delta rute lebih besar (dilarang eksplisit oleh dev plan §2.3).
+**Kalibrasi awal Fase 2 hanya menguji cap detour 1,4× pada jam kanonik (15:00), dan mendapat `LAMBDA_DETOUR = 0.0` untuk keenam sekolah** — kandidat terkecil sudah lolos gerbang tanpa penalti panjang sama sekali, konsekuensi langsung temuan §1.5 (kontras suhu spasial kecil, `dose` per edge kurang lebih proporsional terhadap panjangnya).
+
+**Bug yang ditemukan saat merancang Fase 3 (routing lintas-jam): pada `λ=0,0` dan jam 07:00–09:00, `dose` seragam nol di seluruh edge, sehingga `weight_cool = dose + 0·len_m = 0` di mana-mana.** Dijkstra atas bobot yang seragam nol tidak mengembalikan rute terpendek — ia mengembalikan jalur sembarang di antara semua jalur berbiaya sama, ditentukan urutan internal `networkx`. Terukur pada `sch_maynard_evans_high` jam 07:00: rasio detour **2,888×**, jauh melewati cap 1,4× yang justru menjadi salah satu checklist wajib Fase 3 ("Detour semua rute teradem ≤1,4×, **termasuk jam dingin**"). Ini bukan kesalahan `LAMBDA_DETOUR = 0,0` itu sendiri — pada jam kanonik nilai itu benar dan sudah lolos cap — tapi kalibrasi Fase 2 tidak pernah menguji kandidat λ di jam-jam berdosis nol karena hanya jam kanonik yang diuji.
+
+**Perbaikan: `calibrate_lambda()` sekarang menguji cap detour 1,4× di seluruh `meta.hours`, bukan cuma jam kanonik** (`pipeline/lambda_calibration.py`, dipakai dari `step2_build_graph.py`), lalu memilih λ terkecil yang lolos di semua jam sekaligus — satu nilai λ untuk semua jam tetap dipertahankan (dev plan §2.3 melarang λ per jam, supaya jalur rute tidak lompat-lompat antar langkah slider tanpa alasan fisik).
+
+**Hasil setelah kalibrasi ulang:**
+
+| Sekolah | `LAMBDA_DETOUR` | Detour maksimum, seluruh jam |
+|---|---|---|
+| sch_maynard_evans_high | 0,02 | 1,188× |
+| sch_rolling_hills_elementary | 0,005 | 1,206× |
+| sch_meadowbrook_middle | 0,005 | 1,201× |
+| sch_ridgewood_park_elementary | 0,005 | 1,332× |
+| sch_rosemont_elementary | 0,005 | 1,370× |
+| sch_ucp_pine_hills_charter | 0,005 | 1,269× |
+
+Lima dari enam sekolah butuh `λ=0,005`; `sch_maynard_evans_high` butuh `λ=0,02` — topologinya di dekat sekolah punya lebih banyak jalur berbiaya-hampir-sama di jam dingin sehingga penalti jarak lebih besar dibutuhkan untuk menjaga hasil tetap dalam cap. **Nilai `λ` naik dari 0,0, bukan turun** — ini memperkecil ruang detour yang diizinkan, bukan memperbesarnya, sehingga tidak melanggar larangan menggeser parameter demi angka bagus (dev plan §2.3): perubahan ini memperbaiki bug, ia tidak mengejar delta rute yang lebih besar.
+
+**Konsekuensi pada jam kanonik: nol.** Detour maksimum di jam kanonik untuk `sch_maynard_evans_high` tetap **1,188×** persis sama di `λ=0,0` dan `λ=0,02` — 3.544 dari 3.557 node punya dosis rute teradem yang identik sampai presisi float. **G1 (jumlah blok merah) tidak berubah sama sekali**: tetap 164 dari 368 blok berpenduduk, baik sebelum maupun sesudah kalibrasi ulang. Konsekuensinya murni terbatas ke jam-jam berdosis rendah/nol (07:00–11:00), di mana rute "teradem" sekarang benar-benar sama dengan rute terpendek (detour 1,000× persis) alih-alih rute sembarang — perilaku yang sudah diantisipasi baris di atas ("degenerate ke rute terpendek") tapi baru benar-benar terjadi setelah perbaikan ini.
+
+Meminimalkan dosis tanpa penalti jarak sudah hampir sama dengan meminimalkan jarak di jam-jam panas — rute "teradem" tidak pernah menyimpang jauh untuk mengejar kantong sejuk kecil, karena kantong sejuk sebesar itu tidak ada di data suhu udara 2m.
 
 ### Edge dibuang
 
@@ -177,13 +198,109 @@ Keputusan produk (bukan default diam-diam): keenam sekolah menulis `graph.json`/
 | `graph.json` | ~630 KB | ≤5 MB — **lolos** |
 | `temps.json` | ~1.323 KB (~1,3 MB) | ≤500 KB — **lewat ~2,6×** |
 
-Total per sekolah ≈ 1,95 MB, masih di bawah plafon anggaran PRD §5.6 (±3,2 MB per sekolah untuk sepuluh jam) — jadi anggaran **produk** tetap terpenuhi, yang meleset hanya target line-item dev plan Fase 2. Tidak ditambal dengan menurunkan presisi di bawah 2 desimal (dilarang eksplisit oleh fail branch dev plan). Isi `graph.json`/`temps.json` identik di keenam sekolah kecuali `meta.school_id` dan `meta.lambda_detour` — semuanya bernilai `0.0` per hasil kalibrasi di atas, jadi saat ini keenamnya benar-benar byte-identik kecuali `school_id`.
+Total per sekolah ≈ 1,95 MB, masih di bawah plafon anggaran PRD §5.6 (±3,2 MB per sekolah untuk sepuluh jam) — jadi anggaran **produk** tetap terpenuhi, yang meleset hanya target line-item dev plan Fase 2. Tidak ditambal dengan menurunkan presisi di bawah 2 desimal (dilarang eksplisit oleh fail branch dev plan). Isi `graph.json`/`temps.json` identik di keenam sekolah kecuali `meta.school_id` dan `meta.lambda_detour` — lima sekolah bernilai `0,005`, satu (`sch_maynard_evans_high`) bernilai `0,02` per hasil kalibrasi lintas-jam di atas.
 
 Lever cadangan kalau ukuran ini ternyata membebani slider FR-13 di Fase 5: potong subgraph per katchmen (hull blok ter-assign ke sekolah + buffer 500 m), terukur sebelumnya menghasilkan 850–1.800 edge (250–530 KB) per sekolah. Belum dipasang — tidak dibutuhkan kecuali performa Fase 5 menuntutnya.
 
-## [Pending Fase 3] Hasil gerbang kontras rute
+## [Fase 3] Routing per blok & outcomes G1–G9
 
-_Diisi setelah Fase 3: delta °C top-20 pasangan OD, `contrast_report.csv`._
+Routing dijalankan dari centroid **368 census block berpenduduk** (`POP100 > 0` dari 454 blok total dalam bbox, Census 2020 TIGERweb) ke node sekolah terdekat, Dijkstra dua-bobot (`weight='len_m'` dan `weight='dose + λ·len_m'`), untuk **seluruh sepuluh jam** di `meta.hours` — bukan cuma jam kanonik. `kids_est` per blok dihitung dasymetric (Census DHC P12 pita umur × bobot jenjang × `faktor_koreksi` sekolah, `pipeline/block_table.py`), total **4.999 anak** di 368 blok. Nol blok tidak terjangkau (`unreachable_block_ids` kosong di keenam sekolah) — graph OSM AOI ini terhubung penuh.
+
+### 🚩 G1 — gerbang keras, LOLOS
+
+**164 dari 368 blok berpenduduk (44,6%)** punya rute teradem yang tetap melewati `THRESHOLD_DOSE_C_MIN = 110,0` pada jam kanonik (15:00):
+
+| Sekolah | Blok ter-assign | Blok merah | % |
+|---|---|---|---|
+| sch_maynard_evans_high | 53 | 4 | 7,5% |
+| sch_rolling_hills_elementary | 49 | 14 | 28,6% |
+| sch_meadowbrook_middle | 88 | 51 | 58,0% |
+| sch_ridgewood_park_elementary | 40 | 19 | 47,5% |
+| sch_rosemont_elementary | 102 | 67 | 65,7% |
+| sch_ucp_pine_hills_charter | 36 | 9 | 25,0% |
+
+Verifikasi tambahan (checklist dev plan §Fase 3, seluruhnya lolos, dicek programatik oleh `pipeline/verify_step3.py`): rute teradem tidak pernah lebih pendek secara fisik dari rute terpendek, di seluruh 368 blok × 10 jam; `detour_ratio ≤ 1,4×` di seluruh blok × jam termasuk 07:00–09:00 (lihat perbaikan λ lintas-jam di atas); rute terhitung lengkap di seluruh `meta.hours` untuk setiap blok.
+
+### G2 — radius setara-dosis (FR-18)
+
+Jarak lurus terjauh dari sekolah ke centroid blok yang rute teradem-nya masih di bawah ambang, pada jam kanonik:
+
+| Sekolah | Radius kebijakan | Radius setara-dosis | Selisih |
+|---|---|---|---|
+| sch_maynard_evans_high | 2,00 mi | 0,83 mi | −58,5% |
+| sch_rolling_hills_elementary | 2,00 mi | 0,65 mi | −67,5% |
+| sch_meadowbrook_middle | 2,00 mi | 0,67 mi | −66,5% |
+| sch_ridgewood_park_elementary | 2,00 mi | 0,63 mi | −68,5% |
+| sch_rosemont_elementary | 2,00 mi | 0,85 mi | −57,5% |
+| sch_ucp_pine_hills_charter | 2,00 mi | 0,58 mi | −71,0% |
+
+Radius kebijakan OCPS 2,0 mi berlaku seragam SD–SMA (§1.3), jadi keenam radius setara-dosis dibandingkan terhadap angka yang sama. Radius setara-dosis selalu **jauh di bawah** radius kebijakan (gerbang G2 fail branch "radius setara-dosis > radius kebijakan" tidak pernah tersentuh) — sebagian besar selisih ini datang dari duration×circuity (Sumbu 2, §1.5 PRD): banyak blok yang jarak lurusnya di bawah 1 mi tetap melewati ambang karena jaringan jalan aktualnya memutar.
+
+Varian sensitivitas (jarak *terdekat* ke blok yang *melewati* ambang, bukan jarak terjauh yang *aman* — pembacaan konservatif, `pipeline/dose_radius.py:dose_equivalent_radius_conservative_mi`) menghasilkan angka lebih kecil (0,28–0,45 mi di keenam sekolah), mengonfirmasi arah temuan yang sama dari sisi berlawanan. Angka yang dipakai di `summary.json` adalah pembacaan literal FR-18 ("jarak terjauh … yang masih di bawah ambang").
+
+### G3 — dosis tereliminasi (FR-11), dilaporkan apa adanya per sekolah
+
+Dihitung dari rata-rata `shortest.dose − coolest.dose` di antara blok merah, jam kanonik — **belum ditulis ke `summary.json`** (field itu masih milik `step4_classify.py` Fase 4, yang akan menghitungnya dari `blocks.geojson` asli, bukan fixture). Angka di bawah ini murni bukti-jalan G3 dari data routing Fase 3:
+
+| Sekolah | Blok merah | Rata2 dosis tereliminasi/hari | /tahun ajaran | Setara menit di 42°C |
+|---|---|---|---|---|
+| sch_maynard_evans_high | 4 | 0,00 °C·menit | 0,0 | 0,00 mnt |
+| sch_rolling_hills_elementary | 14 | 0,01 °C·menit | 1,5 | 0,00 mnt |
+| sch_meadowbrook_middle | 51 | 0,51 °C·menit | 91,8 | 0,06 mnt |
+| sch_ridgewood_park_elementary | 19 | 1,47 °C·menit | 263,9 | 0,16 mnt |
+| sch_rosemont_elementary | 67 | 0,64 °C·menit | 115,6 | 0,07 mnt |
+| sch_ucp_pine_hills_charter | 9 | 0,38 °C·menit | 68,8 | 0,04 mnt |
+
+**`sch_maynard_evans_high` menunjukkan dosis tereliminasi persis nol** — keempat blok merahnya punya `coolest.dose == shortest.dose` persis di jam kanonik (`detour_ratio = 1,000`). Ini konsekuensi langsung `λ = 0,02` (nilai tertinggi di antara keenam sekolah, dibutuhkan supaya cap detour 1,4× tetap lolos di jam-jam dingin — lihat bagian λ di atas): pada λ sebesar itu, penalti jarak sudah cukup besar sehingga rute teradem tidak pernah menyimpang dari rute terpendek untuk blok-blok ini, bahkan di jam terpanas. Ini bukan bug — ia satu lagi bukti empiris temuan §1.5: pada AOI dengan kontras spasial sekecil ini, kemampuan pemilihan rute untuk mengurangi paparan benar-benar mendekati nol untuk sebagian sekolah.
+
+### G7 — kurva dosis per jam per blok
+
+Kurva dosis rute teradem tiap blok mengikuti bentuk kurva AOI (naik dari 07:00, puncak 14:00–16:00, turun ke 16:00) — diverifikasi programatik oleh `pipeline/verify_step3.py:check_dose_curve_shape` atas rute terpendek (path tetap per blok, sehingga anomali di sana murni sinyal suhu, bukan pergantian jalur teradem antar jam). Dua penyimpangan kecil dari bentuk searah-tunggal ditemukan, **keduanya sesuai kurva suhu AOI yang sudah terdokumentasi di §1.5.7** (kurva jam bergerigi di 12:00→13:00, 35,534°C→35,483°C), dengan magnitudo terukur:
+
+| Pasangan jam | Jumlah blok terdampak (dari 368×6 kombinasi blok–hari) | Magnitudo maksimum |
+|---|---|---|
+| 10:00 → 11:00 | 224 | 10,01 °C·menit |
+| 12:00 → 13:00 | 71 | 12,82 °C·menit |
+
+Keduanya jauh di bawah toleransi wobble 15% ambang (16,5 °C·menit) yang dipakai `verify_step3.py` sebagai gerbang — magnitudo ini adalah derau near-baseline yang wajar (dosis jam 10:00–11:00 mendekati nol, sensitif terhadap fluktuasi suhu sub-derajat di sekitar `BASELINE_C`) dan wobble AOI 12:00/13:00 yang sudah dicatat, **bukan** indikasi raster jam tertukar (yang akan muncul di pasangan jam acak dengan magnitudo besar, tidak pernah terjadi di 368 blok manapun).
+
+**Jam paling awal blok merah melewati ambang** (dari blok merah tiap sekolah):
+
+| Sekolah | Jam paling awal | Distribusi |
+|---|---|---|
+| sch_maynard_evans_high | 14:00 | {15:00: 3, 14:00: 1} |
+| sch_rolling_hills_elementary | 12:00 | {12:00: 6, 14:00: 4, 15:00: 4} |
+| sch_meadowbrook_middle | 12:00 | {12:00: 28, 14:00: 9, 15:00: 14} |
+| sch_ridgewood_park_elementary | 12:00 | {12:00: 5, 14:00: 6, 15:00: 8} |
+| sch_rosemont_elementary | 12:00 | {12:00: 19, 13:00: 8, 14:00: 17, 15:00: 23} |
+| sch_ucp_pine_hills_charter | 12:00 | {12:00: 2, 15:00: 7} |
+
+Kalimat produk yang bisa diturunkan dari sini (Fase 5, FR-9): untuk sebagian besar blok merah di lima dari enam sekolah, rute teradem sudah melewati ambang sejak **12:00** — jauh sebelum jam bubar sekolah biasa.
+
+### G8 — kontras rute (FR-4), dilaporkan apa adanya
+
+Seluruh **368 pasangan blok–sekolah** dibandingkan pada jam kanonik, bukan cuma top-20 di `contrast_report.csv`:
+
+- `delta_mean_c` (coolest − shortest): rentang **−0,75°C hingga 0,00°C**, rata-rata **−0,010°C**.
+- **331 dari 368 blok (89,9%) punya `delta_mean_c = 0,000` persis** — rute teradem identik dengan rute terpendek.
+- Hanya **37 blok (10,1%)** punya rute teradem yang benar-benar berbeda jalur, dengan delta terbesar **−0,75°C** (`sch_ridgewood_park_elementary`, blok `120950123052001`) — persis di ujung atas rentang **0,5–0,8°C** yang diperkirakan PRD §1.5 dari temuan kontras spasial AOI.
+
+Angka ini **bukan kegagalan** — ia bukti langsung argumen produk (PRD §1.5, §8 poin 10): pada AOI dengan variasi suhu udara 2m intra-urban sekecil ini (p95−p05 ≈ 1,84°C), pemilihan rute nyaris tidak bisa mengurangi paparan. Paparan didominasi durasi dan waktu hari (G7 di atas), bukan jalur yang dipilih. `contrast_report.csv` menulis top-20 `|delta_mean_c|` terbesar untuk keterbacaan tabel — tidak ada baris yang dipangkas karena kecil, populasi penuh 368 baris selalu dihitung dan dilaporkan di sini.
+
+### G9 — exceedance (FR-19), hibrida berbasis dosis
+
+Metode: (1) suhu stasiun ASOS MCO (Iowa Environmental Mesonet, `EXCEEDANCE_STATION_START_DATE=2019-01-01` s/d `EXCEEDANCE_STATION_END_DATE=2025-12-31`, difilter ke bulan Agustus–Mei sebagai proksi tahun ajaran) pada jam kanonik lokal tiap hari — **2.130 hari**, membentang **8 label tahun ajaran**; (2) offset spasial per blok = `coolest.mean_c` blok pada jam kanonik dikurangi suhu stasiun pada jam kanonik tanggal `FETCH_DATE` (2023-08-08, stasiun mencatat 36,67°C — hampir identik dengan `shortest.mean_c` blok contoh di atas, kecocokan silang yang meyakinkan); (3) tiap hari historis, `dose(suhu_stasiun + offset)` dihitung atas `coolest.len_m` blok itu; (4) rata-rata jumlah hari `dose > THRESHOLD_DOSE_C_MIN` per tahun, atas blok merah tiap sekolah. **Nol panggilan FortyGuard tambahan** — seluruhnya dari raster yang sudah ada plus satu panggilan ASOS gratis (di-cache).
+
+| Sekolah | Hari exceedance/tahun (rata2 blok merah) |
+|---|---|
+| sch_maynard_evans_high | 1,6 |
+| sch_rolling_hills_elementary | 4,3 |
+| sch_meadowbrook_middle | 3,0 |
+| sch_ridgewood_park_elementary | 2,4 |
+| sch_rosemont_elementary | 2,8 |
+| sch_ucp_pine_hills_charter | 3,1 |
+
+**Asumsi eksplisit, tidak diuji (PRD §8 poin 14)**: offset spasial per blok diasumsikan stabil antar-hari — kondisi atmosfer hari `FETCH_DATE` (2023-08-08, hari terpanas 6+ tahun terakhir di rekaman MCO) dipakai untuk menurunkan offset yang lalu diterapkan ke 2.130 hari lain dengan kondisi cuaca berbeda-beda. Nilai per-blok berasal dari sampel FortyGuard **satu hari**, bukan deret waktu penuh — inilah yang membuat pendekatan ini hibrida, bukan pengukuran langsung.
 
 ## [Fase 1.5, indikatif — final di Fase 4] `THRESHOLD_DOSE_C_MIN`
 
@@ -208,7 +325,7 @@ Untuk menyentuh 220 dibutuhkan suhu rata-rata edge **42,8°C pada rute 1 mil**, 
 
 **Konsekuensi pada tanggal fetch (Fase 1.5.4, belum dijalankan):** dikunci ke **2023-08-08**, hari terpanas di seluruh rekaman MCO dan berada di bulan sekolah. `2023-08-11` (tiga hari kemudian) sudah terbukti mengembalikan 863 tile penuh di Fase 0 — rentang historis 2023 dipastikan didukung API.
 
-**Nilai indikatif dipakai sementara di `pipeline/config.py`: `THRESHOLD_DOSE_C_MIN = 110,0`.** Dipilih supaya distribusi fixture (`pipeline/make_fixtures.py`, kurva jam diurnal 07:00–16:00 rentang 33–38°C, bukan lagi rentang Phoenix) tidak degenerate — hasil aktual **79 hijau / 30 kuning / 11 merah** dari 120 blok. Ini **bukan kalibrasi final**: begitu kurva jam asli dari data FortyGuard sungguhan tersedia (Fase 1.5.7 dan Fase 2), nilai ini wajib direvisi ulang di Fase 4.1 berdasarkan data panas nyata — keputusan produk, bukan keputusan pipeline. `BUS_NOT_NEEDED_MAX_EXCESS_MI = 0,25` mil juga masih placeholder untuk definisi "sedikit di luar radius" (G6), didokumentasikan ulang saat kalibrasi asli.
+**Nilai indikatif dipakai sementara di `pipeline/config.py`: `THRESHOLD_DOSE_C_MIN = 110,0`.** Dipilih supaya distribusi fixture (`pipeline/make_fixtures.py`, kurva jam diurnal 07:00–16:00 rentang 33–38°C, bukan lagi rentang Phoenix) tidak degenerate — hasil aktual **79 hijau / 30 kuning / 11 merah** dari 120 blok. Ini **bukan kalibrasi final**: begitu kurva jam asli dari data FortyGuard sungguhan tersedia (Fase 1.5.7 dan Fase 2), nilai ini wajib direvisi ulang di Fase 4.1 berdasarkan data panas nyata — keputusan produk, bukan keputusan pipeline. `BUS_NOT_NEEDED_MAX_EXCESS_MI = 0,25` mil juga masih placeholder untuk definisi "sedikit di luar radius" (G4), didokumentasikan ulang saat kalibrasi asli.
 
 ## [Fase 1.5.5] Akuisisi data pendukung
 

@@ -1,9 +1,6 @@
 import json
-import math
 
-from pyproj import Transformer
-
-from pipeline import edge_geometry, edge_sampling, hourly_curve, lambda_calibration, write_out
+from pipeline import edge_geometry, edge_sampling, hourly_curve, lambda_calibration, node_snapping, write_out
 from pipeline.config import (
     BASELINE_C,
     DATA_OUT_DIR,
@@ -15,21 +12,6 @@ from pipeline.config import (
 )
 from pipeline.dose import dose_c_min
 from pipeline.make_fixtures import _check_no_orphan_edges
-
-
-def snap_nearest_node(nodes: dict[str, list[float]], lon: float, lat: float, utm_epsg: int) -> str:
-    to_utm = Transformer.from_crs("EPSG:4326", f"EPSG:{utm_epsg}", always_xy=True)
-    query_x, query_y = to_utm.transform(lon, lat)
-
-    best_node_id = None
-    best_distance_sq = math.inf
-    for node_id, (node_lon, node_lat) in nodes.items():
-        node_x, node_y = to_utm.transform(node_lon, node_lat)
-        distance_sq = (node_x - query_x) ** 2 + (node_y - query_y) ** 2
-        if distance_sq < best_distance_sq:
-            best_distance_sq = distance_sq
-            best_node_id = node_id
-    return best_node_id
 
 
 def build_tile_dataset(tile: dict) -> dict:
@@ -72,7 +54,7 @@ def build_tile_dataset(tile: dict) -> dict:
         "nodes": kept_nodes,
         "edges": kept_edges,
         "temps_edges": temps_edges,
-        "raw_dose_canonical": raw_dose_by_hour[canonical_hour],
+        "raw_dose_by_hour": raw_dose_by_hour,
         "total_edges_considered": topology["total_edges_considered"],
         "dropped_edges_total": dropped_edges_total,
     }
@@ -82,9 +64,9 @@ def build_school_outputs(tile_dataset: dict, school: dict, utm_epsg: int) -> tup
     nodes = tile_dataset["nodes"]
     edges = tile_dataset["edges"]
 
-    calibration_graph = lambda_calibration.build_calibration_graph(edges, tile_dataset["raw_dose_canonical"])
-    origin_node = snap_nearest_node(nodes, school["lon"], school["lat"], utm_epsg)
-    lambda_detour = lambda_calibration.calibrate_lambda(calibration_graph, origin_node)
+    calibration_graph = lambda_calibration.build_calibration_graph(edges, tile_dataset["raw_dose_by_hour"])
+    origin_node = node_snapping.snap_point(nodes, school["lon"], school["lat"], utm_epsg)
+    lambda_detour = lambda_calibration.calibrate_lambda(calibration_graph, origin_node, tile_dataset["hours"])
 
     graph_payload = {
         "meta": {"school_id": school["id"], "tile_id": tile_dataset["tile_id"], "crs": "EPSG:4326"},

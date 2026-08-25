@@ -3,6 +3,7 @@ import hashlib
 from pipeline.config import (
     BASELINE_C,
     BUS_NOT_NEEDED_MAX_EXCESS_MI,
+    EQUIVALENT_MINUTES_REFERENCE_C,
     FETCH_HOURS,
     SCHOOL_DAYS_PER_YEAR,
     THRESHOLD_DOSE_C_MIN,
@@ -135,6 +136,16 @@ def classify_blocks(blocks: list[dict], schools: list[dict]) -> list[dict]:
     return classified
 
 
+def _dose_equivalent_radius_mi(school_blocks: list[dict]) -> float:
+    under_threshold = [b["distance_mi"] for b in school_blocks if b["class"] != "red"]
+    return round(max(under_threshold), 3) if under_threshold else 0.0
+
+
+def _estimate_exceedance_days_per_year(coolest_dose: float) -> float:
+    excess_ratio = coolest_dose / THRESHOLD_DOSE_C_MIN
+    return round(min(SCHOOL_DAYS_PER_YEAR, SCHOOL_DAYS_PER_YEAR * (1.0 - 1.0 / excess_ratio)), 1)
+
+
 def build_summary(classified_blocks: list[dict], schools: list[dict], correction_factors: dict[str, float | None]) -> dict:
     summary: dict[str, dict] = {}
     for school in schools:
@@ -156,8 +167,12 @@ def build_summary(classified_blocks: list[dict], schools: list[dict], correction
             avg_eliminated = sum(
                 b["shortest"]["dose"] - b["coolest"]["dose"] for b in red_walk_blocks
             ) / len(red_walk_blocks)
+            avg_exceedance_days = sum(
+                _estimate_exceedance_days_per_year(b["coolest"]["dose"]) for b in red_walk_blocks
+            ) / len(red_walk_blocks)
         else:
             avg_eliminated = 0.0
+            avg_exceedance_days = 0.0
 
         summary[school["id"]] = {
             "in_walk_zone": in_walk_zone,
@@ -167,7 +182,12 @@ def build_summary(classified_blocks: list[dict], schools: list[dict], correction
             "misclassified": {"bus_not_needed": bus_not_needed, "walk_should_bus": no_safe_route},
             "dose_eliminated_per_child_per_day": round(avg_eliminated, 1),
             "dose_eliminated_per_child_per_year": round(avg_eliminated * SCHOOL_DAYS_PER_YEAR, 1),
-            "equivalent_minutes_at_42c": round(avg_eliminated / (42.0 - BASELINE_C), 1) if avg_eliminated else 0.0,
+            "equivalent_minutes_at_42c": (
+                round(avg_eliminated / (EQUIVALENT_MINUTES_REFERENCE_C - BASELINE_C), 1) if avg_eliminated else 0.0
+            ),
             "correction_factor": correction_factors[school["id"]],
+            "radius_setara_dosis_mi": _dose_equivalent_radius_mi(school_blocks),
+            "radius_kebijakan_mi": school["walk_radius_mi"],
+            "days_exceedance_per_year": round(avg_exceedance_days, 1),
         }
     return summary

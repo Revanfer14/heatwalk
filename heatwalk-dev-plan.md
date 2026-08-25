@@ -35,6 +35,8 @@ Gerbang lain yang berlaku bersifat operasional, bukan magnitudo: `tcm` terverifi
 - **Basemap di-host sendiri** sebagai satu file `.pmtiles` di `web/public/`. Tidak ada tile server pihak ketiga, tidak ada API key peta.
 - **Cakupan lewat mosaik tile, bukan satu bbox.** `config.py` menerima daftar `TILES` (PRD §5.6). Menambah cakupan = menambah entri, nol kode baru.
 - **Semua slice waktu di menit `:00`.** Menit non-`:00` mengembalikan nol tile secara senyap.
+- **Geometri dipisah dari suhu.** `graph.json` sekali per sekolah, `temps.json` berisi angka per jam. Jangan pernah menduplikasi geometri per jam.
+- **Jam dibaca dari data, bukan dikonstantakan di frontend.** `meta.hours` yang menentukan langkah slider. Jam yang tidak ditarik tidak pernah diinterpolasi.
 - Ruled out: `deck.gl`, `react-map-gl`, PostGIS/DuckDB/Parquet, backend apa pun, autentikasi, tile server pihak ketiga.
 
 ---
@@ -67,8 +69,8 @@ heatwalk/
 │       ├── summary.json        # seluruh sekolah teranalisis
 │       └── by_school/
 │           └── <school_id>/
-│               ├── graph.0800.json
-│               ├── graph.1500.json
+│               ├── graph.json      # geometri + topologi, sekali saja
+│               ├── temps.json      # suhu & dosis per edge per jam
 │               └── blocks.geojson
 ├── web/                        # Vite + React 19 + TS + Tailwind v4 + MapLibre v5
 │   ├── public/
@@ -98,11 +100,11 @@ heatwalk/
 |---|---|---|---|
 | 0 | Setup, verifikasi API, verifikasi hukum | 23–24 Agu | ✅ `tcm` = suhu udara 2m AGL · ✅ statuta Florida terverifikasi |
 | 1 | Pemilihan AOI | 25 pagi | ✅ `orl_pine_hills_n` dipilih lewat kriteria hukum-dulu |
-| **1.5** | Kunci struktur + akuisisi data | 25 sore | Raster, graph OSM, sekolah, blok, radius kebijakan tersedia |
+| **1.5** | Kunci struktur + akuisisi data | 25 sore | Raster 10 jam, graph OSM, sekolah, blok, radius kebijakan tersedia |
 | 2 | Graph berbobot dosis, gelombang 1 | 26 pagi | Dosis per edge masuk akal |
 | 3 | Routing & outcomes | 26 siang | **🚩 G1** ≥1 blok merah; sisanya dilaporkan apa adanya |
 | 4 | Klasifikasi + export + gelombang 2 | 26 malam | 3 kategori terisi |
-| 5 | Frontend Mode 2 (orang tua) | 27 | US-01…US-05 jalan · **🚩 gerbang tanggal Phoenix** 27 siang |
+| 5 | Frontend Mode 2 (orang tua) | 27 | US-01…US-05 jalan, slider jam penuh · **🚩 gerbang tanggal Phoenix** 27 siang |
 | 6 | Frontend Mode 1 (distrik) | 28 | US-06…US-10 jalan |
 | 7 | Lintas-mode, metodologi, kejujuran | 28 malam | FR-16 jalan, demo offline |
 | 8 | Deploy, video, submit | 29–30 | Live link buka di incognito |
@@ -221,16 +223,51 @@ Minimal satu entri untuk gelombang 1. Entri gelombang 2–3 ditambah nanti tanpa
 
 ### 1.5.3 Kunci skema di `docs/CONTRACT.md`
 
-Tulis skema `tiles.json` (manifest bbox + status per tile) dan struktur `data/out/by_school/<school_id>/`. Perbarui `pipeline/make_fixtures.py` supaya menghasilkan `tiles.json` dan minimal satu folder `by_school/<fake_id>/` fiktif dengan skema identik ke output asli — frontend Fase 5 mulai dari sini, paralel, tanpa menunggu pipeline.
+Tulis skema `tiles.json` (manifest bbox + status + **daftar jam yang ditarik per tile**) dan struktur `data/out/by_school/<school_id>/`.
 
-### 1.5.4 Tarik heatmap dua slice
+Pemisahan geometri dari suhu wajib dikunci di sini, sebelum pipeline ditulis:
+
+```jsonc
+// graph.json — sekali per sekolah
+{
+  "meta": { "school_id": "...", "tile_id": "...", "crs": "EPSG:4326" },
+  "nodes": { "<node_id>": [lon, lat] },
+  "edges": {
+    "<edge_id>": { "u": "...", "v": "...", "len_m": 84.2, "geom": [[lon,lat], ...] }
+  }
+}
+
+// temps.json — angka saja, tanpa koordinat
+{
+  "meta": {
+    "hours": ["07:00","08:00", ...],
+    "canonical_hour": "15:00",
+    "baseline_c": 33.0,
+    "threshold": 000.0,
+    "lambda_detour": 0.02,
+    "fetched_at": "2026-08-25"
+  },
+  "edges": {
+    "<edge_id>": { "07:00": [temp_c, peak_c, dose], "08:00": [...] }
+  }
+}
+```
+
+`edge_id` di `temps.json` **wajib** cocok satu-satu dengan `graph.json`. Kalau ada yang yatim di salah satu sisi, itu bug yang harus dilaporkan, bukan di-skip diam-diam.
+
+Perbarui `pipeline/make_fixtures.py` supaya menghasilkan `tiles.json`, `graph.json`, dan `temps.json` fiktif dengan skema identik ke output asli — frontend Fase 5 mulai dari sini, paralel, tanpa menunggu pipeline. Fixture wajib memuat **minimal tiga jam berbeda**, supaya slider bisa diuji sebelum data asli masuk.
+
+### 1.5.4 Tarik heatmap per jam
 
 Tulis `pipeline/step1_fetch_data.py`.
 
-- Dua slice per tile: **08:00** dan **15:00** pada hari panas dari data historis. Menit wajib `:00`.
-- Cek `data/raw/` dulu — sebagian panggilan mungkin sudah ada di cache dan gratis.
-- Mask `-999` → NaN sebelum menulis GeoTIFF.
-- Output: GeoTIFF per tile per slice di `data/interim/`.
+- **Satu slice per jam, 07:00–16:00** (sepuluh panggilan per tile) pada hari panas dari data historis. Menit wajib `:00`
+- Cek `data/raw/` dulu — sebagian panggilan mungkin sudah ada di cache dan gratis
+- Mask `-999` → NaN sebelum menulis GeoTIFF
+- Output: GeoTIFF per tile per jam di `data/interim/`
+- Catat jam mana saja yang berhasil ke `tiles.json`. Panggilan yang balik kosong **tidak boleh** dihitung sebagai jam yang tersedia
+
+Biaya gelombang 1: 10 × 4.220 = 42.200 kredit. Cek `fetch-api-key-usage` sebelum dan sesudah, catat selisihnya.
 
 ### 1.5.5 Tarik data pendukung
 
@@ -251,11 +288,14 @@ faktor_koreksi = enrollment_resmi_CCD / estimasi_dasymetric
 
 Simpan per sekolah, catat nilainya di `docs/METHODOLOGY.md`.
 
-### 1.5.7 Delta antar-slice (dilaporkan, bukan gerbang)
+### 1.5.7 Kurva jam & penentuan jam kanonik
 
-Hitung rata-rata suhu **berbobot panjang jalan** untuk kedua slice pada jaringan jalan AOI yang sama, lalu `delta_temporal_c = mean_1500 − mean_0800`. Catat di `docs/METHODOLOGY.md` beserta metodenya.
+Hitung rata-rata suhu **berbobot panjang jalan** untuk setiap jam pada jaringan jalan AOI yang sama. Hasilnya satu kurva sepuluh titik.
 
-Berapa pun hasilnya, **lanjut ke Fase 2.** Ini G7, dan G7 dilaporkan apa adanya.
+- `canonical_hour` = jam dengan rata-rata tertinggi. Diturunkan dari data, **jangan dikonstantakan**
+- `delta_temporal_c` = jam terpanas − jam terdingin
+
+Catat kurvanya di `docs/METHODOLOGY.md` beserta metodenya. Berapa pun hasilnya, **lanjut ke Fase 2.** Ini G7, dan G7 dilaporkan apa adanya.
 
 ## Verifikasi
 
@@ -265,17 +305,22 @@ Berapa pun hasilnya, **lanjut ke Fase 2.** Ini G7, dan G7 dilaporkan apa adanya.
 - [ ] `TILES` berisi minimal entri `orl_pine_hills_n` berstatus `"pending"`
 - [ ] `docs/CONTRACT.md` memuat skema `tiles.json` dan `by_school/`
 - [ ] `python pipeline/make_fixtures.py` menghasilkan `data/out/tiles.json` dan `data/out/by_school/<fake_id>/` yang valid
-- [ ] GeoTIFF dua slice ada di `data/interim/`, `-999` sudah jadi NaN, **NaN <10%** dari sel
+- [ ] GeoTIFF **sepuluh jam** ada di `data/interim/`, `-999` sudah jadi NaN, **NaN <10%** dari sel di tiap jam
+- [ ] Tidak ada file GeoTIFF berukuran nol atau respons 19-byte yang lolos dianggap sukses
+- [ ] `tiles.json` mencatat daftar jam yang benar-benar berhasil ditarik per tile
 - [ ] Graph OSM tersimpan, **≥3.000 edge** dalam bbox
 - [ ] `schools.json` berisi sekolah **nyata** dari CCD dengan `walk_radius_mi` dan `policy_source` asli — nol entri fixture
 - [ ] `faktor_koreksi` per sekolah berada di rentang **0,3–3,0**
-- [ ] `delta_temporal_c` terhitung dan tercatat di `docs/METHODOLOGY.md`
+- [ ] Kurva sepuluh jam terhitung, `canonical_hour` diturunkan dari data, keduanya tercatat di `docs/METHODOLOGY.md`
+- [ ] `docs/CONTRACT.md` memuat skema `graph.json` + `temps.json` terpisah, dan fixture punya ≥3 jam
 
 ### Fail branch
 
 | Kalau | Maka |
 |---|---|
-| NaN >10% | Jangan lanjut. Cek apakah bbox keluar cakupan API atau slice-nya salah menit. Kalau cakupan memang bolong, geser bbox — dan itu keputusan produk, lapor |
+| NaN >10% pada sebagian jam | Buang jam itu dari `meta.hours`, jangan buang seluruh tile. Catat di `tiles.json` |
+| NaN >10% di semua jam | Jangan lanjut. Cek apakah bbox keluar cakupan API. Kalau cakupan memang bolong, geser bbox — keputusan produk, lapor |
+| Panggilan balik nol tile | Cek menitnya `:00`. Kalau sudah `:00` dan tetap kosong, jam itu tidak tersedia — catat, jangan ulang panggilan (4.220 kredit per percobaan) |
 | Edge OSM <3.000 | bbox kemungkinan salah atau terlalu kecil. Cek visual di peta sebelum lanjut |
 | `faktor_koreksi` di luar 0,3–3,0 | Ada yang salah di assign blok→sekolah. Jangan pakai angkanya, cek batas attendance dulu |
 | `walk_radius_mi` tidak bisa didapat dari PDF | Pakai standar Florida sebagai asumsi, nyatakan eksplisit di Limitations |
@@ -294,7 +339,9 @@ Satu graph, dua bobot per edge: `len_m` dan `dose`. Dari sini semuanya turun —
 
 ### 2.1 Sampling suhu per edge
 
-Untuk tiap edge: ambil titik sampel sepanjang geometri tiap ~20m, `rasterio.sample` di tiap titik, buang NaN, ambil rata-rata → `temp_c`. Simpan juga `peak_c` per edge (maksimum sampel) — dibutuhkan FR-4 dan FR-9.
+Untuk tiap edge, **untuk tiap jam**: ambil titik sampel sepanjang geometri tiap ~20m, `rasterio.sample` di raster jam itu, buang NaN, ambil rata-rata → `temp_c`. Simpan juga `peak_c` per edge per jam (maksimum sampel) — dibutuhkan FR-4 dan FR-9.
+
+Geometri disampel sekali dan dipakai ulang untuk sepuluh jam. Jangan ulang perhitungan titik sampel per jam.
 
 Edge yang seluruh sampelnya NaN: isi dari rata-rata edge tetangga (1-hop). Kalau masih kosong, buang edge dari graph dan catat jumlahnya.
 
@@ -318,30 +365,39 @@ Rute teradem tanpa batas bisa jadi jalan memutar 5 km. Itu bukan rekomendasi yan
 weight_cool = dose + LAMBDA * len_m
 ```
 
-Cari `LAMBDA` terkecil yang membuat detour ≤ **1,4× jarak rute terpendek**. Implementasi paling sederhana: coba `LAMBDA ∈ [0, 0.005, 0.02, 0.05, 0.2, 1.0]`, ambil kandidat pertama yang lolos cap, simpan nilainya ke `meta.lambda_detour`. Detour cap juga masuk ke `docs/METHODOLOGY.md`.
+Cari `LAMBDA` terkecil yang membuat detour ≤ **1,4× jarak rute terpendek** pada jam kanonik. Satu nilai `LAMBDA` untuk semua jam — jangan dicari ulang per jam, itu bikin jalur rute lompat-lompat antar langkah slider tanpa alasan fisik. Implementasi paling sederhana: coba `LAMBDA ∈ [0, 0.005, 0.02, 0.05, 0.2, 1.0]`, ambil kandidat pertama yang lolos cap, simpan nilainya ke `meta.lambda_detour`. Detour cap juga masuk ke `docs/METHODOLOGY.md`.
 
 **Kalau `LAMBDA` hasil pencarian membuat delta rute tetap kecil, itu hasil yang diharapkan** (PRD §1.5), bukan tanda ada bug. Jangan mengutak-atik `BASELINE_C` atau `LAMBDA` untuk memaksakan delta lebih besar.
 
 ### 2.4 Export
 
-Tulis `graph.0800.json` dan `graph.1500.json` per sekolah di `data/out/by_school/<school_id>/`. Sederhanakan geometri edge dengan Douglas-Peucker (toleransi ~5m) sebelum serialisasi. Target **≤5 MB per file**; kalau lewat, naikkan toleransi dulu sebelum ganti format.
+Dua file per sekolah di `data/out/by_school/<school_id>/`, skema persis `docs/CONTRACT.md`:
+
+- `graph.json` — geometri + topologi, **sekali saja**. Sederhanakan geometri edge dengan Douglas-Peucker (toleransi ~5m) sebelum serialisasi. Target **≤5 MB**; kalau lewat, naikkan toleransi dulu sebelum ganti format
+- `temps.json` — `temp_c`, `peak_c`, `dose` per edge per jam. Angka saja, tanpa koordinat. Target **≤500 KB** untuk sepuluh jam
+
+Bulatkan suhu ke 2 desimal dan dosis ke 2 desimal sebelum serialisasi — presisi float penuh menggandakan ukuran file tanpa menambah informasi.
 
 ## Verifikasi
 
-- [ ] `graph.0800.json` dan `graph.1500.json` ada per sekolah gelombang 1, valid JSON, **≤5 MB** masing-masing
+- [ ] `graph.json` ada per sekolah gelombang 1, valid JSON, **≤5 MB**
+- [ ] `temps.json` ada, **≤500 KB**, memuat seluruh jam di `meta.hours`
+- [ ] Setiap `edge_id` di `temps.json` punya pasangan di `graph.json` dan sebaliknya — nol yatim, dicek programatik
 - [ ] Skema **persis** sama dengan `docs/CONTRACT.md`. Bandingkan key-nya dengan output `make_fixtures.py` secara programatik, jangan dengan mata
 - [ ] Tidak ada `dose` negatif, tidak ada NaN, tidak ada `len_m` = 0
 - [ ] Sanity fisik: edge 100m pada 43°C dengan baseline 33 harus menghasilkan dose ≈ **13,9 °C·menit** (`10 × (100/1.2)/60`). Tulis ini sebagai unit test
-- [ ] Slice 15:00 punya rata-rata `temp_c` **lebih tinggi** dari slice 08:00, dan selisihnya konsisten dengan `delta_temporal_c` dari Fase 1.5 (beda metode agregasi boleh sedikit beda, **beda arah tidak boleh**)
+- [ ] Kurva suhu per jam **monoton naik lalu turun**, puncaknya di `canonical_hour` yang sama dengan hasil Fase 1.5. Kurva bergerigi = raster tertukar antar jam
+- [ ] Rata-rata `temp_c` jam kanonik **lebih tinggi** dari jam pagi (beda arah tidak boleh)
 - [ ] Jumlah edge yang dibuang karena NaN <2% dari total
 
 ### Fail branch
 
 | Kalau | Maka |
 |---|---|
-| Slice 15:00 lebih dingin dari 08:00 | Ada file tertukar atau slice salah. Jangan lanjut — ini bukan temuan, ini bug |
+| Kurva jam bergerigi atau puncaknya di pagi hari | Raster tertukar antar jam. Jangan lanjut — ini bug, bukan temuan |
 | Edge dibuang >2% | Cakupan raster bolong. Cek bbox dan NaN handling di Fase 1.5 sebelum lanjut |
-| File >5 MB setelah toleransi dinaikkan 3× | Lapor — mungkin perlu kirim topologi saja dan render geometri dari tile |
+| `graph.json` >5 MB setelah toleransi dinaikkan 3× | Lapor — mungkin perlu kirim topologi saja dan render geometri dari tile |
+| `temps.json` >500 KB | Cek pembulatan. Kalau sudah 2 desimal dan tetap besar, kurangi jam untuk tile itu, bukan kurangi presisi di bawah 2 desimal |
 
 ---
 
@@ -362,19 +418,24 @@ Untuk tiap centroid blok → node sekolah:
 - Dijkstra `weight='len_m'` → rute terpendek
 - Dijkstra `weight=weight_cool` → rute teradem
 - Untuk masing-masing hitung: `len_m`, `mean_c` (rata-rata berbobot panjang, **bukan** rata-rata polos per edge), `peak_c`, `dose` total, waktu tempuh
-- Jalankan untuk kedua slice — toggle FR-13 butuh keduanya
+- **Jalankan untuk setiap jam di `meta.hours`** — slider FR-13 butuh semuanya. Rute teradem boleh berbeda jalur antar jam; itu bukan bug, itu produknya
+- Rute terpendek identik di semua jam (bobot `len_m` tidak berubah) — hitung sekali, pakai ulang
 
 ### 3.2 G8 — delta rute, dilaporkan apa adanya
 
 Keluarkan tabel top-20 pasangan OD berdasarkan `delta_mean_c` terbesar → `data/out/contrast_report.csv`. **Tidak ada ambang lolos/gagal.** Kalau hasilnya 0,5–0,8°C seperti perkiraan PRD, itu ditulis apa adanya di panel FR-4 dan di `docs/LIMITATIONS.md` poin 10–11.
 
-### 3.3 G7 — delta antar-jam per blok
+### 3.3 G7 — kurva dosis per jam per blok
 
-`delta_temporal_c` dari Fase 1.5 adalah rata-rata AOI. Di sini hitung ulang per rute realistis (rumah→sekolah) untuk memastikan tidak ada blok yang menyimpang jauh dari rata-rata AOI tanpa penjelasan.
+Kurva dari Fase 1.5 adalah rata-rata AOI. Di sini hitung per rute realistis (rumah→sekolah): dosis rute teradem untuk tiap jam, per blok.
+
+Dua hal yang dicari:
+- Blok yang menyimpang jauh dari bentuk kurva AOI tanpa penjelasan (mis. rutenya didominasi satu segmen ternaungi penuh)
+- **Jam paling awal sebuah blok melewati ambang** — ini angka yang berguna buat orang tua: *"aman kalau pulang sebelum 13:00"*
 
 ### 3.4 G2 — radius setara-dosis (FR-18)
 
-Untuk tiap sekolah: cari jarak terjauh dari sekolah yang rute teradem-nya (bukan terpendek) masih di bawah ambang dosis, pada slice 15:00. Bandingkan dengan radius kebijakan resmi dari `walk_radius_mi`.
+Untuk tiap sekolah: cari jarak terjauh dari sekolah yang rute teradem-nya (bukan terpendek) masih di bawah ambang dosis, pada **jam kanonik**. Bandingkan dengan radius kebijakan resmi dari `walk_radius_mi`.
 
 ```
 Radius kebijakan     1,00 mi
@@ -401,9 +462,10 @@ Kalau waktu mepet, ini yang pertama boleh diturunkan ke P1 — tapi catat ekspli
 - [ ] Rute teradem **tidak pernah** lebih pendek dari rute terpendek (kalau iya, ada bug di bobot)
 - [ ] Detour semua rute teradem ≤ 1,4× (atau nilai cap yang dipakai)
 - [ ] Radius setara-dosis terhitung untuk semua sekolah gelombang 1, bukan 0 dan tidak lebih besar dari radius kebijakan
-- [ ] Rute terhitung untuk **kedua slice**, bukan cuma 15:00
+- [ ] Rute terhitung untuk **seluruh jam** di `meta.hours`, bukan cuma jam kanonik
+- [ ] Dosis per blok naik lalu turun mengikuti kurva jam — tidak ada blok yang dosisnya melonjak di satu jam lalu balik normal (tanda raster jam itu rusak)
 - [ ] G3 terhitung untuk minimal satu blok merah sebagai uji coba
-- [ ] G7, G8, G9 tercatat angkanya di `docs/METHODOLOGY.md` — berapa pun hasilnya
+- [ ] G7 (kurva per jam), G8, G9 tercatat angkanya di `docs/METHODOLOGY.md` — berapa pun hasilnya
 
 ### Fail branch
 
@@ -427,11 +489,15 @@ Terjemahkan hasil routing jadi keputusan administratif: tiga kategori blok, angk
 
 ### 4.1 Ambang & klasifikasi (FR-8)
 
+Seluruh klasifikasi dihitung pada **jam kanonik**, bukan dirata-rata antar jam:
+
 ```
 green  : dose(rute terpendek) ≤ THRESHOLD
 yellow : dose(terpendek) > THRESHOLD  AND  dose(teradem) ≤ THRESHOLD
 red    : dose(teradem) > THRESHOLD
 ```
+
+Simpan juga `safe_until_hour` per blok — jam terakhir sebelum rute teradem melewati ambang, atau `null` kalau blok sudah merah sejak jam pertama. Ini yang dipakai FR-9 dan teks permohonan FR-5.
 
 `THRESHOLD` di `config.py`, **wajib dapat diubah dan wajib didokumentasikan**. Kalibrasi awal: pilih nilai yang menghasilkan distribusi yang tidak degenerate (tidak 100% satu warna). Setelah dipilih, tulis alasannya di `docs/METHODOLOGY.md` — termasuk pengakuan bahwa ini kalibrasi, bukan standar yang sudah ada.
 
@@ -516,9 +582,14 @@ Format persis PRD §4 FR-4: perbandingan rute terpendek vs teradem pada jam yang
 
 **Baris suhu wajib °C dan °F berdampingan.** Setiap tempat yang menampilkan °C·menit wajib menampilkan °C di sebelahnya. **Angka tidak boleh dibesar-besarkan** — kalau selisihnya −0,7°C, tulis −0,7°C.
 
-### 5.5 Toggle jam (FR-13)
+### 5.5 Slider jam (FR-13)
 
-Dua state (08:00 / 15:00) yang mengganti seluruh angka di panel FR-4. Render ulang dari file pre-computed, **bukan panggilan API**. Slider per jam penuh tetap P1.
+Slider satu langkah per jam, isinya dibaca dari `meta.hours` — **jangan hardcode daftar jamnya.** Default di `canonical_hour`.
+
+- Ganti jam → panel FR-4 ter-render ulang **dan** jalur rute teradem dihitung ulang client-side dari `temps.json`
+- Nol network request: `graph.json` + `temps.json` sudah di memori sejak sekolah dipilih
+- Target <500 ms per langkah (NFR §7). Kalau Dijkstra client-side terlalu lambat untuk dijalankan per geser, debounce 150 ms — jangan pre-compute semua jam di boot
+- Tile yang cuma punya sebagian jam menampilkan langkah yang ada saja. **Jangan interpolasi jam yang tidak ditarik**
 
 ### 5.6 Tidak ada rute aman (FR-5)
 
@@ -527,7 +598,9 @@ Kalau blok = merah: tampilkan status merah + tombol **[Salin sebagai dasar permo
 ## Verifikasi
 
 - [ ] US-01…US-05 semua bisa diperagakan berurutan tanpa reload
-- [ ] Toggle 08:00/15:00 bekerja dan mengubah panel FR-4 tanpa network request
+- [ ] Slider jam bekerja penuh dari `meta.hours`, mengubah panel FR-4 **dan** jalur rute teradem, tanpa network request
+- [ ] Geser satu langkah → render ulang <500 ms. Ukur di devtools, jangan dikira-kira
+- [ ] Uji dengan fixture yang jamnya cuma tiga: slider menampilkan tiga langkah, bukan sepuluh
 - [ ] Input alamat → dua rute ter-render **<1 detik** (NFR §7). Ukur, jangan dikira-kira
 - [ ] Dijkstra client-side menghasilkan rute **identik** dengan hasil Python untuk 3 pasangan OD uji. Bandingkan `dose` total sampai 2 desimal
 - [ ] Tombol salin permohonan mengisi clipboard dengan teks yang mengutip Florida Statute, bukan Arizona
@@ -597,11 +670,11 @@ Satu toggle global: Layer B & C hilang → tersisa lingkaran resmi saja · rute 
 
 ### 7.2 `docs/METHODOLOGY.md` + halaman Metodologi di UI
 
-Isi wajib: definisi `tcm` sesuai hasil verifikasi Fase 0 · rumus dosis · nilai `BASELINE_C`, `THRESHOLD`, `LAMBDA` beserta alasannya · angka G7 dan G8 apa adanya · tanggal & jam data · faktor kalibrasi enrollment per sekolah · metode hybrid G9 · URL PDF kebijakan OCPS + halaman · seluruh sumber data dengan tautan · sitasi Lanza dkk. 2023, Meng dkk. 2023, Basu dkk. 2024, ADHS 2021.
+Isi wajib: definisi `tcm` sesuai hasil verifikasi Fase 0 · rumus dosis · nilai `BASELINE_C`, `THRESHOLD`, `LAMBDA` beserta alasannya · cara `canonical_hour` diturunkan dari data · kurva jam G7 dan angka G8 apa adanya · tanggal & jam data · faktor kalibrasi enrollment per sekolah · metode hybrid G9 · URL PDF kebijakan OCPS + halaman · seluruh sumber data dengan tautan · sitasi Lanza dkk. 2023, Meng dkk. 2023, Basu dkk. 2024, ADHS 2021.
 
 ### 7.3 `docs/LIMITATIONS.md` + halaman Limitations di UI
 
-Keempat belas poin PRD §8 apa adanya, **termasuk eksplisit poin 10–14** (delta rute kecil, kategori kuning tipis, klasifikasi satu slice, sifat hybrid G9, keterbatasan Phoenix). Ini bukan aib — ini yang membedakan HeatWalk dari peserta yang mengklaim tanpa mengukur. Mudah diakses dari UI utama, bukan dikubur di footer.
+Kelima belas poin PRD §8 apa adanya, **termasuk eksplisit poin 10–15** (delta rute kecil, kategori kuning tipis, klasifikasi jam kanonik & satu arah, cakupan jam tidak seragam antar tile, sifat hybrid G9, keterbatasan Phoenix). Ini bukan aib — ini yang membedakan HeatWalk dari peserta yang mengklaim tanpa mengukur. Mudah diakses dari UI utama, bukan dikubur di footer.
 
 ### 7.4 FR-17 — Refresh forecast (P1)
 
@@ -614,6 +687,7 @@ Tombol yang memicu satu panggilan live ke FortyGuard. Wajib loading state, error
 - [ ] Halaman Metodologi dan Limitations bisa dicapai dari UI utama dalam ≤2 klik
 - [ ] Halaman Limitations menyatakan temuan delta kecil sebagai hasil pengukuran, bukan sebagai kelemahan yang disamarkan
 - [ ] Setiap angka headline di UI bisa ditelusuri ke satu file di `data/out/`
+- [ ] Geser slider ke setiap jam yang tersedia, di kedua mode, tanpa error dan tanpa network request
 - [ ] Tidak ada °C·menit yang muncul tanpa °C di sebelahnya. Grep seluruh komponen
 
 ---
@@ -635,7 +709,7 @@ Isi: satu paragraf apa ini · cara jalankan pipeline · cara jalankan web · str
 
 ### 8.3 Video demo (≤3 menit)
 
-1. Orang tua di Orlando mengecek alamat → dua opsi rute muncul dengan paparannya → geser toggle ke jam bubar → "tidak ada rute aman"
+1. Orang tua di Orlando mengecek alamat → dua opsi rute muncul dengan paparannya → geser slider dari 11:00 ke jam bubar → dosis melonjak, jalur teradem berubah → "tidak ada rute aman"
 2. Zoom out ke tampilan distrik → 142 anak lain kondisinya sama; radius kebijakan vs radius setara-dosis
 3. Klik "sembunyikan data panas" → semuanya kolaps jadi lingkaran → *"ini yang distrik punya hari ini"*
 4. Tutup dengan daftar reklasifikasi + export CSV
@@ -670,7 +744,7 @@ Semua 13 field. Cek gerbang tanggal Phoenix sudah dieksekusi sebelum menulis fie
 | `tcm` = suhu udara 2m AGL | 0 | ±3°C dari METAR | ✅ Lolos |
 | Statuta hazardous walking ada | 0–1 | Sitasi pasal terverifikasi | ✅ Lolos, Florida |
 | Sekolah nyata dalam bbox ≥2 | 1 | NCES CCD | Geser bbox — keputusan produk, lapor |
-| NaN raster <10% | 1.5 | Per tile per slice | Cek bbox & menit slice sebelum lanjut |
+| NaN raster <10% | 1.5 | Per tile per jam | Buang jam itu dari `meta.hours`; kalau semua jam gagal, cek bbox |
 | **🚩 G1 kategori merah ≥1 blok** | **3** | **Rute teradem tetap lewat ambang** | Kalibrasi ulang `THRESHOLD`, dokumentasikan |
 | Gerbang tanggal Phoenix | 5.0 | Orlando lulus Fase 4 pada 27 Agu 12:00 | Phoenix dibuang total, bukan dikurangi |
 | Basemap `206 Partial Content` | 5/8 | Preview Vercel | Pindah file ke Cloudflare R2 |
@@ -686,7 +760,7 @@ Urutan pemotongan, dari yang paling boleh dibuang:
 1. Animasi transisi, mikrointeraksi, styling peta yang cantik
 2. FR-21 peta cakupan tile · FR-15 tabel prioritas segmen
 3. G9/FR-19 exceedance (catat di Limitations sebagai tidak sempat, bukan angka karangan)
-4. Slider waktu per-jam penuh (sisakan dua state, yang tetap P0)
+4. Jam untuk tile gelombang 3 (turun ke 3 slice; tile inti tetap jam penuh)
 5. FR-17 refresh forecast
 6. Interaktivitas Mode 1 → jadi tabel statis
 

@@ -1,33 +1,33 @@
 import hashlib
 import math
 
-from pipeline.config import AOI_BBOX_PROVISIONAL, BASELINE_C
+from pipeline.config import TILES
+
+AOI_BBOX = TILES[0]["bbox"]
 
 N_EDGE_COLS = 20
 N_EDGE_ROWS = 18
 N_BLOCK_COLS = 12
 N_BLOCK_ROWS = 10
 
-HOUR_OFFSET_C = {"08:00": -6.0, "15:00": 0.0}
-
 SCHOOLS_FIXTURE = [
     {
         "id": "sch_fixture_west",
         "name": "Fixture Elementary",
         "level": "elementary",
-        "walk_radius_mi": 1.0,
+        "walk_radius_mi": 2.0,
         "grid_col": 2,
         "grid_row": 5,
-        "policy_source": "FIXTURE placeholder — diganti PDF kebijakan distrik asli di Fase 1.",
+        "policy_source": "OCPS Transportation FAQs (ocps.net/transportation-faqs), radius 2 mi per FS 1006.23 — FIXTURE placeholder untuk lokasi/enrollment, diganti data sekolah asli di Fase 1.5.5.",
     },
     {
         "id": "sch_fixture_east",
         "name": "Fixture Middle School",
         "level": "middle",
-        "walk_radius_mi": 1.5,
+        "walk_radius_mi": 2.0,
         "grid_col": 17,
         "grid_row": 12,
-        "policy_source": "FIXTURE placeholder — diganti PDF kebijakan distrik asli di Fase 1.",
+        "policy_source": "OCPS Transportation FAQs (ocps.net/transportation-faqs), radius 2 mi per FS 1006.23 — FIXTURE placeholder untuk lokasi/enrollment, diganti data sekolah asli di Fase 1.5.5.",
     },
 ]
 
@@ -54,31 +54,28 @@ def _cell_size_m(bbox: tuple[float, float, float, float], n_cols: int, n_rows: i
     return cell_w_m, cell_h_m
 
 
-def _heat_factor(col: int, row: int, n_cols: int) -> float:
-    base = col / max(n_cols - 1, 1)
-    wobble = (_seeded_unit("heat", col, row) - 0.5) * 0.15
+def lon_heat_factor(lon: float, bbox: tuple[float, float, float, float] = AOI_BBOX, seed: str = "") -> float:
+    west, _south, east, _north = bbox
+    base = (lon - west) / (east - west)
+    wobble = (_seeded_unit("heat", seed) - 0.5) * 0.15
     return min(max(base + wobble, 0.0), 1.0)
 
 
-def edge_heat_factor(col: int, row: int) -> float:
-    return _heat_factor(col, row, N_EDGE_COLS)
-
-
 def block_heat_factor(col: int, row: int) -> float:
-    return _heat_factor(col, row, N_BLOCK_COLS)
-
-
-def edge_temp_c(col: int, row: int, hhmm: str) -> float:
-    factor = edge_heat_factor(col, row)
-    noise = (_seeded_unit("temp", col, row, hhmm) - 0.5) * 1.5
-    return round(BASELINE_C - 4.0 + factor * 13.0 + HOUR_OFFSET_C[hhmm] + noise, 2)
+    base = col / max(N_BLOCK_COLS - 1, 1)
+    wobble = (_seeded_unit("heat", col, row) - 0.5) * 0.15
+    return min(max(base + wobble, 0.0), 1.0)
 
 
 def node_id(col: int, row: int) -> str:
     return f"n{col}_{row}"
 
 
-def build_nodes(bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIONAL) -> dict[str, list[float]]:
+def edge_id(u: str, v: str) -> str:
+    return f"{u}-{v}"
+
+
+def build_nodes(bbox: tuple[float, float, float, float] = AOI_BBOX) -> dict[str, list[float]]:
     return {
         node_id(col, row): _lonlat(bbox, col, row, N_EDGE_COLS, N_EDGE_ROWS)
         for row in range(N_EDGE_ROWS + 1)
@@ -86,40 +83,38 @@ def build_nodes(bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIONAL) 
     }
 
 
-def build_edges(hhmm: str, bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIONAL) -> list[dict]:
+def build_edge_topology(bbox: tuple[float, float, float, float] = AOI_BBOX) -> dict[str, dict]:
     cell_w_m, cell_h_m = _cell_size_m(bbox, N_EDGE_COLS, N_EDGE_ROWS)
     nodes = build_nodes(bbox)
-    edges: list[dict] = []
+    edges: dict[str, dict] = {}
 
     for row in range(N_EDGE_ROWS + 1):
         for col in range(N_EDGE_COLS + 1):
             u = node_id(col, row)
             if col < N_EDGE_COLS:
                 v = node_id(col + 1, row)
-                edges.append(_edge(u, v, nodes, cell_w_m, col, row, hhmm))
+                edges[edge_id(u, v)] = _topology_edge(u, v, nodes, cell_w_m)
             if row < N_EDGE_ROWS:
                 v = node_id(col, row + 1)
-                edges.append(_edge(u, v, nodes, cell_h_m, col, row, hhmm))
+                edges[edge_id(u, v)] = _topology_edge(u, v, nodes, cell_h_m)
 
     return edges
 
 
-def _edge(u: str, v: str, nodes: dict[str, list[float]], len_m: float, col: int, row: int, hhmm: str) -> dict:
-    from pipeline.config import WALK_SPEED_MPS
-
-    temp_c = edge_temp_c(col, row, hhmm)
-    dose = round(max(temp_c - BASELINE_C, 0.0) * (len_m / WALK_SPEED_MPS) / 60.0, 3)
+def _topology_edge(u: str, v: str, nodes: dict[str, list[float]], len_m: float) -> dict:
     return {
         "u": u,
         "v": v,
         "len_m": round(len_m, 1),
-        "temp_c": temp_c,
-        "dose": dose,
         "geom": [nodes[u], nodes[v]],
     }
 
 
-def build_block_grid(bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIONAL) -> list[dict]:
+def edge_midpoint_lon(edge: dict) -> float:
+    return (edge["geom"][0][0] + edge["geom"][1][0]) / 2
+
+
+def build_block_grid(bbox: tuple[float, float, float, float] = AOI_BBOX) -> list[dict]:
     west, south, east, north = bbox
     dx = (east - west) / N_BLOCK_COLS
     dy = (north - south) / N_BLOCK_ROWS
@@ -148,7 +143,7 @@ def build_block_grid(bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIO
     return blocks
 
 
-def school_lonlat(school: dict, bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIONAL) -> list[float]:
+def school_lonlat(school: dict, bbox: tuple[float, float, float, float] = AOI_BBOX) -> list[float]:
     return _lonlat(bbox, school["grid_col"], school["grid_row"], N_EDGE_COLS, N_EDGE_ROWS)
 
 

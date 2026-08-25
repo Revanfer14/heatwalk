@@ -3,11 +3,13 @@ import hashlib
 from pipeline.config import (
     BASELINE_C,
     BUS_NOT_NEEDED_MAX_EXCESS_MI,
+    FETCH_HOURS,
     SCHOOL_DAYS_PER_YEAR,
     THRESHOLD_DOSE_C_MIN,
     WALK_SPEED_MPS,
 )
 from pipeline.fixture_geometry import block_heat_factor, distance_km, school_lonlat
+from pipeline.fixture_temps import CANONICAL_HOUR, HOUR_OFFSET_C, ORLANDO_SPREAD_C
 
 MI_PER_KM = 0.621371
 
@@ -37,14 +39,14 @@ def _dose_reduction_frac(col: int, row: int) -> float:
     return min(max(0.80 + noise, 0.6), 0.95)
 
 
-def _route_stats(block: dict, school: dict, distance_km_value: float) -> dict:
+def _route_stats(block: dict, distance_km_value: float, hhmm: str) -> dict:
     col, row = block["col"], block["row"]
     factor = block_heat_factor(col, row)
-    noise = (_seeded_unit("mean", col, row) - 0.5) * 1.0
+    noise = (_seeded_unit("mean", col, row, hhmm) - 0.5) * 1.0
     len_m = distance_km_value * 1000 * 1.25
 
-    shortest_mean_c = round(BASELINE_C - 2.0 + factor * 12.0 + noise, 2)
-    shortest_peak_c = round(shortest_mean_c + 2.5, 2)
+    shortest_mean_c = round(BASELINE_C + factor * ORLANDO_SPREAD_C + HOUR_OFFSET_C[hhmm] + noise, 2)
+    shortest_peak_c = round(shortest_mean_c + 1.2, 2)
     shortest_dose = round(max(shortest_mean_c - BASELINE_C, 0.0) * (len_m / WALK_SPEED_MPS) / 60.0, 1)
 
     frac = _dose_reduction_frac(col, row)
@@ -55,7 +57,7 @@ def _route_stats(block: dict, school: dict, distance_km_value: float) -> dict:
         coolest_mean_c = round(BASELINE_C + coolest_dose * 60.0 * WALK_SPEED_MPS / coolest_len_m, 2)
     else:
         coolest_mean_c = round(BASELINE_C - 1.0, 2)
-    coolest_peak_c = round(coolest_mean_c + 2.0, 2)
+    coolest_peak_c = round(coolest_mean_c + 1.0, 2)
 
     return {
         "shortest": {"len_m": round(len_m, 1), "mean_c": shortest_mean_c, "peak_c": shortest_peak_c, "dose": shortest_dose},
@@ -86,11 +88,23 @@ def _reason(block_class: str, routes: dict) -> str:
     return f"Shortest route already under threshold (dose {routes['shortest']['dose']:.0f})."
 
 
+def _safe_until_hour(block: dict, distance_km_value: float, block_class: str) -> str | None:
+    if block_class != "red":
+        return None
+    previous_hour = None
+    for hhmm in FETCH_HOURS:
+        routes = _route_stats(block, distance_km_value, hhmm)
+        if routes["coolest"]["dose"] > THRESHOLD_DOSE_C_MIN:
+            return previous_hour
+        previous_hour = hhmm
+    return None
+
+
 def classify_blocks(blocks: list[dict], schools: list[dict]) -> list[dict]:
     classified: list[dict] = []
     for block in blocks:
         school, km = _nearest_school(block, schools)
-        routes = _route_stats(block, school, km)
+        routes = _route_stats(block, km, CANONICAL_HOUR)
         block_class = _classify(routes)
         distance_mi = km * MI_PER_KM
         status_now = "walk" if distance_mi <= school["walk_radius_mi"] else "bus"
@@ -113,6 +127,7 @@ def classify_blocks(blocks: list[dict], schools: list[dict]) -> list[dict]:
             "status_now": status_now,
             "status_rec": status_rec,
             "reason": _reason(block_class, routes),
+            "safe_until_hour": _safe_until_hour(block, km, block_class),
             "distance_mi": round(distance_mi, 3),
             "polygon": block["polygon"],
         })

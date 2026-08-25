@@ -29,15 +29,25 @@ BASELINE_C = 33.0
 WALK_SPEED_MPS = 1.2
 LAMBDA_DETOUR_CANDIDATES = [0.0, 0.005, 0.02, 0.05, 0.2, 1.0]
 DETOUR_CAP_RATIO = 1.4
-THRESHOLD_DOSE_C_MIN = 220.0
+THRESHOLD_DOSE_C_MIN = 110.0
 BUS_NOT_NEEDED_MAX_EXCESS_MI = 0.25
 SCHOOL_DAYS_PER_YEAR = 180
 
 MORNING_HHMM = "08:00"
 DISMISSAL_HHMM = "15:00"
 
-AOI_TIMEZONE = "America/New_York"
-AOI_UTC_OFFSET_HOURS = -4
+FETCH_DATE = "2023-08-08"
+FETCH_HOURS = [f"{hour:02d}:00" for hour in range(7, 17)]
+
+TILES = [
+    {
+        "id": "orl_pine_hills_n",
+        "bbox": (-81.4763, 28.5722, -81.4241, 28.6167),
+        "timezone": "America/New_York",
+        "utc_offset_hours": -4,
+        "status": "pending",
+    },
+]
 
 VERIFY_AOI_BBOX = (-112.020, 33.430, -112.000, 33.445)
 VERIFY_STATION_ICAO = "PHX"
@@ -50,11 +60,6 @@ VERIFY_EXCEEDANCE_THRESHOLD_C = 40.0
 
 TCM_AIR_TEMP_TOLERANCE_C = 3.0
 TCM_SURFACE_TEMP_DELTA_C = 8.0
-
-AOI_BBOX_PROVISIONAL = (-81.410, 28.515, -81.358, 28.561)
-
-AOI_CONTRAST_GATE_C = 6.0
-AOI_CONTRAST_ABORT_C = 4.0
 
 AOI_SCOUT_CANDIDATES = {
     "phx_south_phoenix": (-112.0669, 33.3400, -112.0183, 33.3857),

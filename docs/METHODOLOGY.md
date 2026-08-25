@@ -137,6 +137,16 @@ Keputusan produk 25 Agustus 2026 (PRD §1.3), sudah dieksekusi:
 
 Tabel lengkap 8 kandidat, catatan persentil hari uji (PHX p91,9; MCO belum dianalisis), dan temuan tambahan (tiga slice waktu `orl_pine_hills_n` dari arsip pra-kalibrasi; amplifikasi `heat_index` ×2,1 pada sampel `env_params` 2023-08-11): **`docs/phase1-scouting.md`**. Respons mentahnya diarsipkan di `data/raw/phase1_scouting/` dan tetap berfungsi sebagai cache `fg_client`.
 
+## [Fase 1.3] Kebijakan transportasi OCPS, batas attendance, kepadatan sekolah
+
+**Kriteria #2 — radius walk zone.** `ocps.net/transportation-faqs` (diakses 25 Agustus 2026): siswa layak bus kalau tinggal ≥2 mil dari sekolah yang ditugaskan, ATAU punya IEP/504 aktif, ATAU (khusus SD) tinggal <2 mil tapi tanpa rute pejalan kaki bebas hazard sesuai FS §1006.23. Kutipan kunci: *"The Orange County School Board has approved this criteria be applied for secondary students as well"* — radius 2 mil berlaku **seragam SD–SMA**, bukan bertingkat per jenjang seperti asumsi awal fixture. Jarak diukur dari batas properti rumah (titik temu dengan right-of-way publik) ke pintu masuk gedung sekolah terdekat, rute pejalan kaki terpendek.
+
+Tidak ditemukan **PDF kebijakan** dengan nomor halaman eksplisit — pencarian ke `go.boarddocs.com/fla/orcpsfl` menemukan dokumen kebijakan JCA "Assignment of Students to School" tapi bukan kebijakan transportasi/JC yang memuat radius, dan aksesnya `403 Forbidden` untuk fetch otomatis. Sumber yang dipakai untuk `walk_radius_mi = 2.0` dan `policy_source` adalah halaman FAQ resmi OCPS di atas, bukan PDF — dicatat eksplisit sebagai limitasi (PRD §8), bukan disamarkan sebagai PDF yang tidak ada.
+
+**Kriteria #3 — batas attendance ArcGIS.** OCPS punya beberapa halaman GIS publik (`ocps.net/gis`, `ocps.net/gis-home`, `ocps.net/school-attendance-zone-maps`, disebut juga "OCPS GIS Data HUB" dan alat "Find My School"), tapi **`ocps.net` menolak fetch otomatis** (`socket hang up` konsisten pada 7 percobaan berbeda, kemungkinan WAF/bot-block) dan pencarian tidak menemukan URL REST service ArcGIS langsung yang bisa diverifikasi independen. **Fallback ke NCES EDGE SABS** dipakai untuk Fase 1.5.5, dicatat sebagai limitasi PRD §8 poin 9 — bukan kegagalan diam-diam.
+
+**Kriteria #4 — kepadatan sekolah, NCES CCD.** Diverifikasi lewat query langsung ke REST service resmi NCES EDGE (`nces.ed.gov/opengis/rest/services/K12_School_Locations/EDGE_GEOCODE_PUBLICSCH_1920/MapServer/0/query`, envelope `bbox` `orl_pine_hills_n`, vintage tahun ajaran 2019–20): **10 sekolah** dikembalikan dalam bbox, jauh di atas gerbang minimum 2. Sembilan teridentifikasi by name: Gateway, Maynard Evans High, Rolling Hills Elementary, Meadowbrook Middle, Ridgewood Park Elementary, Devereux Treatment Program, Rosemont Elementary, Sheeler High Charter, Positive Pathways Transition Center (satu record tambahan tidak sempat ditarik namanya). **Gerbang kriteria #4 lolos jauh dari batas** — bbox tidak perlu digeser.
+
 ## [Pending Fase 2] Rumus dosis & kalibrasi
 
 - `BASELINE_C = 33.0°C` (Lanza dkk. 2023) — dicatat sebagai pilihan kalibrasi, bukan konstanta alam.
@@ -148,11 +158,30 @@ Tabel lengkap 8 kandidat, catatan persentil hari uji (PHX p91,9; MCO belum diana
 
 _Diisi setelah Fase 3: delta °C top-20 pasangan OD, `contrast_report.csv`._
 
-## [Pending Fase 4] `THRESHOLD` klasifikasi & definisi G6
+## [Fase 1.5, indikatif — final di Fase 4] `THRESHOLD_DOSE_C_MIN`
 
-_Diisi setelah kalibrasi ambang tiga kategori di Fase 4.1, dan definisi eksplisit "sedikit di luar radius" untuk `bus_not_needed`._
+**`THRESHOLD_DOSE_C_MIN = 220,0` (nilai awal, era-Phoenix) diverifikasi mustahil dicapai di Orlando — nol panggilan API, dua sumber yang sudah ada di cache.**
 
-Catatan sementara: `pipeline/make_fixtures.py` memakai `THRESHOLD_DOSE_C_MIN = 220` (°C·menit) hanya supaya ketiga kategori — termasuk overlap dengan blok yang **saat ini** di dalam radius resmi — terisi di data fixture. Ini bukan kalibrasi final; nilai asli ditentukan Fase 4.1 dari data panas sungguhan. `BUS_NOT_NEEDED_MAX_EXCESS_MI = 0.25` mil juga baru placeholder untuk definisi "sedikit di luar radius" (G6), didokumentasikan ulang saat kalibrasi asli.
+Distribusi suhu raster asli `orl_pine_hills_n` (2026-08-18 15:00, 6.970 sel, nol NaN, `data/raw/phase1_scouting/heatmap_720b637f5aa4.json`):
+
+| Persentil | p05 | p50 | p90 | p95 | p99 | max |
+|---|---|---|---|---|---|---|
+| °C | 33,31 | 33,74 | 34,69 | 35,15 | 35,43 | 35,54 |
+
+Dosis (°C·menit) untuk perjalanan bersuhu seragam, `BASELINE_C = 33,0`, `WALK_SPEED_MPS = 1,2`:
+
+| jarak \ suhu | 33,7°C | 35,2°C | 36,0°C | 37,2°C | 38,0°C |
+|---|---|---|---|---|---|
+| 0,5 mi | 7,8 | 24,6 | 33,5 | 46,9 | 55,9 |
+| 1,0 mi | 15,6 | 49,2 | 67,1 | 93,9 | 111,8 |
+| 1,5 mi | 23,5 | 73,8 | 100,6 | 140,8 | 167,6 |
+| 2,0 mi | 31,3 | 98,3 | 134,1 | 187,8 | 223,5 |
+
+Untuk menyentuh 220 dibutuhkan suhu rata-rata edge **42,8°C pada rute 1 mil**, 39,6°C pada 1,5 mil, 37,9°C pada 2 mil (radius kebijakan OCPS, lihat §1.3 di atas). METAR MCO 2019–2025 (`data/raw/metar_range_MCO_60fc44e79e19.csv`, 55.446 baris jam-jaman) mencatat suhu maksimum harian tertinggi dalam 6+ tahun hanya **37,2°C** (2023-08-08). Pada `THRESHOLD = 220`, G1 (≥1 blok merah) tidak akan pernah terpenuhi di Orlando — ini bukan bug, `220` memang angka Phoenix yang belum pernah dikalibrasi ulang terhadap AOI final.
+
+**Konsekuensi pada tanggal fetch (Fase 1.5.4, belum dijalankan):** dikunci ke **2023-08-08**, hari terpanas di seluruh rekaman MCO dan berada di bulan sekolah. `2023-08-11` (tiga hari kemudian) sudah terbukti mengembalikan 863 tile penuh di Fase 0 — rentang historis 2023 dipastikan didukung API.
+
+**Nilai indikatif dipakai sementara di `pipeline/config.py`: `THRESHOLD_DOSE_C_MIN = 110,0`.** Dipilih supaya distribusi fixture (`pipeline/make_fixtures.py`, kurva jam diurnal 07:00–16:00 rentang 33–38°C, bukan lagi rentang Phoenix) tidak degenerate — hasil aktual **79 hijau / 30 kuning / 11 merah** dari 120 blok. Ini **bukan kalibrasi final**: begitu kurva jam asli dari data FortyGuard sungguhan tersedia (Fase 1.5.7 dan Fase 2), nilai ini wajib direvisi ulang di Fase 4.1 berdasarkan data panas nyata — keputusan produk, bukan keputusan pipeline. `BUS_NOT_NEEDED_MAX_EXCESS_MI = 0,25` mil juga masih placeholder untuk definisi "sedikit di luar radius" (G6), didokumentasikan ulang saat kalibrasi asli.
 
 ## [Pending Fase 1] Faktor kalibrasi enrollment per sekolah
 

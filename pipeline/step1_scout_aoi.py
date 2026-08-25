@@ -12,11 +12,7 @@ FIELDNAMES = [
 
 
 def verdict_for(contrast_c: float) -> str:
-    if contrast_c >= config.AOI_CONTRAST_GATE_C:
-        return "LULUS"
-    if contrast_c < config.AOI_CONTRAST_ABORT_C:
-        return "GAGAL"
-    return "AMBIGU"
+    return f"kontras {contrast_c:.2f}C (tie-breaker, bukan gerbang — lihat PRD 5.4)"
 
 
 def scout_one(name: str, bbox: tuple[float, float, float, float]) -> dict:
@@ -70,12 +66,11 @@ def main() -> None:
 
     scored = [r for r in rows if r["contrast_c"] is not None]
     best = max(scored, key=lambda r: r["contrast_c"], default=None)
-    print(f"\nGerbang: kontras >= {config.AOI_CONTRAST_GATE_C}C LULUS, "
-          f"< {config.AOI_CONTRAST_ABORT_C}C GAGAL, di antaranya AMBIGU.")
+    print("\nKriteria 5 (kontras kanopi) tie-breaker saja, bukan gerbang — lihat PRD 5.4.")
     if best is None:
         print("Semua kandidat kosong senyap — tidak ada kandidat yang bisa dinilai.")
     else:
-        print(f"Kandidat terbaik: {best['name']} ({best['contrast_c']}C) -> {best['verdict']}")
+        print(f"Kandidat kontras tertinggi: {best['name']} ({best['contrast_c']}C).")
 
     credits_after = fg_client.check_credits()["credit_summary"]["cycle_credits_used"]
     print(f"\nKredit terpakai run ini: {credits_after - credits_before}")

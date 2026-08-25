@@ -1,39 +1,41 @@
-from pipeline.config import (
-    AOI_BBOX_PROVISIONAL,
-    BASELINE_C,
-    DATA_OUT_DIR,
-    DISMISSAL_HHMM,
-    LAMBDA_DETOUR_CANDIDATES,
-    MORNING_HHMM,
-    WALK_SPEED_MPS,
-)
+from pipeline.config import DATA_OUT_DIR, FETCH_HOURS, TILES
 from pipeline.fixture_classify import build_summary, classify_blocks
 from pipeline.fixture_geometry import (
     SCHOOLS_FIXTURE,
     build_block_grid,
-    build_edges,
+    build_edge_topology,
     build_nodes,
     school_lonlat,
 )
+from pipeline.fixture_temps import build_temps_payload
 from pipeline.write_out import mirror_to_web, write_json
 
-FIXTURE_DATE = "2026-08-18"
-FIXTURE_LAMBDA = LAMBDA_DETOUR_CANDIDATES[1]
+FIXTURE_TILE = TILES[0]
+
+GEOJSON_PROPERTY_KEYS = (
+    "block_id", "school_id", "kids_est", "class", "shortest", "coolest",
+    "delta_mean_c", "delta_dose_pct", "distance_mi", "status_now",
+    "status_rec", "reason", "safe_until_hour",
+)
 
 
-def build_graph_payload(hhmm: str) -> dict:
+def build_tiles_payload() -> list[dict]:
+    return [
+        {
+            "id": tile["id"],
+            "bbox": list(tile["bbox"]),
+            "status": "done",
+            "hours_fetched": list(FETCH_HOURS),
+        }
+        for tile in TILES
+    ]
+
+
+def build_graph_payload(school: dict, edge_topology: dict[str, dict]) -> dict:
     return {
-        "meta": {
-            "aoi_bbox": list(AOI_BBOX_PROVISIONAL),
-            "date": FIXTURE_DATE,
-            "hour": hhmm,
-            "baseline_c": BASELINE_C,
-            "walk_speed_mps": WALK_SPEED_MPS,
-            "lambda_detour": FIXTURE_LAMBDA,
-            "source": "FIXTURE — synthetic, bukan data FortyGuard asli",
-        },
+        "meta": {"school_id": school["id"], "tile_id": FIXTURE_TILE["id"], "crs": "EPSG:4326"},
         "nodes": build_nodes(),
-        "edges": build_edges(hhmm),
+        "edges": edge_topology,
     }
 
 
@@ -55,10 +57,12 @@ def build_schools_payload(classified_blocks: list[dict]) -> list[dict]:
     return schools_payload
 
 
-def build_blocks_geojson(classified_blocks: list[dict]) -> dict:
+def build_blocks_geojson(classified_blocks: list[dict], school_id: str) -> dict:
     features = []
     for block in classified_blocks:
-        properties = {k: v for k, v in block.items() if k != "polygon"}
+        if block["school_id"] != school_id:
+            continue
+        properties = {key: block[key] for key in GEOJSON_PROPERTY_KEYS}
         features.append({
             "type": "Feature",
             "geometry": {"type": "Polygon", "coordinates": block["polygon"]},
@@ -67,15 +71,33 @@ def build_blocks_geojson(classified_blocks: list[dict]) -> dict:
     return {"type": "FeatureCollection", "features": features}
 
 
+def _check_no_orphan_edges(edge_topology: dict, temps_payload: dict) -> None:
+    graph_ids = set(edge_topology)
+    temp_ids = set(temps_payload["edges"])
+    if graph_ids == temp_ids:
+        return
+    raise RuntimeError(
+        f"edge_id yatim: {len(graph_ids - temp_ids)} hanya di graph.json, "
+        f"{len(temp_ids - graph_ids)} hanya di temps.json."
+    )
+
+
 def main() -> None:
     blocks = build_block_grid()
     classified_blocks = classify_blocks(blocks, SCHOOLS_FIXTURE)
+    edge_topology = build_edge_topology()
+    temps_payload = build_temps_payload(edge_topology)
+    _check_no_orphan_edges(edge_topology, temps_payload)
 
-    write_json(DATA_OUT_DIR / f"graph.{MORNING_HHMM.replace(':', '')}.json", build_graph_payload(MORNING_HHMM))
-    write_json(DATA_OUT_DIR / f"graph.{DISMISSAL_HHMM.replace(':', '')}.json", build_graph_payload(DISMISSAL_HHMM))
-    write_json(DATA_OUT_DIR / "blocks.geojson", build_blocks_geojson(classified_blocks))
+    write_json(DATA_OUT_DIR / "tiles.json", build_tiles_payload())
     write_json(DATA_OUT_DIR / "schools.json", build_schools_payload(classified_blocks))
     write_json(DATA_OUT_DIR / "summary.json", build_summary(classified_blocks, SCHOOLS_FIXTURE))
+
+    for school in SCHOOLS_FIXTURE:
+        school_dir = DATA_OUT_DIR / "by_school" / school["id"]
+        write_json(school_dir / "graph.json", build_graph_payload(school, edge_topology))
+        write_json(school_dir / "temps.json", temps_payload)
+        write_json(school_dir / "blocks.geojson", build_blocks_geojson(classified_blocks, school["id"]))
 
     copied = mirror_to_web()
 
@@ -85,6 +107,7 @@ def main() -> None:
 
     print(f"blocks: {len(classified_blocks)} total -> {class_counts}")
     print(f"schools: {len(SCHOOLS_FIXTURE)}")
+    print(f"edges: {len(edge_topology)}, hours: {len(temps_payload['meta']['hours'])}")
     print(f"files copied to web/public/data: {len(copied)}")
 
     if class_counts["red"] == 0:

@@ -19,10 +19,11 @@ CONTRACT_EXTENSIONS = (".json", ".geojson")
 def mirror_to_web() -> list[Path]:
     WEB_PUBLIC_DATA_DIR.mkdir(parents=True, exist_ok=True)
     copied: list[Path] = []
-    for source in DATA_OUT_DIR.glob("*"):
+    for source in DATA_OUT_DIR.rglob("*"):
         if not source.is_file() or source.suffix not in CONTRACT_EXTENSIONS:
             continue
-        destination = WEB_PUBLIC_DATA_DIR / source.name
+        destination = WEB_PUBLIC_DATA_DIR / source.relative_to(DATA_OUT_DIR)
+        destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, destination)
         copied.append(destination)
     return copied

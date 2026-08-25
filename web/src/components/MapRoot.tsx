@@ -5,8 +5,8 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { buildGrayscaleStyle } from '@/lib/basemapStyle'
 
 const PMTILES_URL = '/heatwalk-aoi.pmtiles'
-const PROVISIONAL_AOI_CENTER: [number, number] = [-112.085, 33.48]
-const PROVISIONAL_AOI_ZOOM = 12.5
+const AOI_CENTER: [number, number] = [-81.4502, 28.59445]
+const AOI_ZOOM = 12.5
 
 export default function MapRoot() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -20,8 +20,8 @@ export default function MapRoot() {
       mapRef.current = new maplibregl.Map({
         container: containerRef.current,
         style: buildGrayscaleStyle(PMTILES_URL),
-        center: PROVISIONAL_AOI_CENTER,
-        zoom: PROVISIONAL_AOI_ZOOM,
+        center: AOI_CENTER,
+        zoom: AOI_ZOOM,
       })
     }
 

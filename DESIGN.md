@@ -105,7 +105,7 @@ Bikin satu komponen `<Metric>` yang menangani ini, jangan tempel utility-nya sat
 | H1 seksi | `1.75rem` | 600 | `-0.02em` |
 | H2 panel | `1.125rem` | 600 | `-0.01em` |
 | Body | `0.9375rem` | 400 | `0` |
-| Angka headline (mis. `−6,2°C`) | `2rem` | 600 | `-0.02em` |
+| Angka headline (mis. `41,2°C`) | `2rem` | 600 | `-0.02em` |
 | Label / caption | `0.8125rem` | 500 | `0` |
 | Eyebrow seksi | `0.75rem` | 500 | `0.08em`, uppercase, `--ink-subtle` |
 
@@ -134,7 +134,40 @@ Anggaran gerak sangat kecil, dan ini yang pertama dipotong kalau waktu mepet (de
 - Tidak ada animasi masuk saat scroll. Tidak ada stagger.
 - `@media (prefers-reduced-motion: reduce)` wajib ada dan mematikan semuanya.
 
-Satu pengecualian yang boleh dipoles: transisi FR-16. Fade 180ms saat layer panas hilang — cukup untuk terbaca sebagai perubahan, cukup cepat untuk tidak terasa seperti efek.
+Dua pengecualian yang boleh dipoles: transisi FR-16 (fade 180ms saat layer panas hilang) dan pergantian geometri rute saat slider jam digeser (fade 120ms, lihat bagian berikutnya). Keduanya cukup untuk terbaca sebagai perubahan, cukup cepat untuk tidak terasa seperti efek.
+
+Angka **tidak pernah** di-tween. Lihat bagian Slider jam.
+
+---
+
+## Slider jam
+
+Kontrol paling sering disentuh di seluruh produk. Dia hadir di kedua mode dan mengubah hampir semua angka di layar, jadi dia harus terasa langsung dan tidak boleh terlihat dekoratif.
+
+### Bentuk
+
+Track 2px `--border-strong`, satu tick per jam pada `--border`, thumb lingkaran 16px `--ink` dengan ring 2px `--bg` di bawahnya. Bagian track sebelum thumb tetap `--border-strong` — **jangan diberi fill berbeda.** Ini bukan progress bar; tidak ada jam yang "lebih selesai" dari jam lain.
+
+Label jam di bawah track memakai ukuran caption dan `tabular-nums`. Tampilkan ujung dan jam aktif saja (`07:00 · · · 15:00 · · · 16:00`); menampilkan sepuluh label sekaligus membuat baris ini lebih ramai daripada angka yang seharusnya jadi fokus.
+
+Jam aktif ditulis penuh di atas track, ukuran H2 panel, `--ink`. Ini satu-satunya tempat jam ditulis besar.
+
+### Aturan
+
+1. **Langkahnya dibaca dari `meta.hours`, bukan dari konstanta.** Tile dengan tiga jam menampilkan tiga tick, bukan sepuluh dengan tujuh yang mati.
+2. **Diskrit, bukan kontinu.** Thumb mengunci ke tick. Tidak ada posisi antara dua jam, karena tidak ada datanya.
+3. **Nol warna**, sesuai aturan tunggal di atas. Slider bukan peta, bukan legend, bukan badge status.
+4. Target sentuh thumb minimum 44px di Mode 2 — perbesar area sentuhnya, bukan lingkarannya.
+5. Dapat dioperasikan penuh dengan keyboard: panah kiri/kanan geser satu jam, `Home`/`End` ke ujung. Focus ring 2px `--ink` seperti elemen lain.
+6. `aria-valuetext` berisi jamnya dalam kata (`"15:00"`), bukan indeks langkahnya.
+
+### Saat jam berganti
+
+Angka di panel berganti **tanpa transisi**. Nilai numerik yang di-tween terbaca sebagai animasi dan membuat orang menunggu; di sini yang dibutuhkan adalah pergantian instan supaya menggeser slider terasa seperti memeriksa, bukan seperti memuat.
+
+Yang boleh bertransisi cuma geometri rute di peta: fade 120ms saat jalur rute teradem berubah, supaya perubahan jalur terbaca sebagai perubahan dan bukan sebagai glitch. Rute terpendek tidak pernah berubah antar jam — kalau dia ikut berkedip, ada yang salah di render, bukan di desain.
+
+Kalau perhitungan ulang melewati 500ms (NFR §7), tampilkan `skeleton` di baris angka — **jangan** kosongkan panelnya dan jangan tampilkan spinner di atas peta.
 
 ---
 
@@ -144,7 +177,7 @@ Satu pengecualian yang boleh dipoles: transisi FR-16. Fade 180ms saat layer pana
 
 Allowlist — jangan generate di luar daftar ini tanpa alasan:
 
-`button` · `dialog` · `sheet` · `tabs` · `table` · `tooltip` · `switch` · `select` · `badge` · `separator` · `skeleton` · `accordion` (khusus halaman Metodologi & Limitations)
+`button` · `dialog` · `sheet` · `tabs` · `table` · `tooltip` · `switch` · `select` · `slider` · `badge` · `separator` · `skeleton` · `accordion` (khusus halaman Metodologi & Limitations)
 
 Aturan pemakaian:
 
@@ -176,13 +209,21 @@ Header persisten setinggi 48px, `--surface` dengan garis bawah `--border`, isiny
 
 ### Mode 2 — orang tua (mobile-first, 390px naik)
 
-Peta full-bleed, panel sebagai bottom sheet dengan dua detent: peek (kalimat status saja) dan expanded (panel perbandingan penuh). Input alamat mengambang di atas, chip alamat contoh tepat di bawahnya. Target sentuh minimum 44px.
+Peta full-bleed, panel sebagai bottom sheet dengan dua detent: peek (kalimat status + slider jam) dan expanded (panel perbandingan penuh). Input alamat mengambang di atas, chip alamat contoh tepat di bawahnya. Target sentuh minimum 44px.
 
-Hierarki di layar pertama: kalimat status → dua rute di peta → selisih suhu. Angka `−6,2°C (−11,2°F)` adalah objek terbesar di panel; °C·menit hadir tapi lebih kecil dan selalu di sebelah °C-nya (NFR §7).
+**Slider jam ikut di detent peek.** Dia kontrol utama mode ini; menyembunyikannya di balik expand berarti orang tua tidak pernah tahu jam bisa diganti.
+
+Hierarki di layar pertama: kalimat status → slider jam → dua rute di peta → suhu rute teradem.
+
+Angka terbesar di panel adalah **suhu rata-rata rute teradem pada jam yang sedang dipilih** — `41,2°C (106,2°F)` — bukan selisih antar rute. Selisih antar rute kecil dan hadir sebagai baris tabel biasa, tidak dibesarkan (PRD FR-4). °C·menit hadir tapi lebih kecil dan selalu di sebelah °C-nya (NFR §7).
+
+Kalimat `Aman kalau pulang sebelum 13:00` (`safe_until_hour`) tampil tepat di bawah slider bila blok belum merah sepanjang hari. Ini kalimat paling berguna di seluruh Mode 2 — beri dia baris sendiri, jangan diselipkan ke dalam tabel.
 
 ### Mode 1 — distrik (desktop, 1280px naik)
 
 Tiga kolom: daftar sekolah (280px) · peta (fleksibel) · panel detail (360px). Panel detail berubah isi mengikuti seleksi, bukan menumpuk. Ringkasan sekolah (FR-12) tampil sebagai baris metrik di atas peta, bukan sebagai grid card.
+
+Slider jam duduk di bawah baris metrik, selebar kolom peta. Di mode ini dia mengontrol layer zona: menggesernya mengganti warna choropleth, bukan angka panel.
 
 ---
 
@@ -221,4 +262,7 @@ Bukan tambahan — produknya soal keselamatan anak dan akan dipresentasikan ke l
 - [ ] Focus ring terlihat di setiap elemen interaktif.
 - [ ] Tidak ada komentar tersisa di `components/ui/`.
 - [ ] Basemap benar-benar grayscale, dan atribusi OpenStreetMap terlihat.
+- [ ] Slider jam monokrom, diskrit, dan jumlah tick-nya sama dengan panjang `meta.hours`.
+- [ ] Angka berganti tanpa tween saat jam digeser; hanya geometri rute yang fade.
+- [ ] Slider dapat digeser penuh dengan keyboard, dan `aria-valuetext` berisi jam.
 - [ ] Berpindah `/` ↔ `/district` tidak me-remount peta: basemap tidak berkedip, tile tidak dimuat ulang.

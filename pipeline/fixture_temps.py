@@ -4,8 +4,8 @@ from pipeline.config import (
     FETCH_HOURS,
     LAMBDA_DETOUR_CANDIDATES,
     THRESHOLD_DOSE_C_MIN,
-    WALK_SPEED_MPS,
 )
+from pipeline.dose import dose_c_min
 from pipeline.fixture_geometry import _seeded_unit, edge_midpoint_lon, lon_heat_factor
 
 HOUR_OFFSET_C = {
@@ -38,7 +38,7 @@ def edge_peak_c(mean_c: float, eid: str, hhmm: str) -> float:
 
 
 def edge_dose(temp_c: float, len_m: float) -> float:
-    return round(max(temp_c - BASELINE_C, 0.0) * (len_m / WALK_SPEED_MPS) / 60.0, 2)
+    return round(dose_c_min(temp_c, len_m), 2)
 
 
 def build_temps_payload(edge_topology: dict[str, dict], hours: list[str] = FETCH_HOURS) -> dict:

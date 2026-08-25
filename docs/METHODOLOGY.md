@@ -147,12 +147,39 @@ Tidak ditemukan **PDF kebijakan** dengan nomor halaman eksplisit — pencarian k
 
 **Kriteria #4 — kepadatan sekolah, NCES CCD.** Diverifikasi lewat query langsung ke REST service resmi NCES EDGE (`nces.ed.gov/opengis/rest/services/K12_School_Locations/EDGE_GEOCODE_PUBLICSCH_1920/MapServer/0/query`, envelope `bbox` `orl_pine_hills_n`, vintage tahun ajaran 2019–20): **10 sekolah** dikembalikan dalam bbox, jauh di atas gerbang minimum 2. Sembilan teridentifikasi by name: Gateway, Maynard Evans High, Rolling Hills Elementary, Meadowbrook Middle, Ridgewood Park Elementary, Devereux Treatment Program, Rosemont Elementary, Sheeler High Charter, Positive Pathways Transition Center (satu record tambahan tidak sempat ditarik namanya). **Gerbang kriteria #4 lolos jauh dari batas** — bbox tidak perlu digeser.
 
-## [Pending Fase 2] Rumus dosis & kalibrasi
+## [Fase 2] Rumus dosis & kalibrasi
 
 - `BASELINE_C = 33.0°C` (Lanza dkk. 2023) — dicatat sebagai pilihan kalibrasi, bukan konstanta alam.
 - `WALK_SPEED_MPS = 1.2`.
-- `dose = max(temp_c - BASELINE_C, 0) × (len_m / WALK_SPEED_MPS) / 60` (°C·menit).
-- `LAMBDA_DETOUR`: _diisi setelah kalibrasi cap detour 1,4× di Fase 2.3._
+- `dose = max(temp_c - BASELINE_C, 0) × (len_m / WALK_SPEED_MPS) / 60` (°C·menit). Rumus ini hidup satu kali di `pipeline/dose.py`, dipakai baik oleh pipeline asli (`step2_build_graph.py`) maupun `fixture_temps.py` — tidak ada salinan kedua.
+- **Konsekuensi clamp di 07:00–09:00**: rata-rata raster tiga jam pertama (28,19–31,65°C) berada di bawah `BASELINE_C = 33,0`, jadi `dose = 0` untuk hampir seluruh edge di jam-jam itu dan routing berbobot dosis degenerate ke rute terpendek. Ini efek samping clamp yang diantisipasi (dev plan §2.2 poin 3), bukan bug.
+
+### `LAMBDA_DETOUR` — hasil kalibrasi Fase 2.3
+
+`LAMBDA_DETOUR_CANDIDATES = [0.0, 0.005, 0.02, 0.05, 0.2, 1.0]`, `DETOUR_CAP_RATIO = 1.4`. Kalibrasi dilakukan per sekolah: dari node sekolah (di-snap manual ke node OSM terdekat di UTM zone 17N, `pipeline/step2_build_graph.py:snap_nearest_node` — `ox.distance.nearest_nodes` gagal pada graph tak-terproyeksi karena butuh scikit-learn, sengaja tidak ditambahkan sebagai dependency), dijalankan `single_source_dijkstra` sekali dengan `weight='len_m'` dan sekali dengan `weight='dose + λ·len_m'` pada jam kanonik (15:00), lalu diambil rasio terburuk `panjang_fisik(rute_teradem) / panjang_fisik(rute_terpendek)` di seluruh node tujuan yang jaraknya ≥100 m (ambang ini menyaring artefak rasio pada pasangan node yang jaraknya sangat pendek, bukan kalibrasi ambang produk).
+
+**Hasil: `LAMBDA_DETOUR = 0.0` untuk keenam sekolah** — kandidat terkecil sudah lolos gerbang 1,4× tanpa perlu penalti panjang sama sekali. Rasio detour maksimum terukur pada `sch_maynard_evans_high` (representatif keenamnya): **1,188×** di `lambda=0`. Ini **bukan bug** — ini konsekuensi langsung temuan §1.5: kontras suhu spasial AOI kecil (p95−p05 ≈ 1,8°C pada satu jam), sehingga `dose` per edge kurang lebih proporsional terhadap panjangnya di seluruh tile. Meminimalkan dosis tanpa penalti jarak sudah hampir sama dengan meminimalkan jarak — rute "teradem" tidak pernah menyimpang jauh untuk mengejar kantong sejuk kecil, karena kantong sejuk sebesar itu tidak ada di data suhu udara 2m. Nilai `LAMBDA_DETOUR = 0.0` **tidak digeser** untuk memaksa delta rute lebih besar (dilarang eksplisit oleh dev plan §2.3).
+
+### Edge dibuang
+
+Dari 4.965 edge tak-berarah dalam graph OSM: **34 dibuang (0,68%)**, seluruhnya self-loop (`u == v`, hasil topologi OSM di persimpangan bundaran/median), nol dibuang karena panjang nol, dan **nol dibuang karena sampling NaN** — kesepuluh raster jam terverifikasi nol NaN (lihat tabel kurva jam di atas). Jauh di bawah gerbang 2%.
+
+### `peak_c` per edge
+
+Mengikuti koreksi Fase 0/1 (§ di atas): `peak_c` = maksimum sampel raster sepanjang geometri edge, **bukan** `max_temperature` dari respons API (yang identik dengan `average_temperature` pada granularitas 60m). Sampel diambil tiap ~20 m sepanjang geometri asli (sebelum disederhanakan Douglas-Peucker) via `pipeline/edge_sampling.py`. Karena median panjang edge OSM di AOI ini hanya **45,4 m** — lebih pendek dari satu sel raster 60m — `peak_c` sering **identik** dengan `temp_c` per edge; ini benar secara fisik, bukan tanda sampling rusak.
+
+### Cakupan subgraph per sekolah: seluruh tile, bukan katchmen
+
+Keputusan produk (bukan default diam-diam): keenam sekolah menulis `graph.json`/`temps.json` dari **graph tile penuh** (4.931 edge terpakai), bukan dipotong per katchmen sekolah. Konsekuensi ukuran, per sekolah:
+
+| File | Ukuran aktual | Target dev plan Fase 2 |
+|---|---|---|
+| `graph.json` | ~630 KB | ≤5 MB — **lolos** |
+| `temps.json` | ~1.323 KB (~1,3 MB) | ≤500 KB — **lewat ~2,6×** |
+
+Total per sekolah ≈ 1,95 MB, masih di bawah plafon anggaran PRD §5.6 (±3,2 MB per sekolah untuk sepuluh jam) — jadi anggaran **produk** tetap terpenuhi, yang meleset hanya target line-item dev plan Fase 2. Tidak ditambal dengan menurunkan presisi di bawah 2 desimal (dilarang eksplisit oleh fail branch dev plan). Isi `graph.json`/`temps.json` identik di keenam sekolah kecuali `meta.school_id` dan `meta.lambda_detour` — semuanya bernilai `0.0` per hasil kalibrasi di atas, jadi saat ini keenamnya benar-benar byte-identik kecuali `school_id`.
+
+Lever cadangan kalau ukuran ini ternyata membebani slider FR-13 di Fase 5: potong subgraph per katchmen (hull blok ter-assign ke sekolah + buffer 500 m), terukur sebelumnya menghasilkan 850–1.800 edge (250–530 KB) per sekolah. Belum dipasang — tidak dibutuhkan kecuali performa Fase 5 menuntutnya.
 
 ## [Pending Fase 3] Hasil gerbang kontras rute
 

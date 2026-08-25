@@ -61,16 +61,24 @@ def poll(activity_id: str, timeout: float = 600.0, interval: float = 5.0) -> dic
         time.sleep(interval)
 
 
+def _read_cached_response(cache_path: Path) -> dict[str, Any]:
+    cached = json.loads(cache_path.read_text(encoding="utf-8"))
+    if "response" in cached and "request" in cached:
+        return cached["response"]
+    return cached
+
+
 def run(endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
     cache_path = _cache_path(endpoint, payload)
     if cache_path.exists():
-        return json.loads(cache_path.read_text(encoding="utf-8"))
+        return _read_cached_response(cache_path)
 
     activity_id = submit(endpoint, payload)
     result = poll(activity_id)
 
     DATA_RAW_DIR.mkdir(parents=True, exist_ok=True)
-    cache_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    envelope = {"request": {"endpoint": endpoint, "payload": payload}, "response": result}
+    cache_path.write_text(json.dumps(envelope, indent=2), encoding="utf-8")
     return result
 
 

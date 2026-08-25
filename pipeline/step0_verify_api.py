@@ -22,7 +22,7 @@ def report_shape(map_data: dict) -> None:
     print(f"tipe geometri: {features[0]['geometry']['type'] if features else '?'}")
     print(f"key nilai terdeteksi di properties: '{value_key}'")
     print(f"CRS asumsi: EPSG:4326 (GeoJSON standar)")
-    print(f"ukuran tile terukur (setelah reproyeksi EPSG:{config.UTM_EPSG}): {size_m} m")
+    print(f"ukuran tile terukur (setelah reproyeksi UTM diturunkan dari bujur AOI): {size_m} m")
     print(f"granularity diminta: {config.GRANULARITY_M} m -> {'COCOK' if size_m and abs(size_m - config.GRANULARITY_M) <= 5 else 'TIDAK COCOK, cek ulang'}")
 
 
@@ -33,7 +33,7 @@ def _local_to_utc(date_str: str, hhmm: str, utc_offset_hours: int) -> datetime:
 
 def report_ground_truth(map_data: dict) -> tuple[float | None, float | None, str]:
     tile_temp = heatmap_stats.value_at(map_data, config.VERIFY_STATION_LON, config.VERIFY_STATION_LAT)
-    utc_if_local = _local_to_utc(config.VERIFY_DATE, config.VERIFY_HOUR_LOCAL, config.AOI_UTC_OFFSET_HOURS)
+    utc_if_local = _local_to_utc(config.VERIFY_DATE, config.VERIFY_HOUR_LOCAL, config.VERIFY_STATION_UTC_OFFSET_HOURS)
     utc_if_already_utc = datetime.strptime(
         f"{config.VERIFY_DATE} {config.VERIFY_HOUR_LOCAL}", "%Y-%m-%d %H:%M"
     ).replace(tzinfo=timezone.utc)
@@ -43,7 +43,7 @@ def report_ground_truth(map_data: dict) -> tuple[float | None, float | None, str
 
     print("\n=== 3 & 4. Ground truth + konvensi jam ===")
     print(f"nilai tile di titik KPHX ({config.VERIFY_STATION_LAT}, {config.VERIFY_STATION_LON}): {tile_temp}")
-    print(f"METAR jika start_time = waktu lokal Phoenix (UTC{config.AOI_UTC_OFFSET_HOURS:+d}): {metar_local_interp}")
+    print(f"METAR jika start_time = waktu lokal Phoenix (UTC{config.VERIFY_STATION_UTC_OFFSET_HOURS:+d}): {metar_local_interp}")
     print(f"METAR jika start_time = UTC langsung: {metar_utc_interp}")
 
     convention = "tidak dapat ditentukan (tile_temp kosong)"

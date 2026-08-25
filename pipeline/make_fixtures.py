@@ -1,10 +1,10 @@
 from pipeline.config import (
+    AOI_BBOX_PROVISIONAL,
     BASELINE_C,
     DATA_OUT_DIR,
     DISMISSAL_HHMM,
     LAMBDA_DETOUR_CANDIDATES,
     MORNING_HHMM,
-    PHOENIX_AOI_BBOX_PROVISIONAL,
     WALK_SPEED_MPS,
 )
 from pipeline.fixture_classify import build_summary, classify_blocks
@@ -24,7 +24,7 @@ FIXTURE_LAMBDA = LAMBDA_DETOUR_CANDIDATES[1]
 def build_graph_payload(hhmm: str) -> dict:
     return {
         "meta": {
-            "aoi_bbox": list(PHOENIX_AOI_BBOX_PROVISIONAL),
+            "aoi_bbox": list(AOI_BBOX_PROVISIONAL),
             "date": FIXTURE_DATE,
             "hour": hhmm,
             "baseline_c": BASELINE_C,

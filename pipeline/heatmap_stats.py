@@ -4,7 +4,7 @@ import numpy as np
 from pyproj import Transformer
 from shapely.geometry import Point, shape
 
-from pipeline.config import NODATA_SENTINELS, UTM_EPSG
+from pipeline.config import NODATA_SENTINELS, utm_epsg_for_lon
 
 VALUE_KEY_CANDIDATES = (
     "average_temperature",
@@ -67,15 +67,16 @@ def describe(values: np.ndarray) -> dict[str, float]:
     }
 
 
-def tile_size_meters(map_data: dict[str, Any], utm_epsg: int = UTM_EPSG) -> float | None:
+def tile_size_meters(map_data: dict[str, Any]) -> float | None:
     features = map_data.get("features", [])
     if not features:
         return None
-    transformer = Transformer.from_crs("EPSG:4326", f"EPSG:{utm_epsg}", always_xy=True)
     geom = shape(features[0]["geometry"])
     coords = list(geom.exterior.coords) if geom.geom_type == "Polygon" else None
     if not coords:
         return None
+    utm_epsg = utm_epsg_for_lon(geom.centroid.x)
+    transformer = Transformer.from_crs("EPSG:4326", f"EPSG:{utm_epsg}", always_xy=True)
     projected = [transformer.transform(lon, lat) for lon, lat in coords]
     xs = [p[0] for p in projected]
     ys = [p[1] for p in projected]

@@ -1,24 +1,5 @@
 from pipeline import config, fg_client
-
-
-def _aoi_polygon(bbox: tuple[float, float, float, float]) -> dict:
-    west, south, east, north = bbox
-    return {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "properties": {},
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [[
-                        [west, south], [east, south],
-                        [east, north], [west, north], [west, south],
-                    ]],
-                },
-            }
-        ],
-    }
+from pipeline.heatmap_fetch import aoi_polygon_feature_collection as _aoi_polygon
 
 
 def probe_tcm() -> dict:

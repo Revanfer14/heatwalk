@@ -4,8 +4,8 @@
 |---|---|
 | **Nama produk** | HeatWalk |
 | **Tagline** | Walk zones drawn by heat, not distance |
-| **Versi** | 1.3 |
-| **Tanggal** | 23 Agustus 2026, direvisi 24 Agustus 2026 |
+| **Versi** | 1.4 |
+| **Tanggal** | 23 Agustus 2026, direvisi 25 Agustus 2026 pasca-Fase 1 |
 | **Konteks** | FortyGuard Hackathon '26 |
 | **Track submission** | Primary: Track 01 (Resilient Cities & Infrastructure) · Secondary: Track 07 (Data Analysis & Correlation) |
 | **Deliverable wajib** | Working software prototype · Pitch presentation · Demo video |
@@ -52,7 +52,50 @@ Mekanisme ini juga punya alur **permohonan tertulis dari orang tua** ke direktur
 
 > **Posisi produk:** Distrik sudah punya kewenangan hukum dan pendanaan untuk mem-bus-kan anak di dalam walk zone. Yang belum ada adalah data untuk memasukkan panas ke dalam definisi "berbahaya". Itu yang HeatWalk sediakan.
 
-### 1.3 Solusi
+### 1.3 Temuan Fase 1 yang mengubah dokumen ini
+
+**Tanggal 25 Agustus 2026, gerbang kontras AOI gagal pada 8 dari 8 kandidat.**
+
+Delapan kotak diuji di dua kota dengan empat mekanisme fisik berbeda — gradien elevasi, efek oasis irigasi, kontras urban/gurun, kanopi vs arteri. Kontras spasial terbaik (`orl_pine_hills_n`) hanya **1,84°C** (p95−p05), sementara gerbang mensyaratkan ≥6°C dan ambang darurat "ganti AOI" ada di <4°C.
+
+Ini bukan kegagalan pemilihan AOI. Ini konsekuensi fisika yang konsisten dengan hasil Fase 0: `tcm` terverifikasi sebagai suhu udara 2m AGL, dan pada siang hari lapisan batas atmosfer sudah tercampur secara konvektif sehingga variasi suhu udara intra-urban dalam radius 5 km umumnya hanya 1–3°C. Kontras 15–25°C yang terlihat di peta panas kota adalah **suhu permukaan**, bukan suhu udara — dan itulah yang dipetakan hampir seluruh prior art di §1.6B.
+
+> Kalau AOI mana pun menghasilkan kontras spasial >10°C pada `tcm`, itu justru alarm bahwa `tcm` bukan suhu udara. Hasil kecil ini adalah konfirmasi ulang Fase 0, bukan kontradiksinya.
+
+**Yang mati:** klaim "pilih rute lain, hemat 4°C". Delta rata-rata berbobot panjang antar dua rute realistis dalam AOI seperti ini diperkirakan 0,5–0,8°C. Tidak ada kalibrasi yang menyelamatkannya tanpa memanipulasi angka.
+
+**Yang tidak tersentuh sama sekali:**
+
+| Elemen | Kenapa selamat |
+|---|---|
+| FR-8 kategori merah | Bergantung pada **dosis absolut**, bukan kontras antar-rute |
+| Mekanisme hukum §1.2 | Tidak bergantung pada data apa pun |
+| G6 angka salah klasifikasi | Bergantung pada ambang, bukan selisih |
+| FR-16 sembunyikan data panas | Bergantung pada keberadaan layer, bukan besarnya delta |
+| FR-5 tombol permohonan | **Justru menguat** — lihat di bawah |
+
+Ironisnya premis produk jadi lebih tajam. Bukan lagi *"sebagian rute panas, pilih yang adem"*, melainkan:
+
+> **Tidak ada rute yang aman, di mana pun, di seluruh walk zone.**
+
+Itu argumen yang jauh lebih sulit dibantah di rapat school board, dan otomatis memisahkan HeatWalk dari kolam "cool route planner" yang dikhawatirkan di §1.6.
+
+#### Pivot: kontras dipindahkan dari ruang ke tiga sumbu lain
+
+Ketiganya tetap bersumber dari FortyGuard, jadi kriteria "API sentral" tidak melemah.
+
+**Sumbu 1 — waktu (paling besar, paling murah).**
+Slice 07:30 vs 14:45 pada hari panas diperkirakan berselisih 9–11°C pada rute yang sama, anak yang sama. Ini persis format measurable outcome yang diminta panitia, dan merupakan keputusan distrik yang nyata: geser jam bubar, atau sediakan layanan khusus sesi sore. **Konsekuensi: FR-13 naik dari P1 ke P0.**
+
+**Sumbu 2 — durasi × circuity.**
+Dosis = kelebihan suhu × waktu tempuh. Blok dengan jarak lurus 0,9 mi tetapi jarak jaringan 1,4 mi menerima dosis ~55% lebih besar pada suhu identik. Lingkaran radius resmi buta terhadap ini sepenuhnya. Output baru: **radius setara-dosis** — *"pada sore Agustus p95, radius yang dapat dipertahankan untuk SD adalah 0,42 mi, bukan 1,0 mi."*
+
+**Sumbu 3 — exceedance (di sinilah 1,84°C menjadi load-bearing).**
+Ambang bersifat nonlinear. Dua blok berselisih 1,8°C pada ambang 40°C dapat berbeda 87 vs 143 hari melewati ambang per tahun ajaran — kontras 1,8°C berubah menjadi kontras 64%. Ini bukan mengakali angka; ini persis alasan satuan dosis di atas baseline dipilih sejak awal.
+
+Cara termurah memperolehnya: **jangan tarik 180 heatmap.** Ambil distribusi harian dari rekaman stasiun (Iowa Environmental Mesonet ASOS, jam-jaman sejak 2019, gratis), lalu pakai FortyGuard sebagai **offset spasial per blok** terhadap stasiun itu. FortyGuard tetap satu-satunya sumber yang dapat memberi offset per-blok 60m — dan justru offset kecil itulah yang menentukan selisih puluhan hari.
+
+### 1.3.1 Solusi
 
 HeatWalk mengganti fungsi impedance pada perhitungan walk zone dari **jarak** menjadi **dosis panas kumulatif (°C·menit)**, memakai suhu udara 2m AGL resolusi 60m dari FortyGuard sebagai bobot jaringan jalan pejalan kaki.
 
@@ -78,14 +121,20 @@ Efek samping yang penting: aturan ini membuat daftar reklasifikasi **lebih pende
 
 | # | Goal | Ukuran keberhasilan |
 |---|---|---|
-| **G1** | Membuktikan dua jalur berjarak sama punya beban panas berbeda secara terukur | Delta suhu antar-jalur pada jarak identik, dalam °C dan °F. Target: minimal satu pasangan dengan selisih ≥4°C |
-| **G2** | Membuktikan pemilihan rute menurunkan paparan secara terukur | Selisih °C dan % dosis antara rute terpendek dan rute teradem, minimal satu pasangan asal-tujuan |
+| **G1′** | Membuktikan waktu berangkat mengubah paparan secara terukur pada rute yang sama | Delta suhu rata-rata berbobot panjang antara slice 07:30 dan 14:45, dalam °C dan °F. **Target: ≥6°C** |
+| **G2′** | Membuktikan radius kebijakan tidak dapat dipertahankan secara termal | Radius setara-dosis ≤70% radius kebijakan resmi, dinyatakan dalam mil |
+| G2b | Pemilihan rute menurunkan paparan | Selisih °C dan % dosis antara rute terpendek dan teradem. **Dilaporkan apa adanya, bukan gerbang.** Diperkirakan 0,5–0,8°C berdasarkan Fase 1 |
 | **G3** | Mengkuantifikasi paparan yang dihilangkan oleh keputusan bus | °C·menit per anak per hari dan per tahun ajaran yang tereliminasi |
 | **G4** | Membuktikan sebagian blok benar-benar tidak punya opsi | Jumlah blok yang rute teradem-nya tetap melewati ambang |
 | G5 | Menghasilkan batas walk zone yang berbeda nyata dari lingkaran | Selisih area ≥15% antara lingkaran dan zona dosis panas |
 | G6 | Mengkuantifikasi siswa yang salah klasifikasi | Angka absolut + persentase per sekolah, terkalibrasi ke enrollment CCD |
 | G7 | Membuktikan FortyGuard sentral, bukan periferal | Demo cabut-API: zona kolaps jadi lingkaran, rute teradem kolaps jadi rute terpendek |
 | G8 | Membuktikan jalur adopsi nyata | Export yang dapat masuk ke mekanisme hazardous walking + software incumbent |
+| **G9** | Membuktikan selisih spasial kecil tetap berkonsekuensi besar | Rentang exceedance antar-blok ≥40 hari per tahun ajaran |
+| G10 | Membuktikan pipeline distrik-agnostik | Pipeline jalan penuh di AOI kedua (Phoenix) tanpa perubahan satu baris kode, hanya `config.py` |
+| **G11** | Membuktikan cakupan bukan batasan arsitektur | Jumlah sekolah dengan zona penuh; target seluruh area padat sekolah OCPS. Menambah cakupan = menambah entri `TILES`, nol kode baru |
+
+**Gerbang lama G1/G2 (delta antar-rute ≥4°C) dicabut pada 25 Agustus 2026** setelah gagal terverifikasi pada 8 dari 8 kandidat AOI. Alasan fisiknya di §1.3. Pencabutan ini **wajib dinyatakan terbuka** di halaman Limitations dan di pitch — ini temuan hasil pengukuran, bukan penyesuaian target agar terlihat lulus.
 
 ### 1.5 Non-goals
 
@@ -93,7 +142,7 @@ Efek samping yang penting: aturan ini membuat daftar reklasifikasi **lebih pende
 - ❌ Navigasi turn-by-turn atau rekomendasi sisi trotoar — resolusi 60m tidak mendukung
 - ❌ Prediksi suhu dalam ruangan
 - ❌ Klaim WBGT — tidak ada wind speed & globe temperature (kecuali terverifikasi tersedia, lihat §11)
-- ❌ Cakupan multi-kota — satu AOI demo saja
+- ❌ **Analisis multi-kota.** Cakupan analisis penuh menyasar seluruh OCPS lewat mosaik tile (§5.6). Kota lain **tidak** dianalisis. Seluruh sekolah AS tetap hadir di peta sebagai pin NCES (FR-20), tanpa satu pun angka — kehadiran pin bukan klaim analisis. AOI Phoenix dijalankan pipeline-only sebagai bukti portabilitas (G10) dan tidak masuk UI (§5.5)
 - ❌ **Autentikasi user, role, dan database persisten.** Submission form field 12 mewajibkan live demo terbuka di jendela incognito **tanpa login dan tanpa install**, dan panitia menyatakan mereka akan mengeceknya sendiri. Login di depan produk bukan sekadar menambah risiko — ia menggagalkan syarat submission. Dua mode dipisahkan lewat route (`/` dan `/district`) plus satu switch di header, bukan lewat akun. Tidak ada yang perlu disimpan: seluruh output pipeline sudah berupa file statis yang di-commit
 
 ### 1.6 Competitive landscape
@@ -119,9 +168,11 @@ Peta Versatrans **sudah punya layer "hazardous zones and streets"** — tetapi t
 | Heat Factor | First Street Foundation | Skor per properti, resolusi kasar, untuk pembeli rumah |
 | Temperature Dashboard® | FortyGuard sendiri | Jangan dibangun ulang — ini produk vendor |
 
-**Delta HeatWalk:** (1) suhu udara **terukur** 2m AGL, bukan naungan dimodelkan; (2) output berupa **keputusan administratif** dan **rute yang dapat ditempuh**, bukan peta untuk dilihat; (3) tidak ada satu pun yang menghitung angka siswa salah klasifikasi.
+**Delta HeatWalk:** (1) suhu udara **terukur** 2m AGL, bukan naungan dimodelkan; (2) output berupa **keputusan administratif** — radius setara-dosis dan daftar reklasifikasi — bukan peta untuk dilihat; (3) tidak ada satu pun yang menghitung angka siswa salah klasifikasi.
 
-⚠️ **Cool route planner adalah contoh pertama yang panitia tulis sendiri di Track 01.** Kolam ini akan ramai. Diferensiasi HeatWalk bukan pada rutenya, melainkan pada mekanisme hukum, persona berkonsekuensi, dan aturan kausal di §1.3. Ini harus eksplisit di menit pertama pitch, bukan diasumsikan terlihat sendiri.
+**Delta keempat, hasil Fase 1:** seluruh prior art di atas memetakan **naungan atau suhu permukaan**, dan dari situ menyiratkan bahwa pemilihan rute memberi manfaat besar. HeatWalk mengukur **suhu udara** dan menemukan bahwa manfaat itu kecil (§1.3) — lalu melaporkannya, bukan menyembunyikannya. Sejauh yang diketahui, tidak ada prior art yang menguji dan mempublikasikan hasil negatif ini.
+
+⚠️ **Cool route planner adalah contoh pertama yang panitia tulis sendiri di Track 01.** Kolam ini akan ramai. Diferensiasi HeatWalk bukan pada rutenya, melainkan pada mekanisme hukum, persona berkonsekuensi, dan aturan kausal di §1.3.1. Setelah Fase 1 ini makin benar: rutenya memang bukan nilai jualnya (§1.3). Ini harus eksplisit di menit pertama pitch, bukan diasumsikan terlihat sendiri.
 
 ### 1.7 Pemetaan ke kriteria penilaian resmi
 
@@ -131,7 +182,7 @@ Kriteria panitia: *"Real use of the platform (the API or Dashboard is central, n
 |---|---|
 | **API sentral, bukan dekoratif** | Tombol "sembunyikan data panas" (FR-16): zona kolaps jadi lingkaran, rute teradem kolaps jadi rute terpendek, produk kembali ke status quo |
 | **Problem & user jelas** | Dua persona, dua keputusan nyata, satu mekanisme hukum yang sudah berjalan |
-| **Measurable outcome** | G1–G3: delta °C antar-jalur, delta °C antar-rute, °C·menit tereliminasi. Panel rute (FR-4) memakai format °C dan °F persis seperti contoh panitia |
+| **Measurable outcome** | G1′ delta °C antar-jam pada rute sama · G2′ radius setara-dosis vs radius kebijakan · G3 °C·menit tereliminasi · G9 rentang exceedance. Panel rute (FR-4) memakai format °C dan °F persis seperti contoh panitia |
 | **Path to deployment** | Mekanisme hukum + pendanaan negara bagian + software penerima semuanya sudah eksis (§1.2, §1.6A) |
 
 **Alokasi usaha.** Kalimat *"judges reward applied relevance over flashy demos"* adalah instruksi prioritas eksplisit:
@@ -142,6 +193,7 @@ Kriteria panitia: *"Real use of the platform (the API or Dashboard is central, n
 | Halaman metodologi & keterbatasan | Styling peta yang cantik |
 | Export CSV yang benar-benar bisa dipakai | Slider waktu yang super mulus |
 | Angka delta suhu yang dapat diverifikasi | Efek hover, mikrointeraksi |
+| Melaporkan temuan negatif Fase 1 secara terbuka | Menyembunyikannya agar demo terlihat mulus |
 
 ---
 
@@ -239,18 +291,32 @@ Rumah kamu 1,1 mil dari SD Lincoln — di dalam walk zone.
 
 #### FR-4 — Panel perbandingan rute *(P0)*
 
+Dua blok perbandingan, bukan satu. **Blok waktu ditampilkan lebih dulu dan lebih menonjol**, karena di situlah selisih terbesar berada (§1.3).
+
 ```
 Rumah kamu → SD Lincoln
+Rute teradem, berangkat jam berapa?
+
+              07:30        14:45        Selisih
+Suhu rata2    31,4°C       40,8°C       +9,4°C  (+16,9°F)
+Suhu puncak   33,1°C       44,0°C       +10,9°C (+19,6°F)
+Dosis panas    72 °C·mnt   503 °C·mnt   +598%
+```
+
+```
+Pilihan rute pada jam bubar (14:45)
 
               Terpendek    Teradem      Selisih
 Jarak         1,42 km      1,68 km      +260 m
 Waktu         20 mnt       23 mnt       +3 mnt
-Suhu rata2    40,3°C       34,1°C       −6,2°C  (−11,2°F)
-Suhu puncak   44,0°C       36,8°C       −7,2°C  (−13,0°F)
-Dosis panas   503 °C·mnt   289 °C·mnt   −43%
+Suhu rata2    41,2°C       40,5°C       −0,7°C  (−1,3°F)
+Suhu puncak   44,0°C       42,9°C       −1,1°C  (−2,0°F)
+Dosis panas   503 °C·mnt   468 °C·mnt   −7%
 ```
 
 Baris suhu **wajib menampilkan °C dan °F**. Ini format persis yang dipakai panitia di kriteria penilaian, dan audiens distrik sekolah AS berpikir dalam °F.
+
+**Angka blok kedua tidak boleh dibesar-besarkan.** Kalau selisihnya memang −0,7°C, tulis −0,7°C. Panel ini justru menjadi bukti argumen produk: pilihan rute bukan solusinya, dan itulah sebabnya sebagian anak butuh bus.
 
 #### FR-5 — Kasus "tidak ada rute aman" *(P0)*
 
@@ -271,7 +337,9 @@ Ini penghubung ke Mode 1: permohonan yang dihasilkan di sini adalah input yang d
 
 #### FR-6 — Pemilihan sekolah *(P0)*
 
-Peta menampilkan pin seluruh sekolah dalam AOI. Klik pin → memuat analisis. Panel menampilkan nama, jenjang, total enrollment (NCES CCD), aturan walk zone yang berlaku.
+Peta menampilkan pin seluruh sekolah NCES (FR-20). Klik pin sekolah teranalisis → memuat graph dan blok sekolah itu secara on-demand, lalu render analisis. Panel menampilkan nama, jenjang, total enrollment (NCES CCD), aturan walk zone yang berlaku, dan radius setara-dosis (FR-18).
+
+Daftar sekolah di kolom kiri dapat dicari dan difilter ke "sudah dianalisis". Pada skala ratusan sekolah, daftar adalah jalur navigasi utama, bukan peta — dan ia sekaligus jalur setara yang dapat dibaca screen reader (§aksesibilitas `DESIGN.md`).
 
 #### FR-7 — Rendering dua batas *(P0)*
 
@@ -335,11 +403,50 @@ Salah klasifikasi:
   Jalan kaki, seharusnya bus  [n]
 ```
 
-#### FR-13 — Slider waktu *(P1)*
+#### FR-13 — Slider waktu *(P0 — dinaikkan dari P1 pada 25 Agu 2026)*
 
 - Minimal dua state: jam masuk (~07.30) dan jam bubar (~14.45)
 - Idealnya slider per jam sepanjang jam sekolah
 - Perubahan slider me-render ulang dari file pre-computed, **bukan panggilan API**
+- Hadir di **kedua mode**: Mode 2 sebagai kontrol utama panel FR-4, Mode 1 sebagai kontrol layer zona
+
+Naik ke P0 karena sumbu waktu kini memikul measurable outcome utama (G1′). Dua state statis sudah memenuhi P0; slider per jam tetap P1.
+
+#### FR-18 — Radius setara-dosis *(P0 — baru)*
+
+Untuk tiap sekolah, hitung dan tampilkan radius lingkaran yang **seharusnya** dipakai kalau kriterianya dosis, bukan jarak: jarak terjauh dari sekolah yang rute teradem-nya masih di bawah ambang, pada slice 14:45.
+
+```
+Radius kebijakan     1,00 mi
+Radius setara-dosis  0,42 mi   (−58%)
+```
+
+Dirender sebagai lingkaran ketiga di peta Mode 1, dan sebagai satu baris di ringkasan sekolah FR-12. Ini pengganti langsung untuk headline "−6,2°C" yang hilang, dan ia berbicara dalam satuan yang sudah dipakai kebijakan distrik hari ini.
+
+#### FR-20 — Lapisan sekolah nasional *(P0 — baru)*
+
+Peta merender **seluruh sekolah dari NCES Common Core of Data**, bukan hanya yang teranalisis. Data ini gratis, tidak menyentuh kredit FortyGuard, dan sudah dipakai di §5.2.
+
+| Status sekolah | Render | Klik |
+|---|---|---|
+| Teranalisis | Pin penuh, dapat dipilih | Memuat zona + blok + rute |
+| Belum teranalisis | Pin abu-abu kecil | "Belum dianalisis — tile ini belum ditarik" |
+
+Zoom keluar memperlihatkan ribuan sekolah; zoom masuk memperlihatkan mana yang sudah punya zona. Cakupan menjadi terlihat sebagai **progres**, bukan sebagai batas.
+
+**Aturan keras:** sekolah belum teranalisis **tidak boleh** menampilkan angka apa pun — bukan interpolasi, bukan rata-rata regional, bukan estimasi. Nol angka. Satu angka karangan yang ditemukan juri membatalkan kriteria "real use of the platform" untuk seluruh submission.
+
+Sumber: NCES CCD school directory (lat/lon, nama, jenjang, enrollment, distrik). Dimuat sebagai satu file terpisah dan di-render sebagai layer simbol MapLibre — bukan marker DOM, yang akan mematikan browser pada jumlah segini.
+
+#### FR-21 — Peta cakupan tile *(P1 — baru)*
+
+Layer tipis yang menampilkan batas tile yang sudah ditarik, dengan tanggal fetch dan jam slice-nya. Menjawab "data ini dari mana" secara visual, dan memperlihatkan pipeline sebagai sesuatu yang berjalan bertahap, bukan sekali jadi.
+
+#### FR-19 — Exceedance per blok *(P1 — baru)*
+
+Berapa hari per tahun ajaran rute teradem sebuah blok melewati ambang. Sumber: distribusi harian stasiun ASOS dikombinasikan dengan offset spasial per blok dari FortyGuard (§1.3, sumbu 3).
+
+Ditampilkan di panel detail blok FR-9 dan di kolom export FR-14. Ini pembawa G9.
 
 #### FR-14 — Export CSV / GeoJSON *(P1)*
 
@@ -389,7 +496,8 @@ Tiga endpoint yang dipakai dari tujuh yang tersedia. Sisanya Premium-only.
 
 **Batasan tier Basic yang harus dihormati:**
 
-- **AOI maksimum 10 mi² ≈ 5,1 km × 5,1 km.** Ini yang membatasi Mode 2 ke "lingkungan kamu", bukan "ke mana saja di kota". Untungnya seluruh trip jalan kaki anak sekolah (maksimal 1–1,5 mil) muat di dalamnya
+- **AOI maksimum 10 mi² per panggilan ≈ 5,1 km × 5,1 km.** Ini batas per-panggilan, **bukan** batas cakupan produk. Cakupan dibangun dengan **memosaikkan banyak tile** (§5.6). Satu walk zone SD radius 1 mil = 3,14 mi², jadi satu tile memuat beberapa walk zone penuh
+- **Biaya flat 4.220 kredit per panggilan**, terverifikasi Fase 1 dengan tiga panggilan terkontrol (863 / 309 / 6.642 sel, ketiganya identik). Konsekuensi langsung: **jangan pernah meminta kotak kecil.** Selalu minta 10 mi² penuh
 - **Environmental Parameters hanya 3 parameter per request.** Kombinasi yang dipilih: GHI + wet bulb + relative humidity. DNI/DHI tidak dipakai karena HeatWalk tidak memodelkan naungan secara geometris
 - Semua job async → wajib polling via Check Status
 - Nilai `-999` adalah legacy null → **harus di-handle eksplisit**, jika tidak statistik akan rusak diam-diam
@@ -426,15 +534,104 @@ faktor_koreksi = enrollment_resmi_CCD / estimasi_dasymetric
 
 ### 5.4 Kota demo
 
-**Rekomendasi: Phoenix, AZ** jika statuta hazardous walking Arizona terkonfirmasi ada. Jika tidak, pindah ke **Florida** (Orlando/Tampa) dan ganti kutipan kebijakan dari ADHS ke ketentuan Florida.
+**Keputusan (24 Agustus 2026): Florida (Orlando/Tampa).** Statuta hazardous walking Arizona diverifikasi **tidak ada** — `ARS §15-901` murni berbasis jarak (>1 mil SD, >1,5 mil SMP/SMA), satu-satunya kemunculan kata "hazardous" di statuta itu soal jarak antar-sekolah untuk klasifikasi distrik terisolasi, tidak relevan dengan siswa jalan kaki. Kode kebijakan model ASBA untuk "Walkers and Riders" (EEAA) — tempat ketentuan semacam ini biasanya hidup — berstatus **dihapus** dari template kebijakan distrik Arizona. Detail verifikasi di `docs/METHODOLOGY.md`.
 
 | Kandidat | Kekuatan | Kelemahan |
 |---|---|---|
-| Phoenix, AZ | Panduan ADHS berlaku di sana; riset ASU SHaDE Lab berbasis di sana; krisis panas paling terdokumentasi | ⚠️ Statuta hazardous walking Arizona belum diverifikasi |
-| Florida | Mekanisme paling terdokumentasi + angka konkret 19.693 anak; pendanaan negara bagian eksplisit | Prior art ASU/ADHS kurang nyambung |
+| **Florida** ✅ | Mekanisme hukum paling kuat & eksplisit — **Florida Statute §1006.21/§1006.23**, definisi "hazardous walking condition" tertulis (lebar jalur <4 kaki, dst); angka konkret 19.693 anak TA 2019–2020; distrik wajib punya proses penetapan tahunan → sumber sitasi `policy_source` yang nyata | Prior art ASU SHaDE Lab / panduan ADHS kurang nyambung geografis |
+| Phoenix, AZ ❌ | Panduan ADHS berlaku di sana; riset ASU SHaDE Lab berbasis di sana; krisis panas paling terdokumentasi | **Statuta hazardous walking tidak ada** (terverifikasi 24 Agu 2026) — merusak fondasi hukum FR-5/§1.2 |
 | Austin, TX | Studi Lanza dkk. dilakukan di sana; Texas punya dana tambahan | Prior art American Forests paling dekat → risiko dianggap duplikatif |
 
-**Kriteria pemilihan AOI 10 mi² sangat spesifik:** pilih area dengan **kontras kanopi ekstrem** — kawasan berkanopi yang bersebelahan dengan kawasan industri atau parkiran besar. Kalau AOI-nya homogen, rute teradem dan rute terpendek akan nyaris identik dan seluruh premis produk kehilangan taringnya.
+**Kriteria "kontras kanopi ekstrem" sudah tidak berlaku sebagai kriteria pemilihan.** Fase 1 menguji 8 kotak dengan mekanisme fisik berbeda; semuanya mendarat di 0,25–1,84°C. Suhu udara 2m tidak berperilaku seperti suhu permukaan (§1.3). Mencari AOI ke-9 adalah pemborosan kredit dan waktu.
+
+**Kriteria pemilihan AOI yang berlaku sekarang, berurutan:**
+
+1. Statuta hazardous walking negara bagian terverifikasi ada, dengan sitasi pasal
+2. Kebijakan transportasi distrik tersedia publik sebagai PDF dengan radius walk zone tertulis
+3. Batas attendance tersedia di portal ArcGIS distrik
+4. Kepadatan sekolah — tile dipilih untuk memaksimalkan jumlah sekolah per panggilan
+5. Kontras kanopi — **tie-breaker saja, bukan gerbang**
+
+### 5.6 Cakupan tile — seluruh distrik, bukan satu kotak
+
+**Target: setiap sekolah OCPS punya zona.** Batas 10 mi² adalah batas per-panggilan, dan diatasi dengan memosaikkan tile.
+
+#### Aritmetika
+
+```
+Sisa kredit                     1.786.900
+Biaya per panggilan                 4.220
+Muat                             ~423 panggilan
+Dua slice waktu per tile          ~211 tile = ~2.110 mi²
+Orange County (daratan)             ~900 mi²
+Bagian padat sekolah                ~300 mi² = 30 tile = 60 panggilan
+Biaya cakupan padat                253.200 kredit (14% jatah)
+```
+
+**Seluruh area padat sekolah OCPS muat dengan sisa besar.** Batasan sebenarnya bukan kredit, melainkan waktu fetch (60 panggilan async berpolling) dan ukuran file.
+
+#### Konsekuensi arsitektur: file dipecah per sekolah
+
+`graph.json` monolitik mati pada skala ini — 30 tile ≈ 150 MB, tidak mungkin di-`fetch()` browser.
+
+```
+data/out/
+├── schools.json                    seluruh sekolah + status analisis
+├── tiles.json                      manifest bbox tile + status
+├── summary.json                    seluruh sekolah teranalisis
+└── by_school/
+    ├── <school_id>/
+    │   ├── graph.0730.json
+    │   ├── graph.1445.json
+    │   └── blocks.geojson
+```
+
+Frontend hanya mem-`fetch()` sekolah yang sedang dibuka. Repo boleh 150 MB; yang ditarik browser tetap ~5 MB per sekolah.
+
+**Sekolah yang walk zone-nya melintasi batas tile** memakai graph gabungan dari tile-tile yang bersinggungan. `step2_build_graph.py` menggabung sebelum routing, bukan sesudah — routing lintas-batas pada graph yang terpotong menghasilkan rute palsu.
+
+#### `config.py` menerima daftar, bukan satu bbox
+
+```python
+TILES = [
+    {"id": "ocps_01", "bbox": [...], "status": "done"},
+    {"id": "ocps_02", "bbox": [...], "status": "pending"},
+]
+```
+
+Menambah cakupan = menambah entri + jalankan ulang. **Tidak ada kode baru.** Ini keputusan struktur yang harus diambil sebelum Fase 2 ditulis — membangun single-bbox sekarang berarti refactor tanggal 28, dan refactor tanggal 28 adalah cara paling umum proyek hackathon mati.
+
+#### Urutan rollout
+
+| Gelombang | Isi | Kapan |
+|---|---|---|
+| 1 | 1 tile (Pine Hills) | Fase 2–4, gerbang penuh |
+| 2 | +5 tile inti OCPS | setelah gelombang 1 lolos |
+| 3 | Sisa area padat sekolah | selama waktu dan kredit ada |
+
+Gelombang 1 wajib lolos seluruh checklist Fase 4 sebelum gelombang 2 dijalankan. Bukan soal keraguan cakupan — soal jangan menggandakan bug yang sama ke 30 tile.
+
+### 5.5 Dua AOI, dua peran berbeda
+
+| | **Orlando (`orl_pine_hills_n`)** | **Phoenix** |
+|---|---|---|
+| Peran | Produk penuh | Bukti portabilitas (G10) |
+| Masuk UI | ✅ | ❌ tidak pernah dirender |
+| Heatmap 2 slice | ✅ | ✅ |
+| Graph + dosis + klasifikasi | ✅ | ✅ |
+| PDF kebijakan dibaca manual | ✅ | ❌ |
+| Attendance boundary distrik | ✅ | ❌ nearest-school, dicatat sebagai limitasi |
+| Kalibrasi enrollment CCD | ✅ | ❌ |
+| FR-5 tombol permohonan | ✅ | ❌ **tidak boleh dibuat** |
+| Output | seluruh `data/out/` | `contrast_report.csv` saja |
+
+**Phoenix tidak boleh masuk UI, dan ini bukan soal waktu.** Statuta hazardous walking Arizona diverifikasi tidak ada (§5.4). Blok merah di Phoenix berarti tombol permohonan tanpa dasar hukum untuk dikutip — lubang pertama yang akan ditemukan juri, dan ia merusak §1.2 yang merupakan fondasi seluruh pitch.
+
+**Nilai Phoenix ada di pitch, bukan di produk.** Satu tabel pembanding: *"config diganti, bbox diganti, pipeline jalan tanpa satu baris kode berubah."* Klaim distrik-agnostik jadi terbukti, bukan diklaim. Bonus: pembanding iklim kering vs lembap — bukti bahwa keputusan panas tidak dapat disalin antar-iklim.
+
+**Prasyarat:** `config.py` harus bersih dari nilai per-kota yang hardcoded. Bug `UTM_EPSG` yang mengunci ke zona Arizona (ditemukan di Fase 1) adalah contoh persis dari yang harus dibereskan lebih dulu.
+
+**Gerbang tanggal — 27 Agustus 12:00.** Kalau Orlando belum lulus seluruh checklist Fase 4 pada titik itu, **Phoenix dibuang seluruhnya**, bukan dikurangi. Keputusan ini diambil sekarang, bukan tanggal 29 dini hari.
 
 ---
 
@@ -501,9 +698,11 @@ Kekhawatiran umum "cakupan trotoar OSM sering bolong" berlaku untuk `footway`, t
 
 **Basemap:** file `.pmtiles` hasil ekstrak bbox AOI, di-commit ke `web/public/`, dibaca browser lewat HTTP range request. Tidak ada tile server pihak ketiga, tidak ada API key yang bisa habis atau di-retire di tengah masa penjurian. Ini juga yang membuat NFR reliabilitas di §7 benar-benar dapat dipenuhi. Detail visual di `DESIGN.md`.
 
-**Ukuran `graph.json`:** AOI 10 mi² walk network di Phoenix diperkirakan 5–15 ribu edge → 2–4 MB setelah geometri disederhanakan. Kalau melewati 5 MB, sederhanakan geometri edge (Douglas-Peucker) sebelum pindah ke format lain.
+**Ukuran file:** graph dipecah **per sekolah**, bukan per AOI (§5.6). Satu sekolah ≈ 5–15 ribu edge → 2–4 MB setelah disederhanakan Douglas-Peucker. Target ≤5 MB per file; kalau lewat, naikkan toleransi penyederhanaan sebelum mengganti format.
 
-**Format data:** simpan hasil per jam sebagai file terpisah agar slider waktu instan. GeoJSON di-`fetch()`, bukan di-`import`.
+**Format data:** simpan hasil per jam sebagai file terpisah agar slider waktu instan. GeoJSON di-`fetch()`, bukan di-`import`. Frontend memuat `schools.json` + `tiles.json` saat boot; graph dan blok dimuat **on-demand saat sekolah dipilih**, tidak semuanya di depan.
+
+**Basemap pada cakupan luas:** bbox PMTiles harus mencakup gabungan seluruh tile, bukan satu tile. Ekstrak ulang setiap kali gelombang tile bertambah, dan verifikasi ulang status `206 Partial Content`.
 
 **Explicitly ruled out:** `deck.gl`, `react-map-gl`, backend server apa pun, PostGIS/DuckDB/Parquet, autentikasi, tile server pihak ketiga.
 
@@ -514,7 +713,8 @@ Kekhawatiran umum "cakupan trotoar OSM sering bolong" berlaku untuk `footway`, t
 | Kategori | Requirement |
 |---|---|
 | **Performa** | Input alamat → dua rute ter-render dalam <1 detik |
-| **Performa** | Klik sekolah → zona ter-render dalam <2 detik |
+| **Performa** | Klik sekolah → zona ter-render dalam <2 detik, termasuk `fetch()` on-demand file sekolah itu |
+| **Performa** | Layer pin NCES ter-render tanpa jank pada zoom keluar penuh. Wajib layer simbol MapLibre, bukan marker DOM |
 | **Performa** | Perubahan slider waktu → render ulang <500 ms |
 | **Reliabilitas** | Demo harus berfungsi penuh **tanpa koneksi internet sama sekali** setelah load pertama, kecuali tombol refresh (FR-17). Ini termasuk basemap — karena itu basemap di-host sendiri sebagai file statis, bukan ditarik dari tile server pihak ketiga |
 | **Satuan** | Setiap tempat yang menampilkan °C·menit **wajib** menampilkan °C berdampingan. °C·menit benar secara ilmiah dan punya preseden literatur (Meng dkk. 2023), tetapi tidak intuitif — tidak ada yang tahu apakah 340 °C·menit itu buruk. Semua orang tahu selisih 6°C itu berbahaya |
@@ -531,37 +731,47 @@ Wajib tampil di halaman Limitations dan di slide pitch:
 
 1. Resolusi 60m tidak dapat membedakan trotoar sisi kiri vs kanan → skoring dilakukan di level **koridor**, bukan trotoar
 2. Tanpa wind speed & globe temperature → **bukan WBGT**; sebut "indeks dosis panas berbasis suhu udara 2m + beban radiasi"
-3. AOI terbatas 10 mi² → rute hanya tersedia di dalam area yang dipetakan
+3. Cakupan dibatasi jumlah tile yang berhasil ditarik sebelum deadline. Sekolah di luar tile ter-render sebagai pin abu-abu berlabel "belum dianalisis", tidak pernah dengan angka hasil interpolasi atau tebakan
 4. Rute dimodelkan dari jaringan OSM — anak sungguhan mungkin memotong jalan atau menempuh jalur informal
 5. Kecepatan jalan diasumsikan 1,2 m/s untuk semua anak
 6. Tidak semua anak dalam batas attendance bersekolah di situ (charter/swasta/open enrollment), meleset ~10–20%
 7. Data sensus level block mengandung noise differential privacy
 8. Luas bangunan ≠ jumlah unit → apartemen akan under-estimate
 9. Batas SABS berumur ~10 tahun jika data distrik langsung tidak tersedia
+10. **Manfaat pemilihan rute ternyata kecil.** Suhu udara 2m terukur menunjukkan variasi spasial intra-urban yang jauh lebih kecil daripada yang tersirat dari peta naungan atau suhu permukaan. Delapan kandidat AOI di dua kota diuji; kontras terbaik 1,84°C (p95−p05). Konsekuensinya delta antar-rute berada di kisaran 0,5–0,8°C, bukan ≥4°C seperti hipotesis awal. **Paparan didominasi durasi dan waktu hari, bukan pilihan jalur.** Gerbang G1/G2 dicabut dan diganti G1′/G2′ pada 25 Agustus 2026
+11. Kategori kuning (FR-8) akan berisi jauh lebih sedikit blok daripada yang diasumsikan v1.3, sebagai konsekuensi langsung poin 10. Distribusi aktual dilaporkan apa adanya; ambang tidak digeser untuk mengisinya
+12. Angka exceedance (FR-19) adalah **hibrida**: distribusi temporal dari stasiun ASOS titik tunggal, offset spasial dari FortyGuard. Ia mengasumsikan offset spasial per blok stabil antar-hari — asumsi yang tidak diuji
+13. AOI Phoenix tidak memiliki kalibrasi enrollment, batas attendance distrik, maupun dasar statuta. Ia hadir sebagai bukti portabilitas pipeline saja dan tidak boleh dibaca sebagai rekomendasi kebijakan
 
 ---
 
 ## 9. Milestone
 
-Hari ini 23 Agustus 2026. Deadline 30 Agustus 23:59 GST → **7 hari.**
+Hari ini 25 Agustus 2026. Deadline 30 Agustus 23:59 GST → **5 hari + buffer.**
 
 | Tanggal | Target | Definition of done |
 |---|---|---|
-| **23** | Verifikasi API | `tcm` terkonfirmasi sebagai suhu udara ambien °C pada 2m AGL; 1 heatmap 60m berhasil ditarik; `-999` ter-handle; ketersediaan `exceedance`/`persistence`/GHI di Basic terkonfirmasi |
-| **24** | Graph berbobot | `osmnx` graph + sampling raster → `graph.json` jadi; fixture palsu dibuat untuk paralelisasi frontend |
-| **25** | **🚩 Gerbang** | Minimal 1 pasangan asal-tujuan dengan selisih rute teradem vs terpendek ≥4°C. **Kalau gagal, ganti AOI ke area kontras tinggi — bukan lanjut** |
-| **26–27** | Frontend Mode 2 | Peta, input alamat, dua rute, panel perbandingan, kasus "tidak ada rute aman", tombol salin permohonan |
-| **28** | Frontend Mode 1 | Zona, daftar reklasifikasi, "lihat kenapa", tombol sembunyikan data panas, angka siswa |
-| **29** | Demo + deck | Video demo, pitch deck, README |
+| ~~23~~ | ✅ Verifikasi API | `tcm` terkonfirmasi suhu udara 2m AGL; `-999` ter-handle; biaya heatmap terbukti flat 4.220 kredit/panggilan; granularity terbatas 60/80/100 |
+| ~~24~~ | ✅ Verifikasi hukum | Statuta Arizona terverifikasi **tidak ada**; kota demo pindah ke Florida |
+| ~~25 pagi~~ | ❌→✅ Scouting AOI | 8 kandidat gagal gerbang kontras. Pivot tiga sumbu, PRD v1.4 |
+| **25 sore** | **🚩 Gerbang baru** | Delta temporal 07:30 vs 14:45 pada AOI Orlando **≥6°C** (G1′). Kunci bbox Orlando. **Kalau gagal, lapor — jangan lanjut** |
+| **26** | Fase 2–4, gelombang 1 | Graph berbobot, routing, klasifikasi, `data/out/by_school/` lengkap untuk tile pertama dan lolos seluruh checklist |
+| **26 malam** | Gelombang 2 | +5 tile OCPS. Nol kode baru — hanya entri `TILES` dan jalankan ulang |
+| **26–27** | Frontend Mode 2 | Peta, input alamat, panel FR-4 dua blok, kasus "tidak ada rute aman", tombol salin permohonan |
+| **27 siang** | **🚩 Gerbang tanggal** | Orlando lulus Fase 4? Ya → Phoenix boleh jalan. Tidak → Phoenix dibuang |
+| **28** | Frontend Mode 1 + gelombang 3 | Zona, radius setara-dosis, daftar reklasifikasi, FR-16, FR-20 pin nasional; sisa tile ditarik selama waktu ada; Phoenix pipeline-only kalau gerbang lolos |
+| **29** | Demo + deck | Video demo, pitch deck, README, halaman Metodologi & Limitations |
 | **30** | Buffer + submit | — |
 
 **Jalur mundur kalau hari 27 mepet:** potong Mode 1 jadi statis — tabel + peta tanpa interaksi klik-blok. Yang **tidak boleh dipotong** adalah aturan "rute teradem pun gagal" (FR-8 kategori merah), karena itu jantung argumennya.
 
 **Urutan demo video:** orang tua dulu, distrik belakangan.
-1. Ibu di Phoenix mengecek alamat → "tidak ada rute aman" → momen emosional
-2. Zoom out ke tampilan distrik → 142 anak lain kondisinya sama
+1. Orang tua di Orlando mengecek alamat → geser slider ke jam bubar → dosis melonjak → "tidak ada rute aman" → momen emosional
+2. Zoom out ke tampilan distrik → 142 anak lain kondisinya sama; radius kebijakan 1,0 mi vs radius setara-dosis 0,42 mi
 3. Klik "sembunyikan data panas" → semuanya kolaps jadi lingkaran → *"ini yang distrik punya hari ini"*
 4. Tutup dengan daftar reklasifikasi + export CSV
+
+Ganti kota dari Phoenix ke Orlando di seluruh naskah. Adegan 1 sekarang punya dua beat, bukan satu: **waktu dulu, baru rute** — karena di situlah angka terbesarnya.
 
 ---
 
@@ -570,7 +780,10 @@ Hari ini 23 Agustus 2026. Deadline 30 Agustus 23:59 GST → **7 hari.**
 | Risiko | Dampak | Mitigasi |
 |---|---|---|
 | **`tcm` bukan suhu udara ambien 2m AGL** | **Kritis — seluruh kerangka °C·menit batal** | Verifikasi hari 1 lewat tes API langsung. Ini blocker nomor satu, sebelum satu baris kode pipeline ditulis |
-| **Selisih rute teradem vs terpendek kecil (<2°C)** | **Kritis — premis produk runtuh** | Uji hari 25. Mitigasi: pilih AOI dengan kontras kanopi ekstrem; pilih jam bubar di hari persentil 95, bukan 90. Kalau tetap kecil, ini temuan yang dilaporkan jujur, bukan disembunyikan |
+| ~~Selisih rute teradem vs terpendek kecil~~ | ~~Kritis~~ | **TERJADI, 25 Agu 2026.** 8/8 kandidat gagal, terbaik 1,84°C. Diselesaikan lewat pivot tiga sumbu (§1.3) dan pencabutan G1/G2. Bukan lagi risiko — sudah jadi temuan |
+| **Delta temporal ternyata juga kecil (<6°C)** | **Kritis — G1′ ikut runtuh** | Uji **hari ini juga**, sebelum Fase 2. Dua slice sudah harus ditarik di Fase 1; bandingkan rata-rata AOI-nya. Kalau <6°C, mitigasi berurutan: (a) pindah ke hari p97; (b) geser slice ke 15:30. Kalau tetap gagal, produk bertumpu pada G2′ radius setara-dosis + G9 exceedance saja — dan itu **keputusan produk, lapor dulu** |
+| Juri menganggap pencabutan G1/G2 sebagai menggeser target | Sedang | Nyatakan lebih dulu di pitch sebagai temuan pengukuran, lengkap dengan tabel 8 kandidat. Peserta lain akan mengklaim manfaat rute tanpa mengukurnya; HeatWalk satu-satunya yang mengukur dan melaporkan bahwa premis umum itu lemah |
+| Phoenix menyita waktu Orlando | **Tinggi** | Gerbang tanggal 27 Agu 12:00 (§5.5). Kerjakan berurutan, jangan paralel — debugging dua dataset sekaligus menyembunyikan sumber bug |
 | Juri menganggap ini cool route planner generik | **Tinggi** — ini contoh pertama panitia di Track 01 | Buka pitch dengan mekanisme hukum dan aturan kausal, bukan dengan peta rute. Sebut prior art Austin lebih dulu dan artikulasikan perbedaannya |
 | `graph.json` terlalu besar | Sedang | Sederhanakan geometri edge; kalau perlu kirim topologi saja dan render geometri dari tile |
 | `exceedance`/`persistence` ternyata Premium-only | Sedang | Hitung sendiri dari data historis 2019+ lewat `tcm` berulang, dengan biaya kredit |
@@ -588,11 +801,15 @@ Hari ini 23 Agustus 2026. Deadline 30 Agustus 23:59 GST → **7 hari.**
 ## 11. Open questions
 
 - [ ] **Definisi `tcm`** — apakah suhu udara ambien °C pada 2m AGL? (prioritas hari 1, blocker)
-- [ ] **Apakah `env_params` menyediakan WBGT?** Demo ColdRoute FortyGuard menampilkan angka WBGT, tetapi dokumentasi hanya menyebut wet bulb. Kalau tersedia di Basic, non-goal WBGT (§1.5) bisa dicabut
-- [ ] Apakah Arizona punya statuta hazardous walking conditions? → menentukan kota demo
+- [x] **Definisi `tcm`** — terverifikasi Fase 0: suhu udara ambien °C pada 2m AGL
+- [ ] ~~Apakah `env_params` menyediakan WBGT?~~ **Ditunda, keputusan 25 Agu 2026.** `env_params` di-skip untuk siklus ini: belum terverifikasi apakah ia mengembalikan grid seluruh AOI atau hanya titik tunggal, dan menambah dependency belum teruji di hari ke-5 adalah risiko yang tidak sebanding. Bobot tetap `tcm`. **Konsekuensi:** batasan §8 poin 2 tetap berbunyi "indeks berbasis suhu udara 2m", bukan "+ beban radiasi"
+- [ ] Opsional kalau sempat 28 Agu: satu panggilan `env_params` di **satu titik** tengah AOI untuk satu kalimat metodologi — *"kelembapan 68% membuat 34°C terasa seperti 41°C"*. Tidak menyentuh pipeline, menutup celah argumen "ini kan cuma suhu udara"
+- [ ] **Delta temporal 07:30 vs 14:45 — berapa sebenarnya?** Blocker berikutnya, pengganti langsung blocker `tcm`. Harus dijawab sebelum Fase 2
+- [x] Apakah Arizona punya statuta hazardous walking conditions? → **Tidak.** Diverifikasi 24 Agu 2026 lewat `ARS §15-901` (murni jarak) dan kode kebijakan ASBA EEAA (dihapus). Kota demo pindah ke Florida, lihat §5.4
 - [ ] Distrik sekolah spesifik yang batas attendance-nya tersedia publik dan terkini
 - [ ] Nilai ambang dosis (°C·menit) yang akan dipakai — perlu kalibrasi empiris
-- [ ] **Baseline suhu untuk perhitungan dosis** — 33°C (Lanza) atau suhu minimum AOI? Ini memengaruhi semua angka di produk
+- [ ] **Baseline suhu untuk perhitungan dosis** — 33°C (Lanza) atau suhu minimum AOI? Ini memengaruhi semua angka di produk. Catatan pasca-Fase 1: baseline mendekati p05 AOI menaikkan selisih dosis relatif (mis. 7,0 vs 8,8 = 26%), tetapi **tidak** menghasilkan 4°C. Kalau dipilih, dokumentasikan sebagai pilihan kalibrasi, bukan sebagai temuan
+- [ ] Ambang exceedance (°C) untuk FR-19, dan apakah offset spasial FortyGuard cukup stabil antar-hari untuk mendukungnya
 - [ ] Format kolom yang diterima Transfinder/Versatrans untuk import layer hazardous
 - [ ] Apakah form submission mengizinkan lebih dari satu track
 

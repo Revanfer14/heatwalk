@@ -42,6 +42,23 @@ Ukuran tile terukur setelah reproyeksi ke EPSG:32612: **60.3 m** — cocok denga
 
 Nilai ini penting: salah tafsir zona waktu bisa memberi selisih >10°C di Phoenix bulan Agustus dan menyebabkan gerbang gagal secara keliru.
 
+**[Fase 1] Temuan kritis — `start_time` hanya menerima menit `:00`.** `date_time.start_time` dengan menit bukan-nol (`07:30`, `14:15`, `14:30`, `14:45`) mengembalikan respons **`Completed` tanpa error**, tapi `map_data.features = []` dan `stats_data.n_cells = 0` — kosong senyap, bukan gagal. `14:00` dan `15:00` (menit `:00`) di bbox dan tanggal yang sama mengembalikan data penuh (863 tile).
+
+Diverifikasi dengan payload identik kecuali `start_time`, pada `VERIFY_AOI_BBOX` + tanggal `2023-08-11`:
+
+| `start_time` | Tile terkembalikan |
+|---|---|
+| `15:00` | 863 |
+| `14:00` | 863 |
+| `14:45` | **0** |
+| `14:30` | **0** |
+| `14:15` | **0** |
+| `07:30` | **0** |
+
+Konsekuensi: `MORNING_HHMM = "07:30"` dan `DISMISSAL_HHMM = "14:45"` di `pipeline/config.py` (nilai awal Fase 0, sesuai PRD §5.1/FR-13 "±07:30" dan "±14:45") **akan gagal senyap** kalau dipakai apa adanya — pipeline akan membangun graph dengan `temp_c` kosong tanpa satu pun exception. Diubah ke **`MORNING_HHMM = "08:00"`, `DISMISSAL_HHMM = "15:00"`** (menit `:00` terdekat). FR-13 menulis "~07:30" dan "~14:45" (tilde, aproksimasi), jadi pergeseran 15–30 menit ke jam bulat ini konsisten dengan spesifikasi, bukan penyimpangan darinya.
+
+`pipeline/heatmap_fetch.py:_require_whole_hour()` memvalidasi ini secara eksplisit — memanggil `fetch_tcm()` dengan menit bukan `:00` melempar `UnsupportedStartTimeError` alih-alih diam-diam mengembalikan data kosong.
+
 ---
 
 ## [Fase 0] Skema respons `heatmap` — temuan empiris
@@ -56,7 +73,7 @@ Dokumentasi FortyGuard menyebut hasil sebagai `{map_data, stats_data}` tanpa mer
 
 `pipeline/heatmap_stats.py` mendeteksi key yang tersedia secara otomatis (`detect_value_key`), bukan hardcode satu nama — kedua skema di atas sudah tercakup.
 
-`peak_c` per edge (dibutuhkan Fase 2.1 / FR-4 / FR-9) diambil dari `max_temperature`, bukan dihitung ulang dari sampel titik.
+**Koreksi (Fase 1):** `peak_c` per edge (dibutuhkan Fase 2.1 / FR-4 / FR-9) **tidak** diambil dari `max_temperature`. Diverifikasi pada 863/863 tile respons `tcm` bahwa `min_temperature == average_temperature == max_temperature` — tile 60m adalah unit resolusi terkecil, `max_temperature` tidak membawa informasi sub-tile apa pun. Raster yang dibangun Fase 1.2 karena itu **satu band** dari `average_temperature`. `peak_c` per edge Fase 2.1 dihitung sebagai maksimum antar-tile yang dilintasi geometri edge.
 
 `map_data` adalah `GeoJSON FeatureCollection` berisi poligon tile — **bukan GeoTIFF**. Fase 2 merasterisasi poligon ini ke GeoTIFF 60m di `data/interim/` sebelum `rasterio.sample`.
 
@@ -75,13 +92,81 @@ Diprobe langsung terhadap API (bukan hanya dipercaya dari dokumentasi), keempatn
 
 Konsekuensi: FR-4 non-goal WBGT tetap berlaku (tidak ada wind speed/globe temperature), tapi `env_params` memberi `apparent_temperature_celsius` (43.7°C pada sampel verifikasi, vs `tcm` 41.83°C) dan `heat_index_celsius` (40.1°C) — bisa dipakai sebagai argumen "bukan sekadar suhu udara" di metodologi/pitch tanpa mengklaim WBGT.
 
-Biaya kredit teramati: heatmap ~4.220 kredit/panggilan pada kotak ~1 mi² (863 tile); env_params ~2.900 kredit/panggilan. Kredit total paket Hackathon: 2.000.000 — verifikasi Fase 0 memakai 15.560 (0,8%).
+**[Fase 1] Koreksi biaya kredit — flat per panggilan, bukan per sel/luas.** Angka "0,8%" di atas dari 863 tile saja, sebelum scouting Fase 1. Diverifikasi ulang dengan tiga panggilan terkontrol pada `VERIFY_AOI_BBOX`:
+
+| Panggilan | `granularity` | `n_cells` | Kredit terpakai |
+|---|---|---|---|
+| A | 60 | 863 | 4.220 |
+| B | 100 | 309 | 4.220 |
+| C (kotak 10 mi² penuh) | 60 | 6.642 | 4.220 |
+
+Ketiganya identik meski `n_cells` berbeda 21×. **`heatmap` (`analytic_type=tcm`) dikenakan biaya flat 4.220 kredit per panggilan**, tidak bergantung granularity maupun luas AOI (dalam rentang yang diuji). Ini juga menjelaskan rata-rata `151.920 / 36 = 4.220` yang teramati sebelumnya — **setiap satu dari 36 panggilan `heatmap` Fase 0–1, termasuk 22 yang kosong senyap, dikenai biaya sama.** ≈92.840 kredit (22 × 4.220) terbuang pada panggilan yang tidak menghasilkan data.
+
+Konsekuensi untuk desain `pipeline/step1_scout_aoi.py`: tidak ada insentif biaya memakai granularity kasar untuk screening — semua scouting langsung memakai `granularity=60` (resolusi final) karena harganya sama. `pipeline/config.py:GRANULARITY_M_ALLOWED = (60, 80, 100)` — nilai lain ditolak API dengan HTTP 422 sebelum activity dibuat (gratis, tapi dicegah lebih dulu di `heatmap_fetch._require_allowed_granularity()` supaya jelas kenapa gagal).
+
+**Penyebab 22 panggilan kosong senyap:** tidak bisa direkonstruksi retroaktif — `data/raw/` menyimpan respons tapi bukan payload permintaannya (bug yang sudah diperbaiki, lihat di bawah). Empat di antaranya terdokumentasi (menit `start_time` bukan `:00`, tabel di atas); sisanya (18 panggilan, cluster 21:53–22:27, kemungkinan besar scouting kandidat AOI awal dengan payload yang belum tervalidasi) tidak punya jejak. `pipeline/fg_client.py:run()` sekarang menyimpan `{"request": {...}, "response": {...}}` per panggilan (kompatibel mundur dengan cache lama yang hanya berisi `response`), jadi kegagalan senyap ke depan bisa didiagnosis langsung dari file cache-nya.
+
+Kredit riil terpakai sampai akhir scouting AOI Fase 1 (dicek `fg_client.check_credits()`): **213.100 dari 2.000.000 (10,7%)**, sisa 1.786.900. Bukan 0,8% seperti tercatat sebelumnya.
+
+Biaya kredit per endpoint: `heatmap` (`tcm`) 4.220/panggilan flat; `env_params` ~2.900/panggilan (belum diverifikasi flat/variabel, jumlah panggilan terlalu sedikit untuk disimpulkan).
 
 ---
 
-## [Pending Fase 1] AOI final & kontras kanopi
+## [Fase 1] Kota demo — pivot Phoenix → Florida
 
-_Diisi setelah AOI 10 mi² dikunci: bbox, tanggal persentil-95 terpanas, stdev tutupan kanopi, hasil uji p95−p05 ≥ 6°C._
+Statuta *hazardous walking conditions* Arizona (PRD §11, §5.4) diverifikasi **tidak ada** pada 24 Agustus 2026, sebelum data Fase 1 apa pun ditarik:
+
+- `ARS §15-901` ("Definitions") mendefinisikan "eligible student" murni berbasis jarak: >1 mil untuk siswa SD, >1,5 mil untuk SMP/SMA. Tidak ada carve-out kondisi berbahaya.
+- Satu-satunya kemunculan kata "hazardous" di statuta itu ada di definisi "small isolated school district" — soal jarak mengemudi *antar-sekolah*, bukan soal siswa berjalan kaki.
+- Kode kebijakan model Arizona School Boards Association untuk "Walkers and Riders" (**EEAA**) — kode NEOLA tempat ketentuan hazardous-walking biasanya hidup di negara bagian lain — berstatus **dihapus** dari daftar kebijakan advisory ASBA.
+- Sumber: `azleg.gov/ars/15/00901.htm`, `azsba.org/policy-advisories/`.
+
+Konsekuensi: fondasi hukum FR-5 (teks permohonan) dan §1.2 PRD tidak punya sandaran di Arizona. Keputusan (Revan, 24 Agu 2026): **pindah kota demo ke Florida** (Orlando/Tampa), memakai **Florida Statute §1006.21/§1006.23** — definisi "hazardous walking condition" tertulis eksplisit (lebar jalur <4 kaki, dst.), angka historis 19.693 siswa TA 2019–2020 lewat mekanisme ini, dan distrik Florida wajib punya proses penetapan tahunan yang menghasilkan dokumen publik → sumber `policy_source` yang bisa disitasi langsung, bukan diasumsikan.
+
+`PRD §5.4` dan `§11` sudah diperbarui untuk mencatat keputusan ini. `pipeline/config.py` konstanta `VERIFY_*` (KPHX/METAR) **tidak diubah** — itu catatan Fase 0 yang sudah lulus dan independen dari kota demo (properti `tcm` sebagai suhu udara berlaku di mana pun, bukan spesifik lokasi).
+
+## [Fase 1] AOI — hasil scouting kontras (BELUM DIKUNCI)
+
+**Gerbang GAGAL pada seluruh 8 kandidat yang diuji.** Kandidat terbaik mencapai 31% dari syarat gerbang. AOI **belum dikunci** — ini laporan status, bukan keputusan akhir; keputusan lanjut/pivot ada di Revan.
+
+Dijalankan `pipeline/step1_scout_aoi.py`, granularity 60m (resolusi final, tidak ada penghematan biaya dari granularity kasar — lihat catatan biaya di atas), tanggal `2026-08-18`, jam `15:00` lokal, kotak ~10 mi² (≈5,1×5,1 km) tiap kandidat:
+
+| Kandidat | Mekanisme fisik yang diuji | `p95−p05` | Verdict |
+|---|---|---|---|
+| `orl_pine_hills_n` | Orlando, kanopi padat vs jalan arteri | **1,84°C** | GAGAL |
+| `phx_south_phoenix` | Phoenix, elevasi South Mountain vs lembah kota | 1,62°C | GAGAL |
+| `orl_pine_hills_sw` | Orlando, kanopi vs komersial | 1,44°C | GAGAL |
+| `phx_south_mountain_centered` | Phoenix, puncak South Mountain di tengah kotak | 1,32°C | GAGAL |
+| `orl_pine_hills_s` | Orlando, kanopi campuran | 0,83°C | GAGAL |
+| `phx_south_mountain_laveen` | Phoenix, lereng gunung vs lahan pertanian Laveen | 0,55°C | GAGAL |
+| `phx_arcadia_camelback` | Phoenix, kebun jeruk irigasi vs batuan Camelback Mountain | 0,36°C | GAGAL |
+| `phx_papago_tempe` | Phoenix, gurun Papago vs urban Tempe/Sky Harbor | 0,25°C | GAGAL |
+
+Syarat gerbang (dev plan §1 Verification): **≥6°C LULUS**, **<4°C = ganti AOI sekarang**. Kandidat terbaik (Pine Hills North, 1,84°C) berada jauh di bawah ambang darurat 4°C, apalagi syarat 6°C. Data lengkap: `data/out/aoi_scout.csv`.
+
+**Ini bukan kegagalan memilih kotak.** Tiga mekanisme fisik berbeda diuji — gradien elevasi (South Mountain, delta ~700m), efek oasis irigasi (Arcadia vs batuan telanjang), dan kontras urban/gurun (Papago/Tempe) — dan kanopi padat vs arteri tanpa pohon (Pine Hills) — dan tidak satu pun mendekati. Ini konsisten dengan properti `tcm` yang sudah diverifikasi Fase 0: **suhu udara 2m AGL secara fisik jauh lebih homogen secara spasial daripada suhu permukaan**, karena percampuran udara (mixing) meredam kontras yang tajam di permukaan tanah. Rentang tile individual di kotak verifikasi Fase 0 (0,17°C pada ~1 mi²) sudah memberi sinyal ini; skala 10 mi² memperbesarnya tapi tidak sampai 6°C.
+
+**Catatan validitas tambahan (belum ditutup):**
+- Kandidat Phoenix diuji pada `2026-08-18`, yang **persentil ke-91,9** suhu maksimum harian PHX 2019–2026 (METAR, `metar_client.daily_max_temps_c`) — dekat p90, bukan p95 sesuai dev plan §1.2. Lima hari terpanas dalam rentang itu: `2023-07-20` (48,33°C), `2023-07-18`/`2023-07-19` (47,78°C), `2025-08-07` (47,78°C), `2020-07-30` (47,22°C). Kontras belum diuji ulang pada hari-hari ini.
+- Kandidat Orlando diuji pada tanggal yang sama (`2026-08-18`), yang **belum diverifikasi** posisi persentilnya terhadap riwayat METAR MCO (`data/raw/metar_range_MCO_*.csv` sudah tersedia, belum dianalisis).
+- Karena kontras berasal dari tutupan lahan/elevasi (properti spasial hari-ke-hari relatif stabil), hari yang lebih panas kemungkinan menggeser p05 dan p95 bersamaan (menaikkan keduanya), bukan melebarkan jaraknya — tapi ini asumsi, bukan yang sudah diverifikasi.
+
+**Opsi ke depan (keputusan produk, bukan teknis — lihat dev plan §3.3 & Ringkasan gerbang):**
+1. Uji ulang kandidat teratas pada hari p95 sungguhan (murah: 4.220 kredit/kandidat, tidak ada penalti biaya granularity).
+2. Pindah bobot rute dari Δsuhu ke Δdosis (`BASELINE_C` dikalibrasi ulang mendekati p05 AOI) — dosis punya penyebut yang lebih sensitif terhadap selisih kecil karena `max(temp_c - baseline_c, 0)` bisa membuat spread relatif besar meski spread absolut suhu kecil.
+3. Pakai `env_params.heat_index_celsius` (terbukti tersedia di Basic tier) sebagai bobot — pada sampel Orlando RH 39,7%, heat index memperbesar kontras ~2,1× dibanding `tcm` mentah (lihat sampel di bawah), meski begitu belum tentu cukup mencapai 6°C.
+4. Terima kontras yang ada, revisi gerbang G1 PRD §1.4, dan dokumentasikan sebagai batasan jujur (PRD §10 mengizinkan ini secara eksplisit).
+
+Sampel `env_params` (Orlando, `2023-08-11 15:00` lokal, RH 39,7% konstan di seluruh titik):
+
+| lat, lon | `tcm` | `heat_index_celsius` |
+|---|---|---|
+| 28,5753, −81,4708 | 37,37 | 41,9 |
+| 28,5753, −81,4604 | 37,51 | 42,2 |
+| 28,5845, −81,4708 | 35,97 | 38,9 |
+| 28,5937, −81,4604 | 36,08 | 39,2 |
+
+Rentang `tcm` di sampel ini 1,56°C; rentang `heat_index` 3,30°C (amplifikasi ×2,1). RH regional konstan pada tanggal ini, jadi `heat_index = f(tcm)` murni bisa dihitung offline dari `tcm` yang sudah ada — tidak perlu panggilan `env_params` per titik.
 
 ## [Pending Fase 2] Rumus dosis & kalibrasi
 
@@ -107,8 +192,9 @@ _Diisi per sekolah: `faktor_koreksi = enrollment_CCD / estimasi_dasymetric`._
 ## [Pending] Sumber data & sitasi
 
 - Lanza K, dkk. "Heat-Resilient Schoolyards: Access to Playgrounds and Shade." *J Phys Act Health* 2023;20(2):134–141.
-- Arizona DHS. *Managing Extreme Heat Recommendations for Schools*, 2021.
+- Arizona DHS. *Managing Extreme Heat Recommendations for Schools*, 2021. (sitasi ilmiah ambang perilaku panas — tetap dipakai meski kota demo pindah ke Florida; bukan sandaran hukum)
 - Meng Y, dkk. "Investigation of heat stress on urban roadways for commuting children." *Urban Climate* 2023;49:101564.
 - Basu R, dkk. (2024).
+- Florida Statute §1006.21 — *Transportation of public school students*; §1006.23 — *Hazardous walking conditions* — `flsenate.gov/Laws/Statutes/2024/1006.21`, `.../1006.23`. Sandaran hukum FR-5 & §1.2, menggantikan Arizona per pivot Fase 1.
 - FortyGuard API — `https://docs-api.fortyguard.com`.
 - Iowa Environmental Mesonet ASOS (ground truth METAR) — `https://mesonet.agron.iastate.edu`.

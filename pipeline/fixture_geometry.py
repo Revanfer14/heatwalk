@@ -1,14 +1,14 @@
 import hashlib
 import math
 
-from pipeline.config import BASELINE_C, PHOENIX_AOI_BBOX_PROVISIONAL
+from pipeline.config import AOI_BBOX_PROVISIONAL, BASELINE_C
 
 N_EDGE_COLS = 20
 N_EDGE_ROWS = 18
 N_BLOCK_COLS = 12
 N_BLOCK_ROWS = 10
 
-HOUR_OFFSET_C = {"07:30": -6.0, "14:45": 0.0}
+HOUR_OFFSET_C = {"08:00": -6.0, "15:00": 0.0}
 
 SCHOOLS_FIXTURE = [
     {
@@ -78,7 +78,7 @@ def node_id(col: int, row: int) -> str:
     return f"n{col}_{row}"
 
 
-def build_nodes(bbox: tuple[float, float, float, float] = PHOENIX_AOI_BBOX_PROVISIONAL) -> dict[str, list[float]]:
+def build_nodes(bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIONAL) -> dict[str, list[float]]:
     return {
         node_id(col, row): _lonlat(bbox, col, row, N_EDGE_COLS, N_EDGE_ROWS)
         for row in range(N_EDGE_ROWS + 1)
@@ -86,7 +86,7 @@ def build_nodes(bbox: tuple[float, float, float, float] = PHOENIX_AOI_BBOX_PROVI
     }
 
 
-def build_edges(hhmm: str, bbox: tuple[float, float, float, float] = PHOENIX_AOI_BBOX_PROVISIONAL) -> list[dict]:
+def build_edges(hhmm: str, bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIONAL) -> list[dict]:
     cell_w_m, cell_h_m = _cell_size_m(bbox, N_EDGE_COLS, N_EDGE_ROWS)
     nodes = build_nodes(bbox)
     edges: list[dict] = []
@@ -119,7 +119,7 @@ def _edge(u: str, v: str, nodes: dict[str, list[float]], len_m: float, col: int,
     }
 
 
-def build_block_grid(bbox: tuple[float, float, float, float] = PHOENIX_AOI_BBOX_PROVISIONAL) -> list[dict]:
+def build_block_grid(bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIONAL) -> list[dict]:
     west, south, east, north = bbox
     dx = (east - west) / N_BLOCK_COLS
     dy = (north - south) / N_BLOCK_ROWS
@@ -148,7 +148,7 @@ def build_block_grid(bbox: tuple[float, float, float, float] = PHOENIX_AOI_BBOX_
     return blocks
 
 
-def school_lonlat(school: dict, bbox: tuple[float, float, float, float] = PHOENIX_AOI_BBOX_PROVISIONAL) -> list[float]:
+def school_lonlat(school: dict, bbox: tuple[float, float, float, float] = AOI_BBOX_PROVISIONAL) -> list[float]:
     return _lonlat(bbox, school["grid_col"], school["grid_row"], N_EDGE_COLS, N_EDGE_ROWS)
 
 

@@ -10,21 +10,21 @@ Semua file di-`fetch()` dari `web/public/data/`, salinan dari `data/out/` lewat 
 
 ## `graph.<HHMM>.json`
 
-Dua file: `graph.0730.json` (jam masuk) dan `graph.1445.json` (jam bubar). Dihasilkan `pipeline/step2_build_graph.py` (asli) / `pipeline/make_fixtures.py` (fixture).
+Dua file: `graph.0800.json` (jam masuk) dan `graph.1500.json` (jam bubar). Dihasilkan `pipeline/step2_build_graph.py` (asli) / `pipeline/make_fixtures.py` (fixture). Jam bulat, bukan `07:30`/`14:45` literal PRD §5.1/FR-13 — FortyGuard `start_time` hanya menerima menit `:00`, lihat `docs/METHODOLOGY.md`.
 
 ```json
 {
   "meta": {
-    "aoi_bbox": [-112.12, 33.45, -112.05, 33.51],
+    "aoi_bbox": [-81.410, 28.515, -81.358, 28.561],
     "date": "2026-08-18",
-    "hour": "14:45",
+    "hour": "15:00",
     "baseline_c": 33.0,
     "walk_speed_mps": 1.2,
-    "lambda_detour": 0.05,
+    "lambda_detour": 0.005,
     "source": "fortyguard tcm 60m"
   },
   "nodes": {
-    "n1": [-112.09, 33.48]
+    "n1": [-81.410, 28.515]
   },
   "edges": [
     {
@@ -33,11 +33,13 @@ Dua file: `graph.0730.json` (jam masuk) dan `graph.1445.json` (jam bubar). Dihas
       "len_m": 84.2,
       "temp_c": 41.3,
       "dose": 9.7,
-      "geom": [[-112.09, 33.48], [-112.089, 33.481]]
+      "geom": [[-81.410, 28.515], [-81.409, 28.516]]
     }
   ]
 }
 ```
+
+Contoh `lambda_detour` (`0.005`) memakai nilai fixture saat ini (`LAMBDA_DETOUR_CANDIDATES[1]`), bukan hasil kalibrasi 1,4× cap detour Fase 2.3 — nilai itu diisi ulang di dokumen ini begitu kalibrasi asli selesai.
 
 | Field | Tipe | Satuan | Null? | Sumber |
 |---|---|---|---|---|
@@ -69,14 +71,15 @@ Dua file: `graph.0730.json` (jam masuk) dan `graph.1445.json` (jam bubar). Dihas
       "type": "Feature",
       "geometry": { "type": "Polygon", "coordinates": [[[0, 0]]] },
       "properties": {
-        "block_id": "040130610001007",
-        "school_id": "sch_lincoln",
+        "block_id": "120950123001007",
+        "school_id": "sch_pine_hills_elem",
         "kids_est": 23,
         "class": "red",
         "shortest": { "len_m": 1420, "mean_c": 40.3, "peak_c": 44.0, "dose": 503 },
         "coolest": { "len_m": 1680, "mean_c": 34.1, "peak_c": 36.8, "dose": 289 },
         "delta_mean_c": -6.2,
         "delta_dose_pct": -43,
+        "distance_mi": 0.82,
         "status_now": "walk",
         "status_rec": "bus_eligible",
         "reason": "coolest route mean 41.2C exceeds threshold"
@@ -99,6 +102,7 @@ Dua file: `graph.0730.json` (jam masuk) dan `graph.1445.json` (jam bubar). Dihas
 | `properties.coolest.*` | sama seperti `shortest.*` | — | tidak | Dijkstra `weight=weight_cool` |
 | `properties.delta_mean_c` | `number` | °C | tidak | `coolest.mean_c - shortest.mean_c` |
 | `properties.delta_dose_pct` | `number` | % (bulat) | tidak | `(coolest.dose - shortest.dose) / shortest.dose * 100` |
+| `properties.distance_mi` | `number` | mil | tidak, `>= 0` | jarak lurus centroid blok ke sekolah — dasar `status_now` dan definisi G6 `bus_not_needed` |
 | `properties.status_now` | `"walk" \| "bus"` | — | tidak | radius resmi distrik |
 | `properties.status_rec` | `"walk" \| "reroute" \| "bus_eligible"` | — | tidak | turunan `class` |
 | `properties.reason` | `string` | — | tidak untuk `red`, kosong diperbolehkan untuk `green` | template + angka konkret |
@@ -112,14 +116,14 @@ Array objek, satu per sekolah dalam AOI. Dihasilkan `pipeline/step1_fetch_data.p
 ```json
 [
   {
-    "id": "sch_lincoln",
-    "name": "Lincoln Elementary",
+    "id": "sch_pine_hills_elem",
+    "name": "Pine Hills Elementary",
     "level": "elementary",
     "enrollment": 512,
     "walk_radius_mi": 1.0,
-    "lon": -112.09,
-    "lat": 33.48,
-    "policy_source": "PUSD Transportation Policy 2024, p.4"
+    "lon": -81.40,
+    "lat": 28.53,
+    "policy_source": "Orange County Public Schools — Hazardous Walking Conditions Determination 2024, p.4"
   }
 ]
 ```
@@ -142,7 +146,7 @@ Objek keyed by `school_id`. Dihasilkan `pipeline/step4_classify.py` (asli) / `pi
 
 ```json
 {
-  "sch_lincoln": {
+  "sch_pine_hills_elem": {
     "in_walk_zone": 412,
     "reroute_enough": 118,
     "no_safe_route": 142,

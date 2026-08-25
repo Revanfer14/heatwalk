@@ -2,11 +2,10 @@
 
 | | |
 |---|---|
-| **Sumber kebenaran** | `heatwalk-prd.md` (v1.3) untuk *apa*, `DESIGN.md` untuk *tampilannya* |
+| **Sumber kebenaran** | `heatwalk-prd.md` untuk *apa*, `DESIGN.md` untuk *tampilannya* |
 | **Fungsi dokumen ini** | Urutan eksekusi + definition of done per fase |
-| **Tanggal mulai** | 24 Agustus 2026 |
+| **Hari ini** | 25 Agustus 2026 |
 | **Deadline** | 30 Agustus 2026, 23:59 GST |
-| **Sisa waktu** | 6 hari kerja + 1 hari buffer |
 
 ---
 
@@ -14,9 +13,18 @@
 
 1. Kerjakan **fase berurutan**. Jangan mulai fase berikutnya sebelum blok **Verifikasi** fase sekarang lulus semua.
 2. Kalau verifikasi gagal → **berhenti dan lapor**. Jangan diam-diam ganti pendekatan. Tiap fase punya *fail branch* eksplisit; ikuti itu.
-3. Nomor `FR-x` / `US-x` / `§x` merujuk ke `heatwalk-prd.md`. Kalau dokumen ini bentrok sama PRD, **PRD menang** untuk soal *apa*, dokumen ini menang untuk soal *urutan dan cara*. Untuk soal *tampilan* — warna, tipografi, komponen, layout — `DESIGN.md` yang menang, dan dia mengikat sepanjang Fase 5–7.
+3. Nomor `FR-x` / `US-x` / `G-x` / `§x` merujuk ke `heatwalk-prd.md`. Kalau dokumen ini bentrok sama PRD, **PRD menang** untuk soal *apa*, dokumen ini menang untuk soal *urutan dan cara*. Untuk soal *tampilan* — warna, tipografi, komponen, layout — `DESIGN.md` yang menang, dan dia mengikat sepanjang Fase 5–7.
 4. Setiap angka yang muncul di UI harus bisa ditelusuri ke file di `data/out/`. Tidak ada angka hardcoded di frontend kecuali di fixture dev.
 5. Commit per fase dengan pesan `phase-N: <ringkasan>`. Jangan commit satu bom di akhir.
+6. Kalau ada FR di PRD yang belum punya rumah di fase mana pun di dokumen ini, itu **utang dokumen ini** — lapor, jangan langsung improvisasi implementasinya.
+
+### Satu gerbang magnitudo, sisanya dilaporkan
+
+Hanya **G1** (minimal satu blok merah) yang menghentikan pekerjaan berdasarkan besarnya sebuah angka. Semua outcome lain — delta antar-jam, delta antar-rute, selisih luas zona, rentang exceedance — **dihitung dan dilaporkan apa adanya**, termasuk kalau kecil. Alasannya di PRD §1.5.
+
+Gerbang lain yang berlaku bersifat operasional, bukan magnitudo: `tcm` terverifikasi, statuta terverifikasi, basemap `206`, demo jalan offline, live link di incognito, gerbang tanggal Phoenix.
+
+**Jangan pernah menggeser `BASELINE_C`, `THRESHOLD`, atau `LAMBDA` supaya sebuah angka terlihat lebih besar.** Kalibrasi `THRESHOLD` hanya sah dalam satu kasus: kategori merah kosong (G1), dan alasannya wajib ditulis di `docs/METHODOLOGY.md`.
 
 ### Prinsip arsitektur yang tidak boleh dilanggar
 
@@ -25,42 +33,58 @@
 - **GeoJSON di-`fetch()`, bukan di-`import`.**
 - **Tidak ada autentikasi, tidak ada database.** Live demo wajib terbuka di incognito tanpa login (submission form field 12). Mode dipisah lewat route `/` dan `/district`, bukan lewat akun.
 - **Basemap di-host sendiri** sebagai satu file `.pmtiles` di `web/public/`. Tidak ada tile server pihak ketiga, tidak ada API key peta.
-- Ruled out: `deck.gl`, `react-map-gl`, PostGIS/DuckDB/Parquet, backend apa pun, autentikasi.
+- **Cakupan lewat mosaik tile, bukan satu bbox.** `config.py` menerima daftar `TILES` (PRD §5.6). Menambah cakupan = menambah entri, nol kode baru.
+- **Semua slice waktu di menit `:00`.** Menit non-`:00` mengembalikan nol tile secara senyap.
+- Ruled out: `deck.gl`, `react-map-gl`, PostGIS/DuckDB/Parquet, backend apa pun, autentikasi, tile server pihak ketiga.
 
 ---
 
-## Struktur repo (bikin ini dulu di Fase 0)
+## Struktur repo
 
 ```
 heatwalk/
 ├── pipeline/
-│   ├── config.py              # semua parameter: AOI, baseline, threshold, jam, λ detour
-│   ├── fg_client.py           # wrapper FortyGuard + polling + retry + cache
-│   ├── step0_verify_api.py    # GATE fase 0
-│   ├── step1_fetch_data.py    # heatmap, census, CCD, OSM
-│   ├── step2_build_graph.py   # osmnx + sampling → graph berbobot
-│   ├── step3_routes.py        # dijkstra ×2 per blok
-│   ├── step4_classify.py      # aturan FR-8
-│   ├── step5_export.py        # tulis ke data/out/
-│   ├── make_fixtures.py       # fixture palsu buat frontend (dibuat di Fase 0)
+│   ├── config.py               # TILES[], baseline, threshold, jam, λ detour — UTM_EPSG diturunkan dari bbox
+│   ├── fg_client.py            # wrapper FortyGuard + polling + retry + cache-to-disk
+│   ├── step0_verify_api.py     # verifikasi API
+│   ├── step1_scout_aoi.py      # scouting kandidat AOI — arsip
+│   ├── step1_fetch_data.py     # heatmap, OSM, census, CCD, attendance
+│   ├── step2_build_graph.py    # osmnx + sampling → graph dua bobot
+│   ├── step3_routes.py         # dijkstra ×2 per blok
+│   ├── step3b_outcomes.py      # hitung G1–G9
+│   ├── step4_classify.py       # klasifikasi FR-8 + salah klasifikasi G4
+│   ├── step5_export.py         # tulis ke data/out/, termasuk by_school/
+│   ├── make_fixtures.py        # fixture palsu, skema PERSIS sama dengan output asli
 │   └── run_all.py
 ├── data/
-│   ├── raw/                   # cache respons API mentah (COMMIT — ini bukti API dipakai)
-│   └── out/                   # graph.0730.json, graph.1445.json, blocks.geojson,
-│                              # schools.json, summary.json  (COMMIT)
-├── web/                       # Vite + React 19 + TS + Tailwind v4 + MapLibre v5
+│   ├── raw/                    # cache respons API mentah (COMMIT — bukti API dipakai)
+│   │   └── phase1_scouting/    # kandidat AOI + scratch file — arsip bukti temuan §1.5, BUKAN sampah
+│   ├── interim/                # GeoTIFF, graph OSM, tabel sensus sebelum diproses
+│   └── out/
+│       ├── schools.json        # seluruh sekolah AOI + status analisis
+│       ├── schools_national.json  # pin NCES nasional (FR-20), tanpa angka analisis
+│       ├── tiles.json          # manifest bbox tile + status (§5.6)
+│       ├── summary.json        # seluruh sekolah teranalisis
+│       └── by_school/
+│           └── <school_id>/
+│               ├── graph.0800.json
+│               ├── graph.1500.json
+│               └── blocks.geojson
+├── web/                        # Vite + React 19 + TS + Tailwind v4 + MapLibre v5
 │   ├── public/
-│   │   ├── data/              # symlink/copy dari data/out
-│   │   └── heatwalk-aoi.pmtiles   # basemap self-hosted (COMMIT)
+│   │   ├── data/                  # symlink/copy dari data/out (fetch on-demand per sekolah)
+│   │   └── heatwalk-aoi.pmtiles   # basemap self-hosted, bbox gabungan seluruh TILES
 │   └── src/
-│       ├── routes/            # "/" mode orang tua, "/district" mode distrik
-│       ├── components/        # komponen produk
-│       │   └── ui/            # shadcn, komentar bawaan dihapus
-│       ├── lib/               # format.ts, dose.ts, dijkstra.ts, petition.ts
-│       └── styles/theme.css   # satu-satunya tempat nilai warna literal
+│       ├── routes/              # "/" mode orang tua, "/district" mode distrik
+│       ├── components/
+│       │   └── ui/              # shadcn, komentar bawaan dihapus
+│       ├── lib/                 # format.ts, dose.ts, dijkstra.ts, petition.ts
+│       └── styles/theme.css     # satu-satunya tempat nilai warna literal
 ├── docs/
 │   ├── METHODOLOGY.md
-│   └── LIMITATIONS.md
+│   ├── LIMITATIONS.md
+│   ├── CONTRACT.md
+│   └── phase1-scouting.md      # tabel 8 kandidat AOI, dikutip di pitch
 ├── CLAUDE.md
 ├── DESIGN.md
 └── README.md
@@ -70,206 +94,197 @@ heatwalk/
 
 ## Peta fase
 
-| Fase | Isi | Target selesai | Gate |
+| Fase | Isi | Target | Gate |
 |---|---|---|---|
-| 0 | Setup, verifikasi API, kunci data contract | 24 Agu | 🚩 `tcm` terverifikasi |
-| 1 | Pilih AOI, tarik semua data | 24–25 Agu | Heatmap valid, coverage OSM oke |
-| 2 | Graph berbobot dosis | 25 Agu | Dosis per edge masuk akal |
-| 3 | Routing + uji kontras | 25 Agu | 🚩 Δ ≥ 4°C pada 1 pasang OD |
-| 4 | Klasifikasi blok + export | 26 Agu | 3 kategori terisi semua |
-| 5 | Frontend Mode 2 (orang tua) | 26–27 Agu | US-01…US-05 jalan |
-| 6 | Frontend Mode 1 (distrik) | 28 Agu | US-06…US-10 jalan |
-| 7 | Lintas-mode, metodologi, limitations | 28 Agu | FR-16 jalan |
-| 8 | Deploy, video, submit | 29–30 Agu | Live link buka di incognito |
+| 0 | Setup, verifikasi API, verifikasi hukum | 23–24 Agu | ✅ `tcm` = suhu udara 2m AGL · ✅ statuta Florida terverifikasi |
+| 1 | Pemilihan AOI | 25 pagi | ✅ `orl_pine_hills_n` dipilih lewat kriteria hukum-dulu |
+| **1.5** | Kunci struktur + akuisisi data | 25 sore | Raster, graph OSM, sekolah, blok, radius kebijakan tersedia |
+| 2 | Graph berbobot dosis, gelombang 1 | 26 pagi | Dosis per edge masuk akal |
+| 3 | Routing & outcomes | 26 siang | **🚩 G1** ≥1 blok merah; sisanya dilaporkan apa adanya |
+| 4 | Klasifikasi + export + gelombang 2 | 26 malam | 3 kategori terisi |
+| 5 | Frontend Mode 2 (orang tua) | 27 | US-01…US-05 jalan · **🚩 gerbang tanggal Phoenix** 27 siang |
+| 6 | Frontend Mode 1 (distrik) | 28 | US-06…US-10 jalan |
+| 7 | Lintas-mode, metodologi, kejujuran | 28 malam | FR-16 jalan, demo offline |
+| 8 | Deploy, video, submit | 29–30 | Live link buka di incognito |
 
-**Frontend bisa mulai paralel dari akhir Fase 0** lewat `make_fixtures.py`. Jangan tunggu pipeline selesai.
+**Frontend bisa mulai paralel dari akhir Fase 1.5** lewat `make_fixtures.py`. Jangan tunggu pipeline selesai.
 
 ---
 
-# FASE 0 — Setup & verifikasi API
+# FASE 0 — Setup & verifikasi API ✅
 
-**Target: 24 Agustus. Ini gate paling berbahaya di seluruh proyek.**
+Status: lolos.
 
-## Overview
+- `tcm` terverifikasi suhu udara ambien 2m AGL (dalam ±3°C dari METAR referensi)
+- `-999` legacy null ter-handle eksplisit
+- Biaya heatmap terbukti flat 4.220 kredit per panggilan, tidak bergantung jumlah sel
+- Granularity terbatas 60/80/100m
+- Menit non-`:00` mengembalikan nol tile secara senyap → semua slice di menit `:00`
+- Statuta hazardous walking Arizona terverifikasi **tidak ada** (`ARS §15-901` murni jarak, kode ASBA EEAA dihapus); Florida Statute §1006.21/§1006.23 terverifikasi eksplisit menyebut "hazardous walking condition"
 
-Sebelum satu baris kode pipeline ditulis, satu hal harus dipastikan: `tcm` itu suhu udara ambien °C pada 2m AGL atau bukan. Kalau ternyata land surface temperature, seluruh kerangka °C·menit dan seluruh klaim "suhu yang dirasakan anak" batal, dan produk harus dirombak sebelum, bukan sesudah, dibangun. Selain itu fase ini mengunci **data contract** supaya frontend bisa jalan paralel tanpa nunggu pipeline.
+Angka dan detail verifikasi ada di `docs/METHODOLOGY.md`. Tidak ada kerja tersisa di fase ini.
 
-## What to do
+---
 
-### 0.1 Scaffold
+# FASE 1 — Pemilihan AOI
 
-- Bikin struktur repo di atas. `git init`, `.gitignore` (jangan ignore `data/raw` dan `data/out`).
-- Python 3.11 venv. Install: `geopandas shapely pyproj rasterio numpy osmnx networkx httpx python-dotenv pandas`.
-- `.env` untuk `FORTYGUARD_API_KEY`. **Jangan pernah commit `.env`.** Bikin `.env.example`.
-- `web/`: `npm create vite@latest . -- --template react-ts`, install `maplibre-gl@^5 recharts tailwindcss@4 pmtiles protomaps-themes-base @fontsource-variable/inter`.
-- shadcn/ui: init, lalu generate **hanya** komponen di allowlist `DESIGN.md`. Hapus seluruh komentar bawaan CLI setelah generate.
-- Token warna: bikin `web/src/styles/theme.css` dari tabel di `DESIGN.md` sebelum komponen pertama ditulis. Tidak ada nilai warna literal di tempat lain.
-- **Basemap.** Ambil binary `pmtiles` dari GitHub Releases, lalu:
-  ```
-  pmtiles extract https://build.protomaps.com/<tanggal-build>.pmtiles \
-    web/public/heatwalk-aoi.pmtiles --bbox=<bbox AOI>
-  ```
-  Sebelum AOI final dikunci di Fase 1, pakai bbox sementara supaya frontend bisa jalan; ekstrak ulang setelah bbox final. Style dari `protomaps-themes-base` tema `grayscale`. Atribusi OpenStreetMap wajib terlihat di peta.
+## Status
 
-### 0.2 `fg_client.py`
+Pemilihan AOI **selesai**; sebagian verifikasi pendukungnya **belum**. Jangan tandai fase ini lulus sampai seluruh checklist di bawah terisi dengan bukti yang bisa ditunjuk ke file dan baris konkret.
 
-Wrapper minimal tapi harus punya:
-- `submit(endpoint, payload) -> activity_id`
-- `poll(activity_id, timeout=600, interval=5) -> result` — semua endpoint analisis async, wajib polling ke `GET /v1/status/{activity_id}`.
-- **Cache-to-disk sebelum parsing.** Setiap respons mentah ditulis ke `data/raw/<endpoint>_<hash_payload>.json` dan dibaca dari situ kalau sudah ada. Kredit trial terbatas — jangan pernah dua kali request payload yang sama.
-- `check_credits()` → `GET /v1/system/fetch-api-key-usage`. Panggil sebelum dan sesudah tiap batch fetch, log selisihnya.
+## Kriteria pemilihan (PRD §5.4), berurutan
 
-### 0.3 `step0_verify_api.py` — skrip verifikasi
+1. Statuta hazardous walking negara bagian terverifikasi ada, dengan sitasi pasal
+2. Kebijakan transportasi distrik tersedia publik sebagai PDF dengan radius walk zone tertulis
+3. Batas attendance tersedia di portal ArcGIS distrik
+4. Kepadatan sekolah — tile dipilih untuk memaksimalkan jumlah sekolah per panggilan
+5. Kontras kanopi — **tie-breaker saja, bukan gerbang**
 
-Tarik **satu heatmap kecil** (AOI ~1 mi², granularity 60m, analytic type `tcm`) di lokasi dan jam yang punya pembanding stasiun cuaca. Rekomendasi: kotak kecil di sekitar Phoenix Sky Harbor (KPHX, ±33.4342 N, −112.0116 W) — di situ ada observasi METAR per jam yang bisa dibanding.
+Kriteria 5 bukan gerbang karena PRD §1.5: suhu udara 2m tidak berperilaku seperti suhu permukaan pada siang hari. Delapan kandidat diuji di dua kota dengan empat mekanisme fisik berbeda; terbaik 1,84°C. Mencari kandidat ke-9 adalah pemborosan kredit — bukan soal AOI yang salah, soal premis pengujiannya yang salah sejak awal.
 
-Skrip harus mencetak:
+## Hasil
 
-1. **Statistik nilai**: min, p05, median, p95, max, jumlah nilai `-999`, persentase valid.
-2. **Bentuk respons**: struktur JSON/GeoTIFF, nama field, CRS, ukuran grid aktual, apakah benar 60m.
-3. **Perbandingan ground truth**: nilai `tcm` di pixel terdekat KPHX vs suhu udara METAR pada jam yang sama.
-4. **Cara request jam spesifik**: parameter mana yang mengatur tanggal/jam, dan apakah `time_of_measure` mengembalikan seri per jam atau hanya metadata waktu pengukuran.
-5. **Ketersediaan tier Basic** untuk: `exceedance`, `persistence`, dan `env_params` (GHI, wet bulb, relative humidity). Coba satu request kecil masing-masing, catat sukses/403.
+- **AOI terpilih: `orl_pine_hills_n`, Orlando/Orange County, FL.** Statuta terkuat & paling eksplisit di antara kandidat, angka konkret 19.693 anak TA 2019–2020.
+- Phoenix, AZ dibuang dari UI produk (statuta tidak ada) tapi **dipertahankan sebagai bukti portabilitas pipeline** (G10, §5.5) — pipeline-only, tidak pernah dirender.
+- Delapan kandidat **diarsipkan**, bukan dihapus, di `data/raw/phase1_scouting/` dan dirangkum di `docs/phase1-scouting.md`. Ini bukti empiris di balik PRD §1.5 dan dikutip di pitch.
 
-### 0.4 Kunci data contract + fixture
+## Sisa pekerjaan
 
-Tulis `docs/CONTRACT.md` dan `pipeline/make_fixtures.py` yang menghasilkan file palsu dengan skema **persis** seperti output asli nanti.
+### 1.1 Tulis `docs/phase1-scouting.md`
 
-```jsonc
-// data/out/graph.<HHMM>.json
-{
-  "meta": {
-    "aoi_bbox": [minlon, minlat, maxlon, maxlat],
-    "date": "2025-07-15", "hour": "14:45",
-    "baseline_c": 33.0, "walk_speed_mps": 1.2,
-    "lambda_detour": 0.05, "source": "fortyguard tcm 60m"
-  },
-  "nodes": { "<node_id>": [lon, lat] },
-  "edges": [
-    { "u": "<node_id>", "v": "<node_id>", "len_m": 84.2,
-      "temp_c": 41.3, "dose": 9.7, "geom": [[lon,lat],[lon,lat]] }
-  ]
-}
-```
+Tabel 8 kandidat dengan kolom mekanisme fisik dan p95−p05 (angkanya dari `data/out/aoi_scout.csv`), penjelasan kenapa ini temuan fisika dan bukan kesalahan pemilihan kotak, plus catatan persentil hari uji. File ini yang dikutip pitch — jangan biarkan tabelnya cuma hidup di `METHODOLOGY.md`.
 
-```jsonc
-// data/out/blocks.geojson — FeatureCollection, geometri census block
-{ "properties": {
-    "block_id": "040130610001007",
-    "school_id": "040...", "kids_est": 23,
-    "class": "red",                      // green | yellow | red
-    "shortest": { "len_m": 1420, "mean_c": 40.3, "peak_c": 44.0, "dose": 503 },
-    "coolest":  { "len_m": 1680, "mean_c": 34.1, "peak_c": 36.8, "dose": 289 },
-    "delta_mean_c": -6.2, "delta_dose_pct": -43,
-    "status_now": "walk", "status_rec": "bus_eligible",
-    "reason": "coolest route mean 41.2C exceeds threshold"
-} }
-```
+### 1.2 Arsipkan `data/raw/phase1_scouting/`
 
-```jsonc
-// data/out/schools.json
-[{ "id": "...", "name": "Lincoln Elementary", "level": "elementary",
-   "enrollment": 512, "walk_radius_mi": 1.0, "lon": ..., "lat": ...,
-   "policy_source": "PUSD Transportation Policy 2024, p.4" }]
+Pindahkan respons kosong 19-byte, `scratch_pine_hills_samples.json`, dan file heatmap kandidat scouting ke sub-folder arsip.
 
-// data/out/summary.json — per school, angka FR-12
-{ "<school_id>": {
-    "in_walk_zone": 412, "reroute_enough": 118, "no_safe_route": 142,
-    "lowest_income_quartile": 61,
-    "misclassified": { "bus_not_needed": 12, "walk_should_bus": 142 },
-    "dose_eliminated_per_child_per_day": 214,
-    "dose_eliminated_per_child_per_year": 38520,
-    "equivalent_minutes_at_42c": 43 } }
-```
+⚠️ **Prasyarat:** `fg_client.py` melakukan cache-lookup di `data/raw/`. Periksa dulu bahwa pemindahan tidak membuat cache miss — satu cache miss membakar 4.220 kredit. Kalau lookup-nya tidak rekursif, tambahkan pembacaan rekursif **sebelum** memindahkan file.
 
-Aturan: **kalau skema berubah setelah Fase 0, update `make_fixtures.py` di commit yang sama.** Frontend tidak boleh pernah tahu bedanya fixture dan data asli.
+### 1.3 Verifikasi kriteria #2 dan #3
 
-## Verification
+Butuh riset web, bukan kredit API.
 
-Lulus kalau semua ini benar:
+- Cari PDF kebijakan transportasi / hazardous walking OCPS. Catat **URL + nomor halaman + angka radius walk zone per jenjang** di `docs/METHODOLOGY.md`. Ini yang mengisi `walk_radius_mi` dan `policy_source` asli di `schools.json`, menggantikan placeholder fixture.
+- Cek portal ArcGIS OCPS untuk batas attendance; catat tersedia/tidak beserta URL layer. Kalau tidak tersedia → fallback NCES EDGE SABS, catat sebagai limitasi (PRD §8 poin 9).
+- Hitung jumlah sekolah nyata dalam bbox `orl_pine_hills_n` dari NCES CCD.
 
-- [ ] `python pipeline/step0_verify_api.py` selesai tanpa error dan mencetak kelima blok laporan di 0.3.
-- [ ] **`tcm` terverifikasi.** Kriteria putus: median `tcm` di pixel KPHX berada dalam **±3°C** dari suhu udara METAR pada jam sama → suhu udara, lanjut. Kalau selisihnya **+8°C atau lebih secara sistematis** → itu suhu permukaan, bukan udara.
-- [ ] Nilai `-999` terhitung dan tertangani sebagai NaN, bukan ikut masuk statistik.
-- [ ] Grid benar-benar 60m (cek jarak antar-pixel dalam meter setelah reproyeksi ke UTM lokal).
-- [ ] Terdokumentasi cara meminta jam/tanggal spesifik.
-- [ ] Status Basic tier untuk `exceedance`, `persistence`, `env_params` tercatat di `docs/METHODOLOGY.md`.
-- [ ] `npm run dev` di `web/` jalan dan me-render basemap PMTiles grayscale — bukan peta kosong, bukan basemap berwarna.
-- [ ] **Range request terverifikasi.** Deploy satu preview Vercel berisi `heatwalk-aoi.pmtiles`, buka tab Network, pastikan statusnya `206 Partial Content`. Kalau `200` dan seluruh file ditarik tiap load → pindahkan file ke Cloudflare R2 **sekarang**, jangan tunggu Fase 8. Tes ini 15 menit; menemukannya tanggal 29 jauh lebih mahal.
-- [ ] `python pipeline/make_fixtures.py` menghasilkan `data/out/*` yang valid; `blocks.geojson` bisa dibuka di geojson.io.
+### 1.4 Rapikan dokumen yang masih menyebut AOI belum dikunci
+
+`docs/METHODOLOGY.md` dan `docs/FASE1-RINGKASAN.md` masih menulis AOI belum terkunci dan masih memuat daftar opsi terbuka yang sudah diputuskan PRD. Ganti jadi kesimpulan + tautan ke `docs/phase1-scouting.md`. **Seksi Fase 0 jangan disentuh** — sudah final dan lulus.
+
+## Verifikasi
+
+- [x] Statuta hazardous walking Florida terverifikasi dengan sitasi pasal
+- [ ] Kebijakan transportasi OCPS tersedia sebagai PDF publik — URL + halaman + angka radius tercatat di `docs/METHODOLOGY.md`
+- [ ] Batas attendance OCPS: tersedia di ArcGIS (URL layer tercatat) atau dinyatakan eksplisit fallback ke SABS
+- [ ] `orl_pine_hills_n` memuat ≥2 sekolah nyata dari NCES CCD dalam kotak 10 mi²
+- [ ] `docs/phase1-scouting.md` ada, dan setiap angka di tabelnya cocok baris-per-baris dengan `data/out/aoi_scout.csv`
+- [ ] `data/raw/phase1_scouting/` berisi arsip, dan cache `fg_client` masih hit setelah pemindahan
+- [ ] `grep -rn "belum dikunci" docs/` → nol hasil
 
 ### Fail branch
 
 | Kalau | Maka |
 |---|---|
-| API key belum aktif | Kerjakan 0.1, 0.2, 0.4 dulu. Frontend jalan penuh dari fixture. **Jangan tunda 0.3 lebih dari saat key masuk** — begitu key aktif, verifikasi jadi tugas nomor satu. |
-| `tcm` = suhu permukaan | **STOP dan lapor.** Jangan lanjut ke Fase 1. Opsi: (a) pakai `env_params` apparent temperature / heat index sebagai bobot utama kalau tersedia di Basic; (b) turunkan klaim jadi "indeks paparan panas berbasis suhu permukaan" dan revisi §7 PRD, seluruh angka °C·menit diberi label ulang. Ini keputusan produk, bukan keputusan teknis. |
-| Granularity bukan 60m | Catat resolusi aktual, sesuaikan §8 batasan. Kalau >100m, koridor jadi terlalu kasar → lapor. |
-| `exceedance` Premium-only | Turunkan FR ke P2, hitung sendiri dari `tcm` historis kalau kredit cukup. |
+| PDF kebijakan OCPS tidak ditemukan | Catat eksplisit "tidak ditemukan" di `docs/METHODOLOGY.md` dan pakai radius standar Florida sebagai asumsi yang dinyatakan terbuka. **Jangan kosongkan diam-diam** |
+| Sekolah nyata dalam bbox <2 | **STOP dan lapor.** Ini menyentuh kriteria #4 (kepadatan sekolah) dan berarti bbox harus digeser — keputusan produk |
+| Pemindahan arsip bikin cache miss | Kembalikan file ke posisi semula, betulkan `fg_client` dulu, baru pindahkan |
 
 ---
 
-# FASE 1 — AOI & akuisisi data
+# FASE 1.5 — Kunci struktur & akuisisi data
 
-**Target: 24–25 Agustus.**
+**Target: 25 Agustus sore.** Ini fase yang membuat Fase 2 mungkin. Tanpa raster dan graph OSM di `data/interim/`, `rasterio.sample` di Fase 2 tidak punya apa pun untuk disampel.
 
 ## Overview
 
-Pilih satu AOI 10 mi² yang **kontras kanopinya ekstrem** dan tarik seluruh data pendukung sekali jalan. Pemilihan AOI adalah keputusan yang menentukan hidup-matinya Fase 3: AOI homogen = rute teradem ≈ rute terpendek = premis produk runtuh.
+Dua hal: mengunci struktur data supaya tidak ada refactor tanggal 28, dan menarik semua data mentah yang dibutuhkan pipeline.
 
 ## What to do
 
-### 1.1 Pilih AOI
+### 1.5.1 Bersihkan `config.py`
 
-- Default: Phoenix, AZ (PRD §5.4). Cek dulu statuta hazardous walking Arizona; kalau tidak ada, pindah ke Florida (Orlando/Tampa) dan ganti seluruh kutipan kebijakan.
-- Kriteria kotak 10 mi² (≈5,1 × 5,1 km):
-  - memuat **2–3 sekolah** (lebih dari itu tidak muat, PRD §5.1),
-  - ada kawasan berkanopi bersebelahan langsung dengan parkiran besar / kawasan industri / arterial tanpa pohon,
-  - sanity check pakai NLCD Tree Canopy Cover **sebelum** menarik heatmap: hitung stdev tutupan kanopi dalam kotak. Kalau stdev rendah, geser kotak.
-- Bikin heatmap uji di dashboard FortyGuard untuk AOI ini dulu, lihat visualnya, baru scripting.
-- Kunci bbox final di `config.py`.
+- `utm_epsg_for_lon()` sudah ada, tapi belum diuji di AOI Orlando. Jalankan sampling raster sekali di bbox Orlando — kalau ada distorsi jarak >1% dibanding jarak geodesik, proyeksi masih salah.
+- Grep manual untuk nilai per-kota lain yang masih hardcoded. Ini prasyarat eksplisit G10.
+- Hapus `AOI_BBOX_PROVISIONAL` dan konstanta gerbang kontras yang sudah tidak dipakai (`AOI_CONTRAST_GATE_C`, `AOI_CONTRAST_ABORT_C`).
+- Tulis bbox final `orl_pine_hills_n`.
 
-### 1.2 Tarik heatmap
-
-- Dua slice waktu: **±07:30** (jam masuk) dan **±14:45** (jam bubar).
-- Hari yang dipilih: hari persentil ~95 terpanas dari data historis (2019+), bukan p90. Dokumentasikan tanggalnya.
-- Simpan mentah ke `data/raw/`, konversi ke GeoTIFF di `data/interim/`.
-- Mask `-999` → NaN. Kalau NaN >10% dari AOI, lapor.
-
-### 1.3 Data pendukung
-
-| Data | Sumber | Catatan |
-|---|---|---|
-| Jaringan jalan | `osmnx.graph_from_bbox(network_type='walk')` | jangan `footway`-only |
-| Lokasi & enrollment sekolah | NCES CCD | filter ke AOI |
-| Batas attendance | portal ArcGIS distrik → fallback NCES EDGE SABS → fallback terakhir: nearest school per jenjang (catat sebagai limitasi) |
-| Anak 5–17 per blok | Census 2020 DHC P12 (block) → fallback ACS B01001 (block group) |
-| Pendapatan | ACS B19013, B17001 |
-| Aturan walk zone | PDF kebijakan distrik, **baca manual**, masukkan ke `schools.json` beserta sitasi halaman |
-
-### 1.4 Kalibrasi populasi
+### 1.5.2 Struktur `TILES`
 
 ```python
-faktor_koreksi = enrollment_resmi_CCD / estimasi_dasymetric_dalam_attendance_boundary
-kids_est_blok = kids_dasymetric_blok * faktor_koreksi
+TILES = [
+    {"id": "orl_pine_hills_n", "bbox": [...], "status": "pending"},
+]
 ```
-Simpan `faktor_koreksi` per sekolah di `summary.json` dan tampilkan di halaman metodologi.
 
-## Verification
+Minimal satu entri untuk gelombang 1. Entri gelombang 2–3 ditambah nanti tanpa kode baru.
 
-- [ ] Heatmap AOI ter-render sebagai GeoTIFF; `rasterio` bisa buka; CRS benar; bounding box cocok dengan `config.py`.
-- [ ] Sebaran nilai masuk akal: p95 − p05 dalam AOI **≥ 6°C** pada slice 14:45. Kalau <4°C, AOI-nya homogen → **ganti AOI sekarang**, jangan lanjut.
-- [ ] `-999` sudah jadi NaN, persentase NaN tercatat dan <10%.
-- [ ] Graph OSM punya **≥3.000 edge** di AOI 10 mi². Jauh di bawah itu artinya bbox salah atau network_type keliru.
-- [ ] `schools.json` terisi 2–3 sekolah dengan enrollment CCD dan `walk_radius_mi` dari PDF kebijakan asli (bukan asumsi).
-- [ ] `faktor_koreksi` per sekolah berada di rentang **0,3–3,0**. Di luar itu artinya ada yang salah di assignment blok→sekolah.
-- [ ] Total `kids_est` dalam attendance boundary = enrollment CCD (±1 karena pembulatan).
+### 1.5.3 Kunci skema di `docs/CONTRACT.md`
+
+Tulis skema `tiles.json` (manifest bbox + status per tile) dan struktur `data/out/by_school/<school_id>/`. Perbarui `pipeline/make_fixtures.py` supaya menghasilkan `tiles.json` dan minimal satu folder `by_school/<fake_id>/` fiktif dengan skema identik ke output asli — frontend Fase 5 mulai dari sini, paralel, tanpa menunggu pipeline.
+
+### 1.5.4 Tarik heatmap dua slice
+
+Tulis `pipeline/step1_fetch_data.py`.
+
+- Dua slice per tile: **08:00** dan **15:00** pada hari panas dari data historis. Menit wajib `:00`.
+- Cek `data/raw/` dulu — sebagian panggilan mungkin sudah ada di cache dan gratis.
+- Mask `-999` → NaN sebelum menulis GeoTIFF.
+- Output: GeoTIFF per tile per slice di `data/interim/`.
+
+### 1.5.5 Tarik data pendukung
+
+Masih di `step1_fetch_data.py`, per tile:
+
+- Jaringan jalan: `osmnx.graph_from_bbox(network_type='walk')` → simpan ke `data/interim/`
+- Sekolah + enrollment: NCES CCD, filter ke bbox
+- Batas attendance: portal ArcGIS OCPS → fallback SABS → fallback nearest-school (catat mana yang dipakai)
+- Anak 5–17 per blok: Census DHC P12 (atau ACS B01001 kalau block-level gagal)
+- Pendapatan: ACS B19013, B17001
+- `walk_radius_mi` per sekolah dari PDF kebijakan distrik (hasil Fase 1.3), bukan placeholder
+
+### 1.5.6 Kalibrasi enrollment
+
+```python
+faktor_koreksi = enrollment_resmi_CCD / estimasi_dasymetric
+```
+
+Simpan per sekolah, catat nilainya di `docs/METHODOLOGY.md`.
+
+### 1.5.7 Delta antar-slice (dilaporkan, bukan gerbang)
+
+Hitung rata-rata suhu **berbobot panjang jalan** untuk kedua slice pada jaringan jalan AOI yang sama, lalu `delta_temporal_c = mean_1500 − mean_0800`. Catat di `docs/METHODOLOGY.md` beserta metodenya.
+
+Berapa pun hasilnya, **lanjut ke Fase 2.** Ini G7, dan G7 dilaporkan apa adanya.
+
+## Verifikasi
+
+- [ ] `utm_epsg_for_lon()` diuji di AOI Orlando, distorsi jarak <1% vs geodesik
+- [ ] `config.py` bersih dari nilai per-kota hardcoded dan konstanta gerbang mati — grep manual
+- [ ] bbox final Orlando terkunci; tidak ada bbox sementara tersisa di kode atau di ekstraksi PMTiles
+- [ ] `TILES` berisi minimal entri `orl_pine_hills_n` berstatus `"pending"`
+- [ ] `docs/CONTRACT.md` memuat skema `tiles.json` dan `by_school/`
+- [ ] `python pipeline/make_fixtures.py` menghasilkan `data/out/tiles.json` dan `data/out/by_school/<fake_id>/` yang valid
+- [ ] GeoTIFF dua slice ada di `data/interim/`, `-999` sudah jadi NaN, **NaN <10%** dari sel
+- [ ] Graph OSM tersimpan, **≥3.000 edge** dalam bbox
+- [ ] `schools.json` berisi sekolah **nyata** dari CCD dengan `walk_radius_mi` dan `policy_source` asli — nol entri fixture
+- [ ] `faktor_koreksi` per sekolah berada di rentang **0,3–3,0**
+- [ ] `delta_temporal_c` terhitung dan tercatat di `docs/METHODOLOGY.md`
+
+### Fail branch
+
+| Kalau | Maka |
+|---|---|
+| NaN >10% | Jangan lanjut. Cek apakah bbox keluar cakupan API atau slice-nya salah menit. Kalau cakupan memang bolong, geser bbox — dan itu keputusan produk, lapor |
+| Edge OSM <3.000 | bbox kemungkinan salah atau terlalu kecil. Cek visual di peta sebelum lanjut |
+| `faktor_koreksi` di luar 0,3–3,0 | Ada yang salah di assign blok→sekolah. Jangan pakai angkanya, cek batas attendance dulu |
+| `walk_radius_mi` tidak bisa didapat dari PDF | Pakai standar Florida sebagai asumsi, nyatakan eksplisit di Limitations |
 
 ---
 
 # FASE 2 — Graph berbobot dosis
 
-**Target: 25 Agustus pagi.**
+**Target: 26 Agustus pagi. Gelombang 1 (`orl_pine_hills_n`) saja.**
 
 ## Overview
 
@@ -305,72 +320,104 @@ weight_cool = dose + LAMBDA * len_m
 
 Cari `LAMBDA` terkecil yang membuat detour ≤ **1,4× jarak rute terpendek**. Implementasi paling sederhana: coba `LAMBDA ∈ [0, 0.005, 0.02, 0.05, 0.2, 1.0]`, ambil kandidat pertama yang lolos cap, simpan nilainya ke `meta.lambda_detour`. Detour cap juga masuk ke `docs/METHODOLOGY.md`.
 
+**Kalau `LAMBDA` hasil pencarian membuat delta rute tetap kecil, itu hasil yang diharapkan** (PRD §1.5), bukan tanda ada bug. Jangan mengutak-atik `BASELINE_C` atau `LAMBDA` untuk memaksakan delta lebih besar.
+
 ### 2.4 Export
 
-Tulis `graph.0730.json` dan `graph.1445.json`. Sederhanakan geometri edge dengan Douglas-Peucker (toleransi ~5m) sebelum serialisasi. Target **≤5 MB per file**; kalau lewat, naikkan toleransi dulu sebelum ganti format.
+Tulis `graph.0800.json` dan `graph.1500.json` per sekolah di `data/out/by_school/<school_id>/`. Sederhanakan geometri edge dengan Douglas-Peucker (toleransi ~5m) sebelum serialisasi. Target **≤5 MB per file**; kalau lewat, naikkan toleransi dulu sebelum ganti format.
 
-## Verification
+## Verifikasi
 
-- [ ] `graph.0730.json` dan `graph.1445.json` ada, valid JSON, **≤5 MB** masing-masing.
-- [ ] Skema **persis** sama dengan `docs/CONTRACT.md`. Bandingkan key-nya dengan output `make_fixtures.py` secara programatik, jangan dengan mata.
-- [ ] Tidak ada `dose` negatif, tidak ada NaN, tidak ada `len_m` = 0.
-- [ ] Sanity fisik: edge 100m pada 43°C dengan baseline 33 harus menghasilkan dose ≈ **13,9 °C·menit** (`10 × (100/1.2)/60`). Tulis ini sebagai unit test.
-- [ ] Slice 14:45 punya rata-rata `temp_c` **lebih tinggi** dari slice 07:30. Kalau terbalik, ada yang salah di request jam.
-- [ ] Jumlah edge yang dibuang karena NaN <2% dari total.
-- [ ] Distribusi `temp_c` antar-edge punya rentang ≥6°C. Kalau semua edge nyaris sama suhunya, Fase 3 sudah pasti gagal — balik ke 1.1 sekarang.
+- [ ] `graph.0800.json` dan `graph.1500.json` ada per sekolah gelombang 1, valid JSON, **≤5 MB** masing-masing
+- [ ] Skema **persis** sama dengan `docs/CONTRACT.md`. Bandingkan key-nya dengan output `make_fixtures.py` secara programatik, jangan dengan mata
+- [ ] Tidak ada `dose` negatif, tidak ada NaN, tidak ada `len_m` = 0
+- [ ] Sanity fisik: edge 100m pada 43°C dengan baseline 33 harus menghasilkan dose ≈ **13,9 °C·menit** (`10 × (100/1.2)/60`). Tulis ini sebagai unit test
+- [ ] Slice 15:00 punya rata-rata `temp_c` **lebih tinggi** dari slice 08:00, dan selisihnya konsisten dengan `delta_temporal_c` dari Fase 1.5 (beda metode agregasi boleh sedikit beda, **beda arah tidak boleh**)
+- [ ] Jumlah edge yang dibuang karena NaN <2% dari total
+
+### Fail branch
+
+| Kalau | Maka |
+|---|---|
+| Slice 15:00 lebih dingin dari 08:00 | Ada file tertukar atau slice salah. Jangan lanjut — ini bukan temuan, ini bug |
+| Edge dibuang >2% | Cakupan raster bolong. Cek bbox dan NaN handling di Fase 1.5 sebelum lanjut |
+| File >5 MB setelah toleransi dinaikkan 3× | Lapor — mungkin perlu kirim topologi saja dan render geometri dari tile |
 
 ---
 
-# FASE 3 — 🚩 GERBANG KONTRAS
+# FASE 3 — Routing & outcomes
 
-**Target: 25 Agustus sore. Ini gerbang kedua, dan PRD §9 melarang lanjut kalau gagal.**
+**Target: 26 Agustus siang. Gerbang keras satu-satunya di seluruh dokumen ini ada di sini: G1.**
 
 ## Overview
 
-Buktikan bahwa memilih rute benar-benar mengubah paparan secara terukur. Kalau tidak, produknya tidak punya taring dan lebih baik ketahuan hari ini daripada hari ke-6.
+Buktikan bahwa produk punya angka yang bisa dipertanggungjawabkan. Semua outcome dihitung dan dilaporkan apa adanya; hanya G1 yang stop/lanjut.
 
 ## What to do
 
 ### 3.1 Routing per blok
 
 Untuk tiap centroid blok → node sekolah:
+
 - Dijkstra `weight='len_m'` → rute terpendek
 - Dijkstra `weight=weight_cool` → rute teradem
-- Untuk masing-masing hitung: `len_m`, `mean_c` (rata-rata berbobot panjang, **bukan** rata-rata polos per edge), `peak_c`, `dose` total, waktu tempuh.
+- Untuk masing-masing hitung: `len_m`, `mean_c` (rata-rata berbobot panjang, **bukan** rata-rata polos per edge), `peak_c`, `dose` total, waktu tempuh
+- Jalankan untuk kedua slice — toggle FR-13 butuh keduanya
 
-`mean_c` berbobot panjang itu penting — rata-rata polos bikin gang pendek punya pengaruh sama besar dengan arteri panjang.
+### 3.2 G8 — delta rute, dilaporkan apa adanya
 
-### 3.2 Uji kontras
+Keluarkan tabel top-20 pasangan OD berdasarkan `delta_mean_c` terbesar → `data/out/contrast_report.csv`. **Tidak ada ambang lolos/gagal.** Kalau hasilnya 0,5–0,8°C seperti perkiraan PRD, itu ditulis apa adanya di panel FR-4 dan di `docs/LIMITATIONS.md` poin 10–11.
 
-Jalankan untuk semua blok, lalu keluarkan tabel top-20 pasangan OD berdasarkan `delta_mean_c` terbesar. Simpan ke `data/out/contrast_report.csv`.
+### 3.3 G7 — delta antar-jam per blok
 
-### 3.3 Kalau kontras tipis
+`delta_temporal_c` dari Fase 1.5 adalah rata-rata AOI. Di sini hitung ulang per rute realistis (rumah→sekolah) untuk memastikan tidak ada blok yang menyimpang jauh dari rata-rata AOI tanpa penjelasan.
 
-Sebelum menyerah, coba berurutan:
-1. Pindah slice waktu ke jam bubar hari yang lebih ekstrem (p97, bukan p95).
-2. Naikkan `LAMBDA` ke sisi lebih permisif (cap detour 1,6×) dan lihat apakah ada rute lebih sejuk yang tadinya terpotong cap.
-3. Geser AOI ke kotak dengan kontras kanopi lebih tajam.
+### 3.4 G2 — radius setara-dosis (FR-18)
 
-Kalau ketiganya tidak menolong: **laporkan apa adanya**. PRD §10 sudah menyatakan ini temuan jujur, bukan aib. Tapi keputusan mau lanjut atau pivot bukan keputusan yang diambil sendiri — lapor dulu.
+Untuk tiap sekolah: cari jarak terjauh dari sekolah yang rute teradem-nya (bukan terpendek) masih di bawah ambang dosis, pada slice 15:00. Bandingkan dengan radius kebijakan resmi dari `walk_radius_mi`.
 
-## Verification
+```
+Radius kebijakan     1,00 mi
+Radius setara-dosis  0,42 mi   (−58%)
+```
 
-- [ ] **Gate utama:** minimal **1 pasangan asal–tujuan** dengan `delta_mean_c ≤ −4,0°C` antara rute teradem dan rute terpendek (G1/G2 PRD §1.4).
-- [ ] Gate sekunder yang lebih meyakinkan: **≥5 pasangan** dengan delta ≤ −3,0°C. Kalau cuma satu outlier yang lolos, itu rapuh untuk demo.
-- [ ] Rute teradem **tidak pernah** lebih pendek dari rute terpendek (kalau iya, ada bug di bobot).
-- [ ] Detour semua rute teradem ≤ 1,4× (atau nilai cap yang dipakai).
-- [ ] Ada minimal **satu blok** yang rute teradem-nya **tetap** melewati ambang → ini kategori merah, jantung argumen produk (G4). Kalau nol, ambang perlu dikalibrasi ulang — dan kalibrasi itu harus didokumentasikan, bukan diam-diam digeser sampai angkanya bagus.
-- [ ] `contrast_report.csv` bisa dibuka dan angkanya masuk akal secara manual untuk 3 baris acak.
+Simpan di `summary.json` per sekolah.
+
+### 3.5 G3 & G1
+
+- **G3**: `dose_eliminated_per_child_per_day` dan `_per_year` untuk anak di blok yang direkomendasikan pindah ke bus.
+- **G1**: jumlah blok yang rute teradem-nya **tetap** melewati ambang. Ini jantung argumen produk dan satu-satunya gerbang keras.
+
+### 3.6 G9 — exceedance (FR-19)
+
+Hybrid: distribusi harian dari stasiun ASOS (Iowa Environmental Mesonet, jam-jaman sejak 2019, gratis) + offset spasial per blok dari FortyGuard `tcm`. **Jangan tarik 180 heatmap** — FortyGuard dipakai sebagai offset, bukan sumber deret waktu penuh.
+
+Kalau waktu mepet, ini yang pertama boleh diturunkan ke P1 — tapi catat eksplisit di Limitations bahwa exceedance memakai asumsi offset stabil antar-hari (PRD §8 poin 13), jangan diam-diam di-skip tanpa catatan.
+
+## Verifikasi
+
+- [ ] **🚩 G1 — gerbang keras**: minimal **satu blok** yang rute teradem-nya tetap melewati ambang
+- [ ] `contrast_report.csv` ada, bisa dibuka, angkanya masuk akal secara manual untuk 3 baris acak. **Tidak ada baris yang dipangkas karena "tidak cukup besar"**
+- [ ] Rute teradem **tidak pernah** lebih pendek dari rute terpendek (kalau iya, ada bug di bobot)
+- [ ] Detour semua rute teradem ≤ 1,4× (atau nilai cap yang dipakai)
+- [ ] Radius setara-dosis terhitung untuk semua sekolah gelombang 1, bukan 0 dan tidak lebih besar dari radius kebijakan
+- [ ] Rute terhitung untuk **kedua slice**, bukan cuma 15:00
+- [ ] G3 terhitung untuk minimal satu blok merah sebagai uji coba
+- [ ] G7, G8, G9 tercatat angkanya di `docs/METHODOLOGY.md` — berapa pun hasilnya
 
 ### Fail branch
 
-Δ maksimum <2°C setelah tiga mitigasi 3.3 → **STOP dan lapor.** Jangan lanjut ke Fase 4 dengan asumsi "nanti juga kelihatan di UI".
+| Kalau | Maka |
+|---|---|
+| G1 = 0 blok merah | **STOP dan lapor.** Kalibrasi ulang `THRESHOLD` dan dokumentasikan alasannya di `docs/METHODOLOGY.md`. Jangan lanjut ke Fase 4 dengan nol blok merah — itu meruntuhkan seluruh argumen PRD §1.4 dan mengosongkan Mode 1 |
+| Radius setara-dosis > radius kebijakan | Jangan lanjut — cek bug tanda di `weight_cool` atau clamp dosis |
+| G9 tidak bisa dihitung (data ASOS gagal) | Turunkan FR-19 ke catatan Limitations sebagai P1 yang tidak sempat, **bukan angka karangan** |
 
 ---
 
 # FASE 4 — Klasifikasi & export
 
-**Target: 26 Agustus.**
+**Target: 26 Agustus malam. Termasuk gelombang 2 tile (+5 tile OCPS) — nol kode baru, hanya entri `TILES` ditambah dan `run_all.py` dijalankan ulang.**
 
 ## Overview
 
@@ -386,181 +433,188 @@ yellow : dose(terpendek) > THRESHOLD  AND  dose(teradem) ≤ THRESHOLD
 red    : dose(teradem) > THRESHOLD
 ```
 
-`THRESHOLD` di `config.py`, **wajib dapat diubah dan wajib didokumentasikan**. Kalibrasi awal: pilih nilai yang menghasilkan distribusi tiga kategori yang tidak degenerate (tidak 100% satu warna). Setelah dipilih, tulis alasannya di `docs/METHODOLOGY.md` — termasuk pengakuan bahwa ini kalibrasi, bukan standar yang ada.
+`THRESHOLD` di `config.py`, **wajib dapat diubah dan wajib didokumentasikan**. Kalibrasi awal: pilih nilai yang menghasilkan distribusi yang tidak degenerate (tidak 100% satu warna). Setelah dipilih, tulis alasannya di `docs/METHODOLOGY.md` — termasuk pengakuan bahwa ini kalibrasi, bukan standar yang sudah ada.
 
-### 4.2 Angka ringkasan (FR-11, FR-12)
+Kategori kuning akan berisi lebih sedikit blok daripada yang intuitif (PRD §8 poin 11). Distribusi aktual dilaporkan apa adanya; **ambang tidak digeser untuk mengisi kategori kuning secara artifisial.**
 
-Per sekolah hitung semua field `summary.json`. Untuk FR-11, baris terakhir wajib ada:
+### 4.2 Angka ringkasan (FR-11, FR-12, FR-18)
+
+Per sekolah hitung semua field `summary.json`, termasuk `radius_setara_dosis_mi` dan `radius_kebijakan_mi`. Untuk FR-11, baris terakhir wajib ada:
 
 ```python
 equivalent_minutes = dose_eliminated_per_day / (42.0 - BASELINE_C)
-# "setara menghapus N menit berjalan di 42°C setiap hari"
 ```
 
-### 4.3 Salah klasifikasi (G6)
+### 4.3 Salah klasifikasi (G4)
 
-- `walk_should_bus` = jumlah anak di blok merah yang saat ini di dalam walk zone resmi.
-- `bus_not_needed` = anak di luar radius resmi (dapat bus) yang blok-nya hijau **dan** jaraknya hanya sedikit di luar radius. Definisikan "sedikit" secara eksplisit di config, jangan implisit.
+- `walk_should_bus` = jumlah anak di blok merah yang saat ini di dalam walk zone resmi
+- `bus_not_needed` = anak di luar radius resmi (dapat bus) yang blok-nya hijau **dan** jaraknya hanya sedikit di luar radius. Definisikan "sedikit" secara eksplisit di config, jangan implisit
 
 ### 4.4 Export
 
-- `blocks.geojson`, `schools.json`, `summary.json`, `graph.*.json` → `data/out/`, **commit**.
-- Export CSV reklasifikasi (FR-14): kolom `block_id, kids_est, status_now, status_rec, coolest_mean_c, coolest_mean_f, dose, reason`. Generate di frontend dari `blocks.geojson`, bukan file terpisah.
+- `blocks.geojson`, `schools.json`, `summary.json`, `graph.*.json` → `data/out/by_school/<school_id>/`, **commit**
+- `tiles.json` diperbarui status tile gelombang 1–2 jadi `"done"`
+- Export CSV reklasifikasi (FR-14): kolom `block_id, kids_est, status_now, status_rec, coolest_mean_c, coolest_mean_f, dose, reason`. Generate di frontend dari `blocks.geojson`, bukan file terpisah
 
 ### 4.5 Teks permohonan (FR-5)
 
-Bikin template teks di `web/src/lib/petition.ts` yang mengisi: alamat, sekolah, `mean_c`/`mean_f` dan `peak_c`/`peak_f` rute teradem, dosis, dan referensi ketentuan negara bagian yang berlaku. Referensi statuta harus dari sumber asli yang sudah diverifikasi di Fase 1, bukan dari ingatan.
+Bikin template di `web/src/lib/petition.ts` yang mengisi: alamat, sekolah, `mean_c`/`mean_f` dan `peak_c`/`peak_f` rute teradem, dosis, dan referensi Florida Statute §1006.21/§1006.23. **Tidak berlaku untuk Phoenix** — PRD §5.5 melarang keras tombol permohonan tampil di AOI Phoenix.
 
-## Verification
+## Verifikasi
 
-- [ ] Ketiga kategori terisi — tidak ada kategori dengan 0 blok. Kalau ada, ambang salah kalibrasi.
-- [ ] Jumlah `kids_est` di ketiga kategori = total `in_walk_zone` per sekolah.
-- [ ] Setiap blok merah punya `reason` non-kosong yang menyebut angka konkret.
-- [ ] Konversi °F benar: cek manual `34,1°C → 93,4°F`.
-- [ ] `summary.json` lolos silang: `reroute_enough + no_safe_route ≤ in_walk_zone`.
-- [ ] G5: selisih luas antara lingkaran walk zone resmi dan gabungan zona dosis **≥15%**. Hitung dan catat angkanya.
-- [ ] Semua file di `data/out/` punya skema identik dengan fixture; frontend yang jalan di fixture harus jalan tanpa perubahan kode saat file asli ditukar masuk. **Uji ini secara harfiah: tukar file, refresh, jangan sentuh kode.**
+- [ ] Ketiga kategori terisi — tidak ada kategori dengan 0 blok. Kalau kategori merah 0, itu regresi dari G1 — berhenti dan lapor
+- [ ] Jumlah `kids_est` di ketiga kategori = total `in_walk_zone` per sekolah
+- [ ] Setiap blok merah punya `reason` non-kosong yang menyebut angka konkret
+- [ ] Konversi °F benar: cek manual `34,1°C → 93,4°F`
+- [ ] `summary.json` lolos silang: `reroute_enough + no_safe_route ≤ in_walk_zone`
+- [ ] G5 (selisih luas lingkaran vs zona dosis) dihitung dan dicatat — **dilaporkan, bukan gerbang**
+- [ ] `radius_setara_dosis_mi` ada di `summary.json` untuk semua sekolah gelombang 1–2
+- [ ] Semua file di `data/out/` punya skema identik dengan fixture. **Uji secara harfiah: tukar file, refresh, jangan sentuh kode**
+- [ ] `tiles.json` mencerminkan status tile yang benar-benar sudah diproses
 
 ---
 
 # FASE 5 — Frontend Mode 2 (orang tua)
 
-**Target: 26–27 Agustus. Bisa dimulai dari Fase 0 pakai fixture.**
+**Target: 27 Agustus. Bisa dimulai dari akhir Fase 1.5 pakai fixture.**
 
 ## Overview
 
-Pintu masuk default aplikasi. Persona orang tua, kemungkinan besar dari HP. Ini juga yang jadi adegan pertama video demo, jadi harus paling mulus.
+Pintu masuk default aplikasi. Persona orang tua, kemungkinan besar dari HP. Ini juga adegan pertama video demo, jadi harus paling mulus.
+
+## 5.0 🚩 Gerbang tanggal Phoenix — 27 Agustus 12:00
+
+Cek: apakah Orlando sudah lolos seluruh checklist Fase 4? Ya → Phoenix pipeline-only boleh dijalankan paralel (bukti G10, tidak masuk UI). Tidak → **Phoenix dibuang seluruhnya**, bukan dikurangi. Keputusan ini sudah diambil di PRD §5.5 — di sini cuma dieksekusi, bukan didiskusikan ulang.
 
 ## What to do
 
 ### 5.1 Shell
 
-- MapLibre v5 raw (bukan `react-map-gl`). Basemap: `web/public/heatwalk-aoi.pmtiles`, style `protomaps-themes-base` tema `grayscale`, disesuaikan ke netral penuh sesuai `DESIGN.md`.
-- Register protocol **sekali** di komponen root: `maplibregl.addProtocol("pmtiles", protocol.tile)`, dengan `removeProtocol` di cleanup. Jangan dipanggil per komponen peta.
-- **Satu instance MapLibre untuk kedua mode.** Peta hidup di atas router, bukan di dalam salah satu route. Berpindah `/` ↔ `/district` hanya mengganti panel dan memicu `flyTo` — peta tidak boleh unmount, karena adegan 2 video demo bergantung pada transisi itu.
-- Route: `/` (Mode 2, pintu masuk default) dan `/district` (Mode 1). Header persisten berisi empat hal saja: wordmark · segmented switch `Parent` / `District` · toggle FR-16 · toggle tema.
-- Muat `graph.*.json`, `blocks.geojson`, `schools.json` lewat `fetch()` sekali di boot, simpan di context.
-- **Mobile-first** untuk Mode 2 (PRD §7). Layout dan token visual mengikuti `DESIGN.md`.
+- MapLibre v5 raw (bukan `react-map-gl`). Basemap: `web/public/heatwalk-aoi.pmtiles`, style `protomaps-themes-base` tema `grayscale`, disesuaikan ke netral penuh sesuai `DESIGN.md`. Bbox ekstraksi PMTiles mencakup **gabungan seluruh `TILES`**
+- Register protocol **sekali** di komponen root: `maplibregl.addProtocol("pmtiles", protocol.tile)`, dengan `removeProtocol` di cleanup
+- **Satu instance MapLibre untuk kedua mode.** Peta hidup di atas router. Berpindah `/` ↔ `/district` hanya mengganti panel dan memicu `flyTo` — peta tidak boleh unmount
+- Route: `/` (Mode 2, default) dan `/district` (Mode 1). Header persisten berisi empat hal saja: wordmark · segmented switch `Parent` / `District` · toggle FR-16 · toggle tema
+- Muat `schools.json` + `tiles.json` lewat `fetch()` sekali di boot. `graph.*.json` dan `blocks.geojson` di-`fetch()` **on-demand per sekolah**
+- **Mobile-first** untuk Mode 2 (PRD §7)
 
 ### 5.2 Input (FR-1)
 
-- Satu input alamat + dropdown sekolah dalam AOI.
-- **Pin yang bisa digeser**, default di tengah AOI. **Jangan pakai `navigator.geolocation`** — lokasi developer bukan di AS dan demo akan pecah.
-- Klik di luar batas AOI → "Area ini belum dipetakan". Boundary AOI di-render sebagai garis halus.
-- Geocoding: Nominatim gratis, dibatasi ke bbox AOI. Kalau rate-limit mengganggu, sediakan 3–5 alamat contoh sebagai chip yang bisa diklik — ini juga mempercepat demo.
+- Satu input alamat + dropdown sekolah dalam AOI
+- **Pin yang bisa digeser**, default di tengah AOI. **Jangan pakai `navigator.geolocation`** — lokasi developer bukan di AS dan demo akan pecah
+- Klik di luar batas AOI → "Area ini belum dipetakan". Boundary AOI di-render sebagai garis halus
+- Geocoding: Nominatim gratis, dibatasi ke bbox AOI. Kalau rate-limit mengganggu, sediakan 3–5 alamat contoh sebagai chip
 
 ### 5.3 Status + rute (FR-2, FR-3)
 
-- Kalimat status satu baris: `Rumah kamu 1,1 mil dari SD Lincoln — di dalam walk zone.`
-- Snap titik ke node graph terdekat, Dijkstra client-side (~50 baris, tanpa library), dua kali: `len_m` dan `weight_cool`.
-- Polyline terpendek: tipis, netral. Polyline teradem: tebal, berwarna.
+- Kalimat status satu baris
+- Snap titik ke node graph terdekat, Dijkstra client-side (~50 baris, tanpa library), dua kali: `len_m` dan `weight_cool`
+- Polyline terpendek: tipis, netral. Polyline teradem: tebal, berwarna
 
 ### 5.4 Panel perbandingan (FR-4)
 
-Format persis PRD §4 FR-4. **Baris suhu wajib °C dan °F berdampingan.** Setiap tempat yang menampilkan °C·menit wajib menampilkan °C di sebelahnya.
+Format persis PRD §4 FR-4: perbandingan rute terpendek vs teradem pada jam yang sedang dipilih, dengan baris jarak, waktu, suhu rata-rata, suhu puncak, dan dosis.
 
-### 5.5 Tidak ada rute aman (FR-5)
+**Baris suhu wajib °C dan °F berdampingan.** Setiap tempat yang menampilkan °C·menit wajib menampilkan °C di sebelahnya. **Angka tidak boleh dibesar-besarkan** — kalau selisihnya −0,7°C, tulis −0,7°C.
 
-Kalau blok = merah: tampilkan blok merah + tombol **[Salin sebagai dasar permohonan hazardous walking]** yang menyalin teks dari 4.5 ke clipboard.
+### 5.5 Toggle jam (FR-13)
 
-## Verification
+Dua state (08:00 / 15:00) yang mengganti seluruh angka di panel FR-4. Render ulang dari file pre-computed, **bukan panggilan API**. Slider per jam penuh tetap P1.
 
-- [ ] US-01…US-05 semua bisa diperagakan berurutan tanpa reload.
-- [ ] Input alamat → dua rute ter-render **<1 detik** (NFR §7). Ukur, jangan dikira-kira.
-- [ ] Dijkstra client-side menghasilkan rute **identik** dengan hasil Python untuk 3 pasangan OD uji. Bandingkan `dose` total sampai 2 desimal. Kalau beda, ada mismatch bobot antara pipeline dan frontend — ini bug yang akan ketahuan juri.
-- [ ] Tombol salin permohonan benar-benar mengisi clipboard dan teksnya berisi angka yang sama dengan panel.
-- [ ] Angka °F benar di semua tempat.
-- [ ] Layout tidak pecah di viewport 390px.
-- [ ] Klik di luar AOI memberi pesan yang benar, bukan crash.
+### 5.6 Tidak ada rute aman (FR-5)
+
+Kalau blok = merah: tampilkan status merah + tombol **[Salin sebagai dasar permohonan hazardous walking]** yang menyalin teks dari `petition.ts`, mengutip Florida Statute.
+
+## Verifikasi
+
+- [ ] US-01…US-05 semua bisa diperagakan berurutan tanpa reload
+- [ ] Toggle 08:00/15:00 bekerja dan mengubah panel FR-4 tanpa network request
+- [ ] Input alamat → dua rute ter-render **<1 detik** (NFR §7). Ukur, jangan dikira-kira
+- [ ] Dijkstra client-side menghasilkan rute **identik** dengan hasil Python untuk 3 pasangan OD uji. Bandingkan `dose` total sampai 2 desimal
+- [ ] Tombol salin permohonan mengisi clipboard dengan teks yang mengutip Florida Statute, bukan Arizona
+- [ ] Angka °F benar di semua tempat. Layout tidak pecah di viewport 390px
 
 ---
 
 # FASE 6 — Frontend Mode 1 (distrik)
 
-**Target: 28 Agustus.**
+**Target: 28 Agustus. Termasuk gelombang 3 tile.**
 
 ## Overview
 
-Tampilan Transportation Director. Objek visual "rute teradem yang gagal" di sini **harus identik** dengan yang dilihat orang tua di Mode 2 — itu yang membuat ini satu produk.
+Tampilan Transportation Director. Objek visual "rute teradem yang gagal" di sini **harus identik** dengan yang dilihat orang tua di Mode 2.
 
 ## What to do
 
-### 6.1 Peta & zona (FR-6, FR-7)
+### 6.1 Peta & zona (FR-6, FR-7, FR-20)
 
-- Route `/district`. Peta yang dipakai adalah instance yang sama dengan Mode 2 — masuk ke mode ini memicu `flyTo` ke seluruh AOI, bukan remount.
-- Pin semua sekolah dalam AOI; klik → muat analisis sekolah itu.
-- Layer A: lingkaran walk zone resmi, garis putus-putus tanpa isian.
-- Layer B: choropleth per census block, tiga warna FR-8. Bentuk kotak-kotak per blok itu **disengaja** — jangan dihaluskan.
-- Keduanya tampil bersamaan default, masing-masing bisa di-toggle.
+- Route `/district`. Peta instance yang sama dengan Mode 2 — masuk ke mode ini memicu `flyTo`, bukan remount
+- **FR-20**: layer simbol MapLibre (bukan marker DOM) menampilkan **seluruh sekolah NCES**. Pin penuh + dapat dipilih untuk yang teranalisis; pin abu-abu kecil untuk yang belum, dengan pesan "Belum dianalisis — tile ini belum ditarik". **Aturan keras: sekolah belum teranalisis tidak boleh menampilkan angka apa pun**
+- Klik pin sekolah teranalisis → `fetch()` on-demand `by_school/<school_id>/`
+- Layer A: lingkaran walk zone resmi — garis putus-putus, tanpa isian
+- Layer B: choropleth per census block, tiga warna FR-8. Kotak-kotak per blok disengaja
+- Layer C: lingkaran radius setara-dosis (FR-18), garis solid tipis, berdampingan dengan Layer A
+- Ketiganya dapat di-toggle independen
 
-### 6.2 Detail blok (FR-9, FR-10)
+### 6.2 Detail blok (FR-9, FR-10, FR-19)
 
-- Klik blok → panel: `kids_est`, suhu rata-rata & puncak rute teradem (°C dan °F, **lebih menonjol** daripada °C·menit), dosis terpendek vs teradem, delta ke blok hijau terdekat pada jarak setara, status sekarang + rekomendasi.
-- Klik blok merah → render rute teradem yang gagal, segmen penyumbang dosis tertinggi di-highlight (top 20% dose per meter).
+- Klik blok → panel: `kids_est`, suhu rata-rata & puncak rute teradem (°C dan °F, **lebih menonjol** daripada °C·menit), dosis terpendek vs teradem, delta ke blok hijau terdekat, status sekarang + rekomendasi. Kalau FR-19 sempat dibangun, tampilkan juga hari exceedance per tahun ajaran
+- Klik blok merah → render rute teradem yang gagal, segmen penyumbang dosis tertinggi di-highlight (top 20% dose per meter)
 
-### 6.3 Angka (FR-11, FR-12)
+### 6.3 Angka (FR-11, FR-12, FR-18)
 
-Panel outcome dan ringkasan sekolah persis format PRD. Baris "setara menghapus N menit berjalan di 42°C" wajib ada.
+Panel outcome dan ringkasan sekolah persis format PRD, termasuk baris radius setara-dosis vs radius kebijakan.
 
 ### 6.4 P1 kalau waktu cukup
 
-FR-13 slider waktu (dua state minimal: 07:30 / 14:45, render ulang dari file, **bukan** panggilan API) · FR-14 export CSV · FR-15 tabel prioritas segmen.
+FR-14 export CSV/GeoJSON · FR-15 tabel prioritas segmen · FR-21 peta cakupan tile · slider per-jam penuh.
 
-## Verification
+## Verifikasi
 
-- [ ] US-06…US-10 bisa diperagakan berurutan.
-- [ ] Klik sekolah → zona ter-render **<2 detik**.
-- [ ] Rute yang muncul di FR-10 **byte-identik** dengan rute yang muncul di FR-3 untuk blok yang sama. Uji dengan satu blok merah spesifik dari kedua mode.
-- [ ] Angka di panel = angka di `summary.json`. Tidak ada perhitungan ulang di frontend yang bisa menyimpang.
-- [ ] Toggle layer bekerja independen.
-- [ ] Kalau slider dibuat: perubahan slider render ulang **<500 ms** dan tidak memicu network request ke FortyGuard.
-- [ ] Kalau CSV dibuat: file terunduh, terbuka di Excel, kolom sesuai FR-14.
+- [ ] US-06…US-10 bisa diperagakan berurutan
+- [ ] Klik sekolah → zona ter-render **<2 detik**, termasuk `fetch()` on-demand
+- [ ] Layer pin NCES nasional render tanpa jank pada zoom keluar penuh — **wajib layer simbol, uji dengan devtools performance kalau ragu**
+- [ ] Sekolah belum teranalisis tidak menampilkan angka apa pun saat diklik — cek manual minimal 3 pin abu-abu
+- [ ] Rute yang muncul di FR-10 **byte-identik** dengan rute yang muncul di FR-3 untuk blok yang sama
+- [ ] Angka di panel = angka di `summary.json`. Tidak ada perhitungan ulang di frontend
+- [ ] Lingkaran radius setara-dosis (Layer C) render dan angkanya cocok dengan `summary.json`
+- [ ] Toggle layer (A/B/C) bekerja independen
 
 ### Jalur mundur
 
-Kalau 27 Agustus malam Mode 1 belum jalan: potong jadi statis — tabel reklasifikasi + peta zona tanpa interaksi klik-blok. Yang **tidak boleh dipotong**: kategori merah FR-8 (aturan "rute teradem pun gagal").
+Kalau 28 Agustus malam Mode 1 belum jalan: potong jadi statis — tabel reklasifikasi + peta zona tanpa interaksi klik-blok. Yang **tidak boleh dipotong**: kategori merah FR-8.
 
 ---
 
 # FASE 7 — Lintas-mode, metodologi, kejujuran
 
-**Target: 28 Agustus.**
-
-## Overview
-
-Fase termurah dengan dampak penilaian tertinggi. FR-16 adalah satu tombol yang membuktikan kriteria "API sentral, bukan dekoratif" dalam satu klik.
+**Target: 28 Agustus malam. Fase termurah dengan dampak penilaian tertinggi.**
 
 ## What to do
 
-### 7.1 FR-16 — "Sembunyikan data panas" (P0, prioritas tertinggi di fase ini)
+### 7.1 FR-16 — "Sembunyikan data panas" (prioritas tertinggi di fase ini)
 
-Satu toggle global:
-- Layer B hilang → tersisa lingkaran resmi saja
-- Rute teradem hilang → tersisa rute terpendek saja
-- Semua angka turunan panas berubah jadi `—`
-
-Ini harus mulus dan instan. Ini adegan ke-3 video demo.
+Satu toggle global: Layer B & C hilang → tersisa lingkaran resmi saja · rute teradem hilang → tersisa rute terpendek saja · semua angka turunan panas berubah jadi `—`. Mulus dan instan. Adegan ke-3 video demo.
 
 ### 7.2 `docs/METHODOLOGY.md` + halaman Metodologi di UI
 
-Isi wajib: definisi `tcm` sesuai hasil verifikasi Fase 0 · rumus dosis · nilai `BASELINE_C`, `THRESHOLD`, `LAMBDA` beserta alasannya · tanggal & jam data · faktor kalibrasi enrollment per sekolah · seluruh sumber data dengan tautan · sitasi Lanza dkk. 2023, Meng dkk. 2023, Basu dkk. 2024, ADHS 2021.
+Isi wajib: definisi `tcm` sesuai hasil verifikasi Fase 0 · rumus dosis · nilai `BASELINE_C`, `THRESHOLD`, `LAMBDA` beserta alasannya · angka G7 dan G8 apa adanya · tanggal & jam data · faktor kalibrasi enrollment per sekolah · metode hybrid G9 · URL PDF kebijakan OCPS + halaman · seluruh sumber data dengan tautan · sitasi Lanza dkk. 2023, Meng dkk. 2023, Basu dkk. 2024, ADHS 2021.
 
 ### 7.3 `docs/LIMITATIONS.md` + halaman Limitations di UI
 
-Kesembilan poin PRD §8, apa adanya. Tambahkan temuan jujur dari Fase 0 dan 3 kalau ada. **Mudah diakses dari UI utama**, bukan dikubur di footer.
+Keempat belas poin PRD §8 apa adanya, **termasuk eksplisit poin 10–14** (delta rute kecil, kategori kuning tipis, klasifikasi satu slice, sifat hybrid G9, keterbatasan Phoenix). Ini bukan aib — ini yang membedakan HeatWalk dari peserta yang mengklaim tanpa mengukur. Mudah diakses dari UI utama, bukan dikubur di footer.
 
 ### 7.4 FR-17 — Refresh forecast (P1)
 
-Tombol yang memicu satu panggilan live ke FortyGuard. Wajib: loading state, error handling eksplisit, dan **terisolasi total** — gagalnya tombol ini tidak boleh mempengaruhi apa pun di jalur demo utama.
+Tombol yang memicu satu panggilan live ke FortyGuard. Wajib loading state, error handling eksplisit, **terisolasi total**.
 
-## Verification
+## Verifikasi
 
-- [ ] FR-16 bekerja di kedua mode, satu klik, tanpa reload.
-- [ ] Matikan koneksi internet setelah load pertama → seluruh demo tetap berfungsi kecuali FR-17 (NFR §7 reliabilitas). **Uji ini secara harfiah**, dan termasuk pan/zoom peta ke sudut AOI yang belum pernah dibuka — kalau basemap-nya bolong di situ, ada tile yang masih ditarik dari luar.
-- [ ] Halaman Metodologi dan Limitations bisa dicapai dari UI utama dalam ≤2 klik.
-- [ ] Setiap angka headline di UI bisa ditelusuri ke satu file di `data/out/`.
-- [ ] Tidak ada °C·menit yang muncul tanpa °C di sebelahnya. Grep seluruh komponen.
-- [ ] Kalau FR-17 dibuat: matikan API key sengaja → tombol menampilkan error yang jelas, sisa aplikasi tidak terpengaruh.
+- [ ] FR-16 bekerja di kedua mode, satu klik, tanpa reload
+- [ ] Matikan koneksi internet setelah load pertama → seluruh demo tetap berfungsi kecuali FR-17. **Uji secara harfiah**, termasuk pan/zoom peta ke sudut AOI yang belum pernah dibuka
+- [ ] Halaman Metodologi dan Limitations bisa dicapai dari UI utama dalam ≤2 klik
+- [ ] Halaman Limitations menyatakan temuan delta kecil sebagai hasil pengukuran, bukan sebagai kelemahan yang disamarkan
+- [ ] Setiap angka headline di UI bisa ditelusuri ke satu file di `data/out/`
+- [ ] Tidak ada °C·menit yang muncul tanpa °C di sebelahnya. Grep seluruh komponen
 
 ---
 
@@ -568,26 +622,21 @@ Tombol yang memicu satu panggilan live ke FortyGuard. Wajib: loading state, erro
 
 **Target: 29–30 Agustus.**
 
-## Overview
-
-Deliverable wajib: prototype jalan, pitch presentation, demo video ≤3 menit. Live link harus buka di incognito tanpa login sampai penjurian selesai.
-
 ## What to do
 
 ### 8.1 Deploy
 
-- Vercel statis dari `web/`. Bukan Streamlit/Render/HF Spaces — panitia secara eksplisit menyebut free tier yang bisa tidur.
-- **Buka sendiri di incognito browser bersih** sebelum submit. Tidak boleh ada login, tidak boleh ada install (submission form field 12).
-- Cek ulang `heatwalk-aoi.pmtiles` di production: statusnya `206`, bukan `200`.
+- Vercel statis dari `web/`. **Buka sendiri di incognito browser bersih** sebelum submit
+- Cek ulang `heatwalk-aoi.pmtiles` di production: statusnya `206`, bukan `200`
 
 ### 8.2 README
 
 Isi: satu paragraf apa ini · cara jalankan pipeline · cara jalankan web · struktur data · tautan metodologi & limitations · disclosure penggunaan AI.
 
-### 8.3 Video demo (≤3 menit, urutan PRD §9)
+### 8.3 Video demo (≤3 menit)
 
-1. Orang tua di Phoenix cek alamat → "tidak ada rute aman" → momen emosional
-2. Zoom out ke tampilan distrik → 142 anak lain kondisinya sama
+1. Orang tua di Orlando mengecek alamat → dua opsi rute muncul dengan paparannya → geser toggle ke jam bubar → "tidak ada rute aman"
+2. Zoom out ke tampilan distrik → 142 anak lain kondisinya sama; radius kebijakan vs radius setara-dosis
 3. Klik "sembunyikan data panas" → semuanya kolaps jadi lingkaran → *"ini yang distrik punya hari ini"*
 4. Tutup dengan daftar reklasifikasi + export CSV
 
@@ -595,22 +644,22 @@ Rekam layar produk asli. Slide tidak dihitung.
 
 ### 8.4 Pitch deck
 
-Buka dengan **mekanisme hukum dan aturan kausal**, bukan dengan peta rute. Sebut prior art Austin (American Forests/UCLA/ASU SHaDE Lab) **lebih dulu**, lalu artikulasikan bedanya: suhu udara terukur vs naungan dimodelkan; output keputusan vs output visualisasi. Sebut nama distrik yang realistis sebagai calon adopter, bukan cuma "sekolah" secara abstrak.
+Buka dengan **mekanisme hukum dan aturan kausal**, bukan dengan peta rute. Sebut prior art Austin (American Forests/UCLA/ASU SHaDE Lab) **lebih dulu**, lalu artikulasikan bedanya. Sebut delapan kandidat AOI dan temuan delta kecil secara terbuka — ini diferensiator, bukan kelemahan. Sebut nama distrik realistis (OCPS) sebagai calon adopter.
 
 ### 8.5 Isi submission form
 
-Semua 13 field. Yang perlu disiapkan lebih awal: API key (field 8), repo link + collaborator `hackathon@fortyguard.com` (field 10–11), live link (12), video link (13).
+Semua 13 field. Cek gerbang tanggal Phoenix sudah dieksekusi sebelum menulis field 5/6.
 
-## Verification
+## Verifikasi
 
-- [ ] Live link buka di **incognito**, tanpa login, tanpa install, di jaringan berbeda.
-- [ ] Semua data ter-load dari `public/data/` — cek tab Network, tidak ada 404.
-- [ ] Video ≤3:00 dan memperlihatkan produk berjalan, bukan slide.
-- [ ] Repo publik, atau privat dengan `hackathon@fortyguard.com` sudah jadi collaborator.
-- [ ] `data/raw/` ter-commit — ini bukti API benar-benar dipanggil.
-- [ ] `.env` **tidak** ter-commit. Cek `git log -p` untuk API key yang bocor.
-- [ ] Ketigabelas field submission form terisi.
-- [ ] Submit **sebelum** 30 Agustus 23:59 GST, bukan tepat di menitnya.
+- [ ] Live link buka di **incognito**, tanpa login, tanpa install, di jaringan berbeda
+- [ ] Semua data ter-load dari `public/data/` — cek tab Network, tidak ada 404
+- [ ] Video ≤3:00 dan memperlihatkan produk berjalan, bukan slide
+- [ ] Repo publik, atau privat dengan `hackathon@fortyguard.com` sudah jadi collaborator
+- [ ] `data/raw/` ter-commit, **termasuk `data/raw/phase1_scouting/`** — ini bukti API benar-benar dipanggil
+- [ ] `.env` **tidak** ter-commit. Cek `git log -p` untuk API key yang bocor
+- [ ] Ketigabelas field submission form terisi
+- [ ] Submit **sebelum** 30 Agustus 23:59 GST, bukan tepat di menitnya
 
 ---
 
@@ -618,22 +667,27 @@ Semua 13 field. Yang perlu disiapkan lebih awal: API key (field 8), repo link + 
 
 | Gerbang | Fase | Kriteria | Kalau gagal |
 |---|---|---|---|
-| 🚩 `tcm` = suhu udara 2m AGL | 0 | ±3°C dari METAR | STOP, lapor, keputusan produk |
-| Kontras AOI | 1 | p95 − p05 ≥ 6°C | Ganti AOI |
-| Δ rute | 3 | ≥1 pasangan ≤ −4°C | Tiga mitigasi, lalu STOP dan lapor |
-| Kategori merah ada isinya | 3 | ≥1 blok | Kalibrasi ambang, dokumentasikan |
-| Basemap `206 Partial Content` | 0 | Preview Vercel | Pindah file ke Cloudflare R2 |
+| `tcm` = suhu udara 2m AGL | 0 | ±3°C dari METAR | ✅ Lolos |
+| Statuta hazardous walking ada | 0–1 | Sitasi pasal terverifikasi | ✅ Lolos, Florida |
+| Sekolah nyata dalam bbox ≥2 | 1 | NCES CCD | Geser bbox — keputusan produk, lapor |
+| NaN raster <10% | 1.5 | Per tile per slice | Cek bbox & menit slice sebelum lanjut |
+| **🚩 G1 kategori merah ≥1 blok** | **3** | **Rute teradem tetap lewat ambang** | Kalibrasi ulang `THRESHOLD`, dokumentasikan |
+| Gerbang tanggal Phoenix | 5.0 | Orlando lulus Fase 4 pada 27 Agu 12:00 | Phoenix dibuang total, bukan dikurangi |
+| Basemap `206 Partial Content` | 5/8 | Preview Vercel | Pindah file ke Cloudflare R2 |
 | Demo jalan offline | 7 | Cabut internet, termasuk pan peta | Cari runtime call yang bocor |
 | Live link di incognito | 8 | Buka bersih | Perbaiki sebelum submit |
+
+Tidak ada gerbang berbasis besarnya delta suhu. G7, G8, G9, dan G5 dihitung dan dilaporkan apa adanya.
 
 ## Yang dikorbankan lebih dulu kalau waktu mepet
 
 Urutan pemotongan, dari yang paling boleh dibuang:
 
 1. Animasi transisi, mikrointeraksi, styling peta yang cantik
-2. FR-15 tabel prioritas segmen
-3. FR-13 slider waktu (sisakan dua state statis)
-4. FR-17 refresh forecast
-5. Interaktivitas Mode 1 → jadi tabel statis
+2. FR-21 peta cakupan tile · FR-15 tabel prioritas segmen
+3. G9/FR-19 exceedance (catat di Limitations sebagai tidak sempat, bukan angka karangan)
+4. Slider waktu per-jam penuh (sisakan dua state, yang tetap P0)
+5. FR-17 refresh forecast
+6. Interaktivitas Mode 1 → jadi tabel statis
 
 **Tidak boleh dipotong dalam keadaan apa pun:** FR-8 kategori merah, FR-16 tombol sembunyikan data panas, halaman Limitations, dan kolom °F di semua angka headline.

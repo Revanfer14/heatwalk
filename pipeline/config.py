@@ -9,6 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_RAW_DIR = REPO_ROOT / "data" / "raw"
 DATA_INTERIM_DIR = REPO_ROOT / "data" / "interim"
 DATA_OUT_DIR = REPO_ROOT / "data" / "out"
+DATA_FIXTURES_DIR = REPO_ROOT / "data" / "fixtures"
 DOCS_DIR = REPO_ROOT / "docs"
 WEB_PUBLIC_DATA_DIR = REPO_ROOT / "web" / "public" / "data"
 
@@ -34,6 +35,7 @@ THRESHOLD_DOSE_C_MIN = 110.0
 BUS_NOT_NEEDED_MAX_EXCESS_MI = 0.25
 SCHOOL_DAYS_PER_YEAR = 180
 EQUIVALENT_MINUTES_REFERENCE_C = 42.0
+INCOME_QUARTILE_PERCENTILE = 25.0
 
 CONTRAST_REPORT_TOP_N = 20
 

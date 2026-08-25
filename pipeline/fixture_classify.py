@@ -1,19 +1,14 @@
 import hashlib
 
-from pipeline.config import (
-    BASELINE_C,
-    BUS_NOT_NEEDED_MAX_EXCESS_MI,
-    EQUIVALENT_MINUTES_REFERENCE_C,
-    FETCH_HOURS,
-    SCHOOL_DAYS_PER_YEAR,
-    THRESHOLD_DOSE_C_MIN,
-    WALK_SPEED_MPS,
-)
+from pipeline import step4_classify, summary_build
+from pipeline.config import BASELINE_C, FETCH_HOURS, THRESHOLD_DOSE_C_MIN, WALK_SPEED_MPS
 from pipeline.fixture_geometry import block_heat_factor, school_lonlat
-from pipeline.geo_distance import distance_km
 from pipeline.fixture_temps import CANONICAL_HOUR, HOUR_OFFSET_C, ORLANDO_SPREAD_C
+from pipeline.geo_distance import distance_km
 
 MI_PER_KM = 0.621371
+SYNTHETIC_STATION_DAYS = 300
+SYNTHETIC_STATION_YEARS = 6
 
 
 def _seeded_unit(*parts: object) -> float:
@@ -67,127 +62,87 @@ def _route_stats(block: dict, distance_km_value: float, hhmm: str) -> dict:
     }
 
 
-def _classify(routes: dict) -> str:
-    if routes["shortest"]["dose"] <= THRESHOLD_DOSE_C_MIN:
-        return "green"
-    if routes["coolest"]["dose"] <= THRESHOLD_DOSE_C_MIN:
-        return "yellow"
-    return "red"
+def _build_routed_for_school(school: dict, school_blocks: list[dict], distances_km: dict[str, float]) -> dict:
+    block_records: dict[str, dict] = {}
+    for block in school_blocks:
+        block_id = block["block_id"]
+        km = distances_km[block_id]
+        shortest_by_hour: dict[str, dict] = {}
+        coolest_by_hour: dict[str, dict] = {}
+        shortest_len_m = 0.0
+
+        for hhmm in FETCH_HOURS:
+            routes = _route_stats(block, km, hhmm)
+            shortest_len_m = routes["shortest"]["len_m"]
+            shortest_by_hour[hhmm] = {
+                "mean_c": routes["shortest"]["mean_c"],
+                "peak_c": routes["shortest"]["peak_c"],
+                "dose": routes["shortest"]["dose"],
+            }
+            coolest_by_hour[hhmm] = {
+                "len_m": routes["coolest"]["len_m"],
+                "mean_c": routes["coolest"]["mean_c"],
+                "peak_c": routes["coolest"]["peak_c"],
+                "dose": routes["coolest"]["dose"],
+            }
+
+        block_records[block_id] = {
+            "kids_est": 5 + int(_seeded_unit("kids", block["col"], block["row"]) * 40),
+            "distance_mi": round(km * MI_PER_KM, 3),
+            "shortest": {"len_m": shortest_len_m, "by_hour": shortest_by_hour},
+            "coolest": {"by_hour": coolest_by_hour},
+        }
+
+    return {
+        "meta": {
+            "school_id": school["id"],
+            "canonical_hour": CANONICAL_HOUR,
+            "hours": FETCH_HOURS,
+            "threshold": THRESHOLD_DOSE_C_MIN,
+        },
+        "blocks": block_records,
+    }
 
 
-def _reason(block_class: str, routes: dict) -> str:
-    coolest = routes["coolest"]
-    if block_class == "red":
-        return (
-            f"Coolest route mean {coolest['mean_c']:.1f}C exceeds threshold "
-            f"({THRESHOLD_DOSE_C_MIN:.0f} C-min dose, actual {coolest['dose']:.0f})."
-        )
-    if block_class == "yellow":
-        return (
-            f"Shortest route exceeds threshold, but coolest route mean {coolest['mean_c']:.1f}C "
-            f"stays under it (dose {coolest['dose']:.0f})."
-        )
-    return f"Shortest route already under threshold (dose {routes['shortest']['dose']:.0f})."
+def _synthetic_median_income_by_block_group(block_ids: list[str]) -> dict[str, int]:
+    return {block_id: round(20000 + _seeded_unit("income", block_id) * 150000) for block_id in block_ids}
 
 
-def _safe_until_hour(block: dict, distance_km_value: float, block_class: str) -> str | None:
-    if block_class != "red":
-        return None
-    previous_hour = None
-    for hhmm in FETCH_HOURS:
-        routes = _route_stats(block, distance_km_value, hhmm)
-        if routes["coolest"]["dose"] > THRESHOLD_DOSE_C_MIN:
-            return previous_hour
-        previous_hour = hhmm
-    return None
+def _synthetic_daily_station_temps() -> dict[str, float]:
+    return {
+        str(day): round(BASELINE_C + (_seeded_unit("station", day) - 0.3) * ORLANDO_SPREAD_C * 2, 2)
+        for day in range(SYNTHETIC_STATION_DAYS)
+    }
 
 
-def classify_blocks(blocks: list[dict], schools: list[dict]) -> list[dict]:
-    classified: list[dict] = []
+def classify_and_summarize(
+    blocks: list[dict], schools: list[dict], correction_factors: dict[str, float | None]
+) -> tuple[dict[str, list[dict]], dict]:
+    distances_km: dict[str, float] = {}
+    blocks_by_school: dict[str, list[dict]] = {school["id"]: [] for school in schools}
     for block in blocks:
         school, km = _nearest_school(block, schools)
-        routes = _route_stats(block, km, CANONICAL_HOUR)
-        block_class = _classify(routes)
-        distance_mi = km * MI_PER_KM
-        status_now = "walk" if distance_mi <= school["walk_radius_mi"] else "bus"
-        status_rec = {"green": "walk", "yellow": "reroute", "red": "bus_eligible"}[block_class]
-        kids_est = 5 + int(_seeded_unit("kids", block["col"], block["row"]) * 40)
+        distances_km[block["block_id"]] = km
+        blocks_by_school[school["id"]].append(block)
 
-        classified.append({
-            "block_id": block["block_id"],
-            "school_id": school["id"],
-            "kids_est": kids_est,
-            "class": block_class,
-            "shortest": routes["shortest"],
-            "coolest": routes["coolest"],
-            "delta_mean_c": round(routes["coolest"]["mean_c"] - routes["shortest"]["mean_c"], 2),
-            "delta_dose_pct": (
-                round((routes["coolest"]["dose"] - routes["shortest"]["dose"]) / routes["shortest"]["dose"] * 100)
-                if routes["shortest"]["dose"] > 0
-                else 0
-            ),
-            "status_now": status_now,
-            "status_rec": status_rec,
-            "reason": _reason(block_class, routes),
-            "safe_until_hour": _safe_until_hour(block, km, block_class),
-            "distance_mi": round(distance_mi, 3),
-            "polygon": block["polygon"],
-        })
-    return classified
+    routed_by_school = {
+        school["id"]: _build_routed_for_school(school, blocks_by_school[school["id"]], distances_km)
+        for school in schools
+    }
+    classified_by_school = {
+        school["id"]: step4_classify.classify_school_blocks(school, routed_by_school[school["id"]])
+        for school in schools
+    }
 
+    median_income_by_block_group = _synthetic_median_income_by_block_group(
+        [block["block_id"] for block in blocks]
+    )
+    daily_station_temps = _synthetic_daily_station_temps()
+    station_temp_on_fetch_date = BASELINE_C + ORLANDO_SPREAD_C * 0.5
 
-def _dose_equivalent_radius_mi(school_blocks: list[dict]) -> float:
-    under_threshold = [b["distance_mi"] for b in school_blocks if b["class"] != "red"]
-    return round(max(under_threshold), 3) if under_threshold else 0.0
-
-
-def _estimate_exceedance_days_per_year(coolest_dose: float) -> float:
-    excess_ratio = coolest_dose / THRESHOLD_DOSE_C_MIN
-    return round(min(SCHOOL_DAYS_PER_YEAR, SCHOOL_DAYS_PER_YEAR * (1.0 - 1.0 / excess_ratio)), 1)
-
-
-def build_summary(classified_blocks: list[dict], schools: list[dict], correction_factors: dict[str, float | None]) -> dict:
-    summary: dict[str, dict] = {}
-    for school in schools:
-        school_blocks = [b for b in classified_blocks if b["school_id"] == school["id"]]
-        walk_blocks = [b for b in school_blocks if b["status_now"] == "walk"]
-
-        in_walk_zone = sum(b["kids_est"] for b in walk_blocks)
-        reroute_enough = sum(b["kids_est"] for b in walk_blocks if b["class"] == "yellow")
-        no_safe_route = sum(b["kids_est"] for b in walk_blocks if b["class"] == "red")
-        red_walk_blocks = [b for b in walk_blocks if b["class"] == "red"]
-
-        bus_not_needed = sum(
-            b["kids_est"] for b in school_blocks
-            if b["status_now"] == "bus" and b["class"] == "green"
-            and (b["distance_mi"] - school["walk_radius_mi"]) <= BUS_NOT_NEEDED_MAX_EXCESS_MI
-        )
-
-        if red_walk_blocks:
-            avg_eliminated = sum(
-                b["shortest"]["dose"] - b["coolest"]["dose"] for b in red_walk_blocks
-            ) / len(red_walk_blocks)
-            avg_exceedance_days = sum(
-                _estimate_exceedance_days_per_year(b["coolest"]["dose"]) for b in red_walk_blocks
-            ) / len(red_walk_blocks)
-        else:
-            avg_eliminated = 0.0
-            avg_exceedance_days = 0.0
-
-        summary[school["id"]] = {
-            "in_walk_zone": in_walk_zone,
-            "reroute_enough": reroute_enough,
-            "no_safe_route": no_safe_route,
-            "lowest_income_quartile": round(no_safe_route * 0.4),
-            "misclassified": {"bus_not_needed": bus_not_needed, "walk_should_bus": no_safe_route},
-            "dose_eliminated_per_child_per_day": round(avg_eliminated, 1),
-            "dose_eliminated_per_child_per_year": round(avg_eliminated * SCHOOL_DAYS_PER_YEAR, 1),
-            "equivalent_minutes_at_42c": (
-                round(avg_eliminated / (EQUIVALENT_MINUTES_REFERENCE_C - BASELINE_C), 1) if avg_eliminated else 0.0
-            ),
-            "correction_factor": correction_factors[school["id"]],
-            "radius_setara_dosis_mi": _dose_equivalent_radius_mi(school_blocks),
-            "radius_kebijakan_mi": school["walk_radius_mi"],
-            "days_exceedance_per_year": round(avg_exceedance_days, 1),
-        }
-    return summary
+    summary = summary_build.build_summary(
+        schools, classified_by_school, routed_by_school, correction_factors,
+        median_income_by_block_group, daily_station_temps, station_temp_on_fetch_date,
+        SYNTHETIC_STATION_YEARS,
+    )
+    return classified_by_school, summary

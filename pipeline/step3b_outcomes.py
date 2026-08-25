@@ -1,6 +1,6 @@
 import json
 
-from pipeline import contrast_report, dose_radius, exceedance, write_out
+from pipeline import contrast_report, dose_radius, exceedance
 from pipeline.config import (
     BASELINE_C,
     CONTRAST_REPORT_TOP_N,
@@ -93,7 +93,6 @@ def first_exceedance_hour_by_block(routed: dict) -> dict[str, str | None]:
 
 def main() -> None:
     schools = json.loads((DATA_OUT_DIR / "schools.json").read_text(encoding="utf-8"))
-    summary = json.loads((DATA_OUT_DIR / "summary.json").read_text(encoding="utf-8"))
     tile = TILES[0]
 
     routed_by_school = load_routed_schools([school["id"] for school in schools])
@@ -132,7 +131,7 @@ def main() -> None:
         f"delta_mean_c min={min(deltas):.3f} max={max(deltas):.3f} rata2={sum(deltas)/len(deltas):.3f}"
     )
 
-    print("\nG2/G3/G9 per sekolah:")
+    print("\nG2/G3/G9 per sekolah (diagnostik konsol, ditulis ke summary.json oleh step5_export):")
     for school in schools:
         school_id = school["id"]
         routed = routed_by_school[school_id]
@@ -141,19 +140,11 @@ def main() -> None:
         g3 = g3_dose_eliminated(routed)
         days_exceedance = g9_days_exceedance(routed, daily_station_temps, station_temp_on_fetch_date, n_years)
 
-        summary[school_id]["radius_setara_dosis_mi"] = radius_literal
-        summary[school_id]["radius_kebijakan_mi"] = school["walk_radius_mi"]
-        summary[school_id]["days_exceedance_per_year"] = days_exceedance
-
         print(
             f"  {school_id:32s} radius_setara_dosis={radius_literal:.2f}mi/{school['walk_radius_mi']:.2f}mi "
-            f"G3_dose_elim/day(routing-based, belum ke summary.json)={g3['dose_eliminated_per_child_per_day']:.1f} "
+            f"G3_dose_elim/day(routing-based)={g3['dose_eliminated_per_child_per_day']:.1f} "
             f"days_exceedance/yr={days_exceedance:.1f}"
         )
-
-    write_out.write_json(DATA_OUT_DIR / "summary.json", summary)
-    copied = write_out.mirror_to_web()
-    print(f"\nfiles copied to web/public/data: {len(copied)}")
 
 
 if __name__ == "__main__":

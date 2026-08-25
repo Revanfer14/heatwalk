@@ -11,7 +11,7 @@ from pipeline.config import (
     utm_epsg_for_lon,
 )
 from pipeline.dose import dose_c_min
-from pipeline.make_fixtures import _check_no_orphan_edges
+from pipeline.graph_integrity import check_no_orphan_edges
 
 
 def build_tile_dataset(tile: dict) -> dict:
@@ -106,7 +106,7 @@ def main() -> None:
 
     for school in schools:
         graph_payload, temps_payload = build_school_outputs(tile_dataset, school, utm_epsg)
-        _check_no_orphan_edges(graph_payload["edges"], temps_payload)
+        check_no_orphan_edges(graph_payload["edges"], temps_payload)
 
         school_dir = DATA_OUT_DIR / "by_school" / school["id"]
         write_out.write_json(school_dir / "graph.json", graph_payload)

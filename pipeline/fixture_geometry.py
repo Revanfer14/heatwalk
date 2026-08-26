@@ -49,6 +49,15 @@ def block_heat_factor(col: int, row: int) -> float:
     return min(max(base + wobble, 0.0), 1.0)
 
 
+FIXTURE_STATE_COUNTY_FIPS = "12095"
+
+
+def fixture_block_geoid(col: int, row: int) -> str:
+    tract = 123000 + col * 100
+    block = 1000 + row
+    return f"{FIXTURE_STATE_COUNTY_FIPS}{tract:06d}{block:04d}"
+
+
 def node_id(col: int, row: int) -> str:
     return f"n{col}_{row}"
 
@@ -110,7 +119,7 @@ def build_block_grid(bbox: tuple[float, float, float, float] = AOI_BBOX) -> list
             block_north = block_south + dy
             centroid = [round((block_west + block_east) / 2, 6), round((block_south + block_north) / 2, 6)]
             blocks.append({
-                "block_id": f"FIXTURE-{col:02d}{row:02d}",
+                "block_id": fixture_block_geoid(col, row),
                 "col": col,
                 "row": row,
                 "centroid": centroid,

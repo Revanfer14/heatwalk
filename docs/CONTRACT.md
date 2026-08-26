@@ -2,9 +2,11 @@
 
 Skema file yang dibaca frontend. Setiap field mencatat tipe, satuan, nullability, dan file sumber pipeline yang menghasilkannya. Frontend **tidak pernah** menghitung ulang field manapun di sini — semua angka dibaca langsung.
 
-Semua file di bawah identik skemanya antara fixture (`pipeline/make_fixtures.py`) dan output asli (pipeline Fase 2–4, belum ditulis). Frontend tidak boleh bisa membedakan keduanya.
+Semua file di bawah identik skemanya antara fixture (`pipeline/make_fixtures.py`, ditulis ke `data/fixtures/`) dan output asli (`data/out/`, pipeline Fase 2–4). Frontend tidak boleh bisa membedakan keduanya — dicek programatik lewat paritas skema rekursif di `pipeline/verify_step4.py`.
 
-Semua file di-`fetch()` dari `web/public/data/`, salinan dari `data/out/` lewat `pipeline/write_out.py:mirror_to_web()` (mirror rekursif, termasuk `by_school/`).
+**Fixture tidak pernah menimpa `data/out/` atau `web/public/data/`.** `pipeline/make_fixtures.py` menulis ke `data/fixtures/` saja dan tidak memanggil `mirror_to_web()`. Untuk menguji frontend membaca fixture, salin `data/fixtures/` ke `web/public/data/` secara manual (uji tukar-file dev plan §Fase 4), lalu kembalikan (`git checkout web/public/data`).
+
+Data asli di-`fetch()` dari `web/public/data/`, salinan dari `data/out/` lewat `pipeline/write_out.py:mirror_to_web()` (mirror rekursif, termasuk `by_school/`), dipanggil di akhir `pipeline/step5_export.py` (atau `pipeline/run_all.py`).
 
 Geometri dipisah dari suhu (PRD §5.6): `graph.json` sekali per sekolah, `temps.json` berisi angka per edge per jam. Jangan pernah menduplikasi geometri per jam.
 
@@ -96,7 +98,7 @@ Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jala
 
 ## `by_school/<school_id>/blocks.geojson`
 
-`FeatureCollection`, satu Feature per census block **milik sekolah ini** (assignment blok→sekolah, §1.3). Klasifikasi dihitung pada `meta.canonical_hour`, bukan dirata-rata antar jam (FR-8). Dihasilkan `pipeline/step4_classify.py` (asli, belum ditulis) / `pipeline/make_fixtures.py` (fixture).
+`FeatureCollection`, satu Feature per census block **milik sekolah ini** (assignment blok→sekolah, §1.3). Klasifikasi dihitung pada `meta.canonical_hour`, bukan dirata-rata antar jam (FR-8). **Real sejak Fase 4** — `pipeline/step4_classify.py` + `pipeline/step5_export.py` (asli, 368 blok berpenduduk gelombang 1) / `pipeline/fixture_classify.py` + `pipeline/make_fixtures.py` (fixture, `data/fixtures/`).
 
 ```json
 {
@@ -145,7 +147,7 @@ Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jala
 
 ## `schools.json`
 
-Array objek, satu per sekolah dalam AOI. **Real sejak Fase 1.5.5** — `pipeline/nces_schools.py` menarik NCES CCD (`EDGE_ADMINDATA_PUBLICSCH_2324`, cache `data/raw/nces_ccd_<tile_id>.json`), `pipeline/fixture_geometry.py:SCHOOLS_FIXTURE` mengimpornya, `pipeline/make_fixtures.py` menulisnya ke `schools.json` apa adanya (nol entri fixture, meski ditulis lewat skrip yang sama dengan `by_school/` yang masih placeholder — lihat §aturan lintas file).
+Array objek, satu per sekolah dalam AOI. **Real sejak Fase 1.5.5** — `pipeline/nces_schools.py` menarik NCES CCD (`EDGE_ADMINDATA_PUBLICSCH_2324`, cache `data/raw/nces_ccd_<tile_id>.json`), `pipeline/fixture_geometry.py:SCHOOLS_FIXTURE` mengimpornya, `pipeline/make_fixtures.py` menulisnya apa adanya ke `data/fixtures/schools.json` (nol entri fixture — sekolahnya sama persis dengan `data/out/schools.json`, hanya `by_school/` yang datanya sintetis).
 
 ```json
 [
@@ -197,7 +199,7 @@ Pin **seluruh sekolah NCES** di AS untuk Layer simbol nasional Mode 1, **tanpa a
 
 ## `summary.json`
 
-Objek keyed by `school_id`. Dihasilkan `pipeline/step4_classify.py` (asli, belum ditulis) / `pipeline/make_fixtures.py` (fixture).
+Objek keyed by `school_id`. **Real sejak Fase 4** — `pipeline/summary_build.py` dipanggil dari `pipeline/step5_export.py` (asli) dan `pipeline/fixture_classify.py` (fixture, `data/fixtures/summary.json`) — logika perhitungan sama persis, dipakai ulang, tidak diduplikasi.
 
 ```json
 {
@@ -221,7 +223,7 @@ Objek keyed by `school_id`. Dihasilkan `pipeline/step4_classify.py` (asli, belum
 | `reroute_enough` | `integer` | anak | tidak | jumlah `kids_est` blok kuning |
 | `no_safe_route` | `integer` | anak | tidak | jumlah `kids_est` blok merah |
 | `lowest_income_quartile` | `integer` | anak | tidak | ACS B19013 kuartil terbawah, dalam blok merah |
-| `misclassified.bus_not_needed` | `integer` | anak | tidak | definisi G4 di `docs/METHODOLOGY.md`, ambang `BUS_NOT_NEEDED_MAX_EXCESS_MI` |
+| `misclassified.bus_not_needed` | `integer` | anak | tidak | definisi G4 di `docs/METHODOLOGY.md`, ambang `BUS_NOT_NEEDED_MAX_EXCESS_MI`. **Nol di keenam sekolah gelombang 1** — struktural, bukan kalibrasi: `walk_radius_mi = 2,0` di seluruh AOI melebihi ukuran tile (±5 km), jadi nol blok berstatus `bus`. Lihat `docs/METHODOLOGY.md` §Fase 4 |
 | `misclassified.walk_should_bus` | `integer` | anak | tidak | = jumlah anak blok merah di dalam walk zone resmi |
 | `dose_eliminated_per_child_per_day` | `number` | °C·menit | tidak | `shortest.dose - coolest.dose` rata-rata blok merah |
 | `dose_eliminated_per_child_per_year` | `number` | °C·menit | tidak | `× SCHOOL_DAYS_PER_YEAR` |
@@ -231,7 +233,7 @@ Objek keyed by `school_id`. Dihasilkan `pipeline/step4_classify.py` (asli, belum
 | `radius_kebijakan_mi` | `number` | mil | tidak | **Real sejak Fase 3**. Salinan `schools.json.walk_radius_mi` untuk sekolah yang sama, ditulis berdampingan supaya panel FR-12 tidak perlu join dua file |
 | `days_exceedance_per_year` | `number` | hari/tahun ajaran | tidak, `>= 0` | **Real sejak Fase 3**, `pipeline/exceedance.py`. Rata-rata, atas blok merah pada `canonical_hour`, dari jumlah hari sekolah (Agustus–Mei, 2019–2025) di mana `dose(suhu_stasiun_ASOS_MCO + offset_spasial_blok) > THRESHOLD_DOSE_C_MIN`, dibagi jumlah tahun ajaran dalam rentang. `offset_spasial_blok = coolest.mean_c blok pada canonical_hour − suhu stasiun MCO pada canonical_hour tanggal `FETCH_DATE``, diasumsikan stabil antar-hari (PRD §8 poin 14, tidak diuji) |
 
-Field klasifikasi lain (`in_walk_zone`, `reroute_enough`, `no_safe_route`, `misclassified`, `dose_eliminated_*`, `equivalent_minutes_at_42c`) **tetap milik `step4_classify.py` (Fase 4, belum ditulis)** — Fase 3 tidak menyentuhnya, sumbernya masih `pipeline/fixture_classify.py`.
+Field klasifikasi lain (`in_walk_zone`, `reroute_enough`, `no_safe_route`, `misclassified`, `dose_eliminated_*`, `equivalent_minutes_at_42c`) **real sejak Fase 4** — `pipeline/summary_build.py`, dipanggil dari `pipeline/step5_export.py` (asli) dan `pipeline/fixture_classify.py` (fixture). `reroute_enough = 0` di seluruh sekolah gelombang 1 (kategori kuning kosong, lihat `docs/METHODOLOGY.md` §Fase 4) — dilaporkan apa adanya, bukan bug.
 
 ---
 
@@ -260,8 +262,9 @@ sch_ridgewood_park_elementary,120950123052001,15:00,3083.2,3342.6,37.97,37.22,-0
 
 ## Aturan lintas file
 
-- **Status Fase 3 (26 Agustus 2026):** `tiles.json`, `schools.json`, `by_school/<school_id>/{graph.json,temps.json}` sudah **real** (OSM + heatmap 10 jam + dosis dua-bobot, gelombang 1). `contrast_report.csv` dan tiga field `summary.json` (`radius_setara_dosis_mi`, `radius_kebijakan_mi`, `days_exceedance_per_year`) juga **real**, dari routing centroid blok Census asli ke node sekolah. `by_school/<school_id>/blocks.geojson` dan field klasifikasi lain di `summary.json` (`in_walk_zone`, `reroute_enough`, `no_safe_route`, `misclassified`, `dose_eliminated_*`, `equivalent_minutes_at_42c`) **masih placeholder** dari `pipeline/fixture_classify.py` — blok sintetis, menunggu `step4_classify.py` (Fase 4) memakai census block asli + poligon TIGERweb. Frontend tetap tidak bisa membedakan lewat skema; bedanya baru kelihatan kalau angka blok dibandingkan ke peta jalan asli.
+- **Status Fase 4 (26 Agustus 2026):** seluruh file di `data/out/` sekarang **real** — `tiles.json`, `schools.json`, `by_school/<school_id>/{graph.json,temps.json,blocks.geojson}`, `summary.json` (semua field), `contrast_report.csv`. Tidak ada lagi field placeholder dari fixture. `pipeline/run_all.py` menjalankan `step2_build_graph → step3_routes → step3b_outcomes → step4_classify → step5_export` berurutan; `pipeline/verify_step4.py` memverifikasi hasilnya termasuk paritas skema terhadap `data/fixtures/`.
 - Setiap angka yang tampil di UI harus bisa ditelusuri ke satu baris tabel di atas.
-- Setiap tempat yang menampilkan °C·menit **wajib** menampilkan °C di sebelahnya; setiap angka headline wajib punya °F.
-- `edge_id` di `temps.json` **wajib** cocok satu-satu dengan `graph.json` sekolah yang sama — dicek programatik di setiap build (`make_fixtures.py:_check_no_orphan_edges`), bukan dengan mata.
+- Setiap tempat yang menampilkan °C·menit **wajib** menampilkan °C di sebelahnya; setiap angka headline wajib punya °F. Satu-satunya tempat konversi ini hidup di kode: `web/src/lib/units.ts`.
+- `edge_id` di `temps.json` **wajib** cocok satu-satu dengan `graph.json` sekolah yang sama — dicek programatik di setiap build (`pipeline/graph_integrity.py:check_no_orphan_edges`, dipakai `step2_build_graph.py` dan `make_fixtures.py`), bukan dengan mata.
 - Kalau skema di atas berubah, `pipeline/make_fixtures.py` diupdate di commit yang sama.
+- FR-5 (tombol permohonan hazardous walking) dibangun di `web/src/lib/petition.ts`. Ia menolak membangun teks (`null`) untuk blok non-merah dan untuk `block_id` berkode FIPS negara bagian yang tidak punya entri sitasi statuta — Arizona sengaja tidak dimasukkan (PRD §5.5).

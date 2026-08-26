@@ -5,7 +5,7 @@ from pathlib import Path
 from pipeline import edge_geometry
 from pipeline.config import DATA_OUT_DIR, LAMBDA_DETOUR_CANDIDATES, TILES
 from pipeline.dose import dose_c_min
-from pipeline.make_fixtures import _check_no_orphan_edges
+from pipeline.graph_integrity import check_no_orphan_edges
 
 GRAPH_META_KEYS = {"school_id", "tile_id", "crs"}
 GRAPH_EDGE_KEYS = {"u", "v", "len_m", "geom"}
@@ -147,7 +147,7 @@ def main() -> int:
 
         check_schema(school["id"], graph, temps, errors)
         check_sizes(school["id"], graph_path, temps_path, errors, notes)
-        _check_no_orphan_edges(graph["edges"], temps)
+        check_no_orphan_edges(graph["edges"], temps)
         check_values(school["id"], graph, temps, errors)
         check_hourly_curve(school["id"], temps, errors)
 

@@ -105,7 +105,11 @@ def _build_routed_for_school(school: dict, school_blocks: list[dict], distances_
 
 
 def _synthetic_median_income_by_block_group(block_ids: list[str]) -> dict[str, int]:
-    return {block_id: round(20000 + _seeded_unit("income", block_id) * 150000) for block_id in block_ids}
+    block_group_ids = {block_id[:summary_build.BLOCK_GROUP_GEOID_LENGTH] for block_id in block_ids}
+    return {
+        block_group_id: round(20000 + _seeded_unit("income", block_group_id) * 150000)
+        for block_group_id in block_group_ids
+    }
 
 
 def _synthetic_daily_station_temps() -> dict[str, float]:

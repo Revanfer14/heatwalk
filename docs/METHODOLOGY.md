@@ -302,7 +302,7 @@ Metode: (1) suhu stasiun ASOS MCO (Iowa Environmental Mesonet, `EXCEEDANCE_STATI
 
 **Asumsi eksplisit, tidak diuji (PRD §8 poin 14)**: offset spasial per blok diasumsikan stabil antar-hari — kondisi atmosfer hari `FETCH_DATE` (2023-08-08, hari terpanas 6+ tahun terakhir di rekaman MCO) dipakai untuk menurunkan offset yang lalu diterapkan ke 2.130 hari lain dengan kondisi cuaca berbeda-beda. Nilai per-blok berasal dari sampel FortyGuard **satu hari**, bukan deret waktu penuh — inilah yang membuat pendekatan ini hibrida, bukan pengukuran langsung.
 
-## [Fase 1.5, indikatif — final di Fase 4] `THRESHOLD_DOSE_C_MIN`
+## [Fase 1.5 → final Fase 4, lihat bagian Fase 4 di bawah] `THRESHOLD_DOSE_C_MIN`
 
 **`THRESHOLD_DOSE_C_MIN = 220,0` (nilai awal, era-Phoenix) diverifikasi mustahil dicapai di Orlando — nol panggilan API, dua sumber yang sudah ada di cache.**
 
@@ -395,6 +395,32 @@ Dihitung dari 10 GeoTIFF hasil fetch nyata (§1.5.4, `data/interim/heatmap/orl_p
 **`delta_temporal_c = 9,223°C`** (15:00 − 07:00) — rentang variasi suhu sepanjang hari sekolah jauh lebih besar dari kontras spasial AOI (§Fase 0/1, p95−p05 ≈ 1,8°C pada satu jam). Implikasi: **kapan** anak berjalan pulang jauh lebih menentukan dosis panas daripada **rute mana** yang mereka ambil — ini G7, dilaporkan apa adanya sesuai dev plan, bukan hasil yang dicari-cari.
 
 Metode: `edges.geometry.interpolate(0.5, normalized=True)` pada GeoDataFrame OSM (CRS geografis) memicu warning akurasi dari GeoPandas untuk operasi jarak — diabaikan dengan sengaja di sini karena yang dihitung hanya **lokasi sampel** (bukan panjang; panjang tetap dari kolom `length` OSM dalam meter, hasil proyeksi UTM osmnx sendiri), sehingga distorsi CRS-geografis pada interpolasi titik tengah segmen pendek (median puluhan meter) dapat diabaikan.
+
+## [Fase 4] Klasifikasi (FR-8) & angka ringkasan — final
+
+**`THRESHOLD_DOSE_C_MIN = 110,0` dipertahankan, tidak direvisi terhadap data panas asli.** §1.5 di atas menulis nilai ini sebagai "indikatif", dikalibrasi dari kurva jam fixture (79/30/11 dari 120 blok) sebelum data FortyGuard asli tersedia. Dengan kurva jam nyata (§1.5.7) dan routing dua-bobot asli (Fase 2–3), distribusi pada `canonical_hour = "15:00"` di 368 blok berpenduduk gelombang 1 adalah:
+
+**204 hijau / 0 kuning / 164 merah.**
+
+Ini **pengakuan eksplisit bahwa ini kalibrasi, bukan standar yang sudah ada** (diminta dev plan §4.1): `110,0 °C·menit` dipilih semata supaya distribusi awal (era fixture) tidak degenerate, tidak diturunkan dari ambang keselamatan panas resmi mana pun. Dev plan §4.1 melarang eksplisit menggeser ambang untuk mengisi kategori kuning secara artifisial — instruksi itu diikuti di sini: kuning tetap nol, didokumentasikan di bawah, bukan ditambal dengan menurunkan `THRESHOLD`.
+
+### Temuan 1 — kategori kuning kosong (0 dari 368 blok)
+
+Kuning butuh `dose(terpendek) > THRESHOLD ≥ dose(teradem)` — celah di antara dua ambang yang sama. G8 (`METHODOLOGY.md` di atas) sudah mencatat **331 dari 368 blok (89,9%) punya `delta_mean_c = 0,000` persis**: rute teradem identik dengan rute terpendek. Untuk blok-blok itu `dose(terpendek) = dose(teradem)` tepat sama, sehingga tidak ada nilai `THRESHOLD` — berapa pun — yang bisa menaruh satu dosis di atas ambang dan yang lainnya di bawah. Sisa 37 blok yang rutenya benar-benar berbeda jalur punya delta maksimum hanya `−0,75°C`, tidak cukup untuk memindahkan dosis melewati satu ambang tanpa juga memindahkan dosis terpendeknya. Kuning kosong bukan kegagalan kalibrasi; ia konsekuensi matematis langsung dari gerbang kontras spasial yang dicabut di §1.5 (kontras suhu udara 2m intra-urban terlalu kecil untuk membuat pemilihan rute berarti).
+
+### Temuan 2 — `misclassified.bus_not_needed = 0` di keenam sekolah, struktural bukan kalibrasi
+
+`BUS_NOT_NEEDED_MAX_EXCESS_MI = 0,25` mil (definisi eksplisit "sedikit di luar radius", dev plan §4.3) tidak pernah dievaluasi: keenam sekolah memakai `walk_radius_mi = 2,0` (FS §1006.23, kutipan OCPS yang sama untuk semuanya, §1.5.5), sementara tile AOI `orl_pine_hills_n` hanya berukuran ±5 km. **Nol dari 368 blok berpenduduk punya `status_now = "bus"`** — seluruhnya berada dalam radius 2 mil dari sekolah masing-masing. `bus_not_needed` butuh blok hijau **di luar** radius resmi; kalau tidak ada blok sama sekali di luar radius, hasilnya nol secara struktural, bukan karena tidak ada blok yang "salah klasifikasi". Konsekuensinya: `misclassified.walk_should_bus = no_safe_route` di seluruh sekolah (154/202/668/309/391/55) tetap valid dan jadi argumen utama, tapi sisi `bus_not_needed` dari G4 tidak bisa dibuktikan atau dibantah oleh AOI seukuran ini.
+
+### Temuan 3 — `block_id` fixture disamakan formatnya dengan GEOID asli
+
+`pipeline/make_fixtures.py` sebelumnya menulis `block_id` fixture sebagai `"FIXTURE-CCRR"` (12 karakter buatan), melanggar `docs/CONTRACT.md` yang menyatakan `block_id` adalah Census block GEOID. Diperbaiki di `pipeline/fixture_geometry.py:fixture_block_geoid()`: format `12095` (FIPS Orange County, FL, sama dengan data asli) + tract 6-digit sintetis + blok 4-digit sintetis = GEOID 15-karakter yang sah secara format. Ini memastikan kode frontend yang menurunkan state dari GEOID (mis. `web/src/lib/petition.ts` yang membaca 2 digit pertama sebagai kode FIPS negara bagian) berperilaku identik di fixture dan data asli — syarat pokok CLAUDE.md bahwa frontend tidak boleh bisa membedakan keduanya.
+
+### Verifikasi Fase 4
+
+Dicek programatik oleh `pipeline/verify_step4.py`: kategori merah tidak kosong (gerbang keras, G1); kategori kuning kosong dicatat sebagai `CATATAN`, bukan gerbang; jumlah `kids_est` blok walk per sekolah sama dengan `summary.json.in_walk_zone`; setiap blok merah punya `reason` non-kosong yang memuat angka konkret; `reroute_enough + no_safe_route ≤ in_walk_zone`; `0 < radius_setara_dosis_mi ≤ radius_kebijakan_mi`; kunci properti `blocks.geojson` sama persis dengan `classification.BLOCK_PROPERTY_KEYS`; **paritas skema rekursif** antara `data/fixtures/` dan `data/out/` (kunci `schools.json`, `summary.json`, dan `blocks.geojson` sampai level `shortest`/`coolest`/`misclassified`, tidak termasuk `graph.json`/`temps.json` yang skemanya tidak berubah sejak Fase 2 dan sudah diverifikasi di sana); `tiles.json` — tiap tile berstatus `"done"` punya `hours_fetched` non-kosong. Semua lulus pada commit ini kecuali temuan kuning-kosong yang secara sengaja ditandai dilaporkan-bukan-gerbang.
+
+`pipeline/run_all.py` memverifikasi keseluruhan rantai `step3_routes → step3b_outcomes → step4_classify → step5_export` bisa dijalankan ulang dari cache yang sudah ada (`data/raw/`, `by_school/*/graph.json`+`temps.json`) **tanpa satu panggilan API pun**, dan menghasilkan `data/out/` serta `web/public/data/` byte-identik dengan yang sudah di-commit — bukti bahwa pipeline benar-benar deterministik dari data yang sama.
 
 ## [Pending] Sumber data & sitasi
 

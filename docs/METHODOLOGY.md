@@ -380,7 +380,9 @@ Percobaan pertama (total 5–17 tanpa pembatasan jenjang) menghasilkan **3 dari 
 - **Maynard Evans High (4,93×):** ini satu-satunya SMA dalam bbox kecil `orl_pine_hills_n` (~5×5 km). Catchment SMA nyata jauh lebih besar dari catchment SD/SMP — sebagian besar dari 2.403 siswa terdaftarnya tinggal **di luar bbox**, jadi estimasi dasymetric yang dibatasi ke blok-blok dalam bbox otomatis under-estimate. Bukan kesalahan assignment, tapi keterbatasan AOI yang sengaja kecil (§Fase 1).
 - **UCP Pine Hills Charter (0,26×):** sekolah charter beroperasi lewat **lotere se-distrik**, bukan zona geografis. Asumsi inti nearest-school assignment (anak bersekolah di sekolah terdekat) tidak berlaku untuknya sama sekali — faktor ini secara struktural tidak bisa dipercaya berapa pun metodenya diperhalus, kecuali data enrollment by-address sungguhan tersedia (tidak ada, di luar cakupan hackathon).
 
-Sesuai fail branch dev plan (`faktor_koreksi di luar 0,3–3,0` → "jangan pakai angkanya, cek batas attendance dulu"): kedua angka **tetap ditulis apa adanya** ke `summary.json` (bukan disembunyikan di balik placeholder `1.0`) karena keduanya informatif dan sebabnya terjelaskan, tapi **tidak dipakai sebagai pengali tervalidasi** di perhitungan dose-eliminated manapun — `correction_factor` di `summary.json` saat ini murni deskriptif. Revisit di Fase 4 kalau batas attendance nyata (ArcGIS/SABS, §1.3/1.5.5) akhirnya bisa diakses.
+Sesuai fail branch dev plan (`faktor_koreksi di luar 0,3–3,0` → "jangan pakai angkanya, cek batas attendance dulu"): kedua angka **tetap ditulis apa adanya** ke `summary.json` (bukan disembunyikan di balik placeholder `1.0`) karena keduanya informatif dan sebabnya terjelaskan.
+
+**Koreksi (Fase 7): klaim "murni deskriptif" pada kalimat di atas keliru dan sudah tidak berlaku.** `pipeline/block_table.py` memang memakai `correction_factor` sebagai pengali langsung `kids_est = dasymetric_estimate × factor` sejak awal — bukan angka dekoratif di `summary.json` saja. Kekeliruan kalimat lama tidak berdampak numerik (rumusnya tidak pernah diubah untuk "mematuhi" klaim itu), tapi klaimnya sendiri salah dan diperbaiki di sini. Metode kalibrasi itu sendiri direvisi di Fase 7 (§ di bawah) untuk membatasi penyebutnya ke radius jalan kaki — bukan lagi seluruh bbox gabungan.
 
 ## [Fase 1.5.7] Kurva jam & `canonical_hour` — dari data asli
 
@@ -456,12 +458,149 @@ Query nasional ke endpoint NCES CCD yang sama dengan `pipeline/nces_schools.py` 
 
 Opsi memperluas ke ~44 sekolah (menulis `nces_schools.build_schools_payload` ke jalur asli, lalu re-run) tersedia dengan **nol tambahan kredit FortyGuard** (OSM/NCES/Census gratis), tapi akan mengalikan `graph.json`+`temps.json` — yang saat ini **identik untuk setiap sekolah karena disalin utuh dari seluruh graf tile**, bukan dipangkas per sekolah (lihat catatan ukuran file di atas) — sampai ~660 MB. **Keputusan: pertahankan 6 sekolah.** Pemangkasan graf per sekolah dicatat sebagai utang teknis untuk fase berikutnya sebelum cakupan sekolah diperluas.
 
-## [Pending] Sumber data & sitasi
+## [Fase 7] Kalibrasi enrollment dibatasi radius jalan kaki — perbaikan dan angka final gelombang 3
 
-- Lanza K, dkk. "Heat-Resilient Schoolyards: Access to Playgrounds and Shade." *J Phys Act Health* 2023;20(2):134–141.
-- Arizona DHS. *Managing Extreme Heat Recommendations for Schools*, 2021. (sitasi ilmiah ambang perilaku panas — tetap dipakai meski kota demo pindah ke Florida; bukan sandaran hukum)
-- Meng Y, dkk. "Investigation of heat stress on urban roadways for commuting children." *Urban Climate* 2023;49:101564.
-- Basu R, dkk. (2024).
-- Florida Statute §1006.21 — *Transportation of public school students*; §1006.23 — *Hazardous walking conditions* — `flsenate.gov/Laws/Statutes/2024/1006.21`, `.../1006.23`. Sandaran hukum FR-5 & §1.2, menggantikan Arizona per pivot Fase 1.
-- FortyGuard API — `https://docs-api.fortyguard.com`.
-- Iowa Environmental Mesonet ASOS (ground truth METAR) — `https://mesonet.agron.iastate.edu`.
+**Semua tabel di §1.5.6, §Fase 2 (λ), dan §Fase 3 (G1/G2/G3/G8/G9) di atas adalah angka gelombang 1 (368 blok, tile `orl_pine_hills_n`), dipertahankan sebagai catatan historis metodologi.** Bagian ini menulis angka final gelombang 3 (2.304 blok, tile `orl_ocps_core`, enam sekolah yang sama) dan satu perbaikan metodologi yang menyertainya.
+
+### Akar masalah
+
+`enrollment_calibration.dasymetric_children_by_school()` (dipakai §1.5.6) menjumlahkan **seluruh blok dalam bbox** ke sekolah terdekatnya, tanpa batas jarak. Itu masuk akal selama bbox seukuran `orl_pine_hills_n` (~5×5 km, dekat dengan radius kebijakan 2 mi). Begitu Fase 6 memperluas bbox ke `orl_ocps_core` (~60 mi², §Fase 6 di atas), sel nearest-neighbor tiap sekolah ikut melebar jauh melewati radius kebijakannya sendiri — penyebut kalibrasi membengkak tanpa hubungan lagi dengan populasi yang benar-benar relevan (anak yang tinggal dalam jarak jalan kaki). Ini yang menjatuhkan `correction_factor` Rosemont Elementary ke 0,077 dan UCP Pine Hills Charter ke 0,04 pada commit Fase 6 — jauh di luar 0,3–3,0, dan tidak terdiagnosis sampai Fase 7.
+
+### Perbaikan
+
+`pipeline/block_assignment.py` (baru) menyatukan logika nearest-school yang sebelumnya diduplikasi persis di `enrollment_calibration.py` dan `block_table.py`, dan menambah `nearest_school_within_radius()`: sebuah blok hanya dihitung ke penyebut kalibrasi sekolah kalau jaraknya ke sekolah itu ≤ `walk_radius_mi` (2,0 mi, kutipan OCPS yang sama di §1.3). Ini **bukan angka yang dikarang untuk memperbaiki rasio** — populasi yang dipakai sebagai penyebut sekarang persis sama dengan populasi yang dijumlahkan jadi `summary.json.in_walk_zone`. `block_table.build_block_table()` sendiri (assignment blok→sekolah untuk routing dan `kids_est`) **tidak dibatasi radius** — tetap nearest-school di seluruh bbox, supaya blok jauh yang statusnya sudah `"bus"` tetap terhitung dan tetap punya `kids_est`, bukan hilang dari `blocks.geojson`.
+
+Dijalankan ulang dari cache (`data/raw/`, tanpa satu panggilan FortyGuard/Overpass baru — `python -m pipeline.run_all --fetch`, seluruhnya cache-hit) setelah interim scratch sempat hilang (gitignored, tidak masalah — cache di `data/raw/` dan output di `data/out/` cukup untuk rebuild penuh).
+
+| Sekolah | `enrollment_CCD` | `estimasi_dasymetric` (radius-dibatasi) | `correction_factor` |
+|---|---|---|---|
+| Maynard Evans High | 2.403 | 759,8 | **3,163** — di luar rentang |
+| Rolling Hills Elementary | 513 | 401,2 | 1,279 |
+| Meadowbrook Middle | 894 | 518,4 | 1,725 |
+| Ridgewood Park Elementary | 469 | 740,8 | 0,633 |
+| Rosemont Elementary | 561 | 2.416,8 | **0,232** — di luar rentang |
+| UCP Pine Hills Charter | 160 | 1.795,0 | **0,089** — di luar rentang |
+
+**3 dari 6 sekolah tetap di luar 0,3–3,0 setelah perbaikan.** Per aturan dev plan §Fase 1.5 fail branch dan `CLAUDE.md` ("jangan pernah menggeser ambang supaya angka terlihat bagus"), radius **tidak** digeser lagi untuk memaksakan ketiganya masuk rentang — dicatat apa adanya dengan sebab masing-masing:
+
+- **Maynard Evans High (3,163×, sisi atas):** sama seperti temuan wave-1 (dulu 4,926×) — satu-satunya SMA di AOI ini, catchment SMA riil lebih besar dari radius 2 mi kebijakan itu sendiri. Restriksi radius memperbaiki rasio (4,926→3,163) tapi tidak menghilangkan sebabnya: sebagian siswa terdaftarnya secara sah tinggal di luar 2 mi (dapat bus lewat mekanisme jarak biasa, bukan hazardous walking), radius kebijakan sendiri sudah lebih kecil dari kebutuhan riil SMA ini.
+- **UCP Pine Hills Charter (0,089×, sisi bawah):** tidak berubah dari diagnosis wave-1 — sekolah charter beroperasi lewat lotere se-distrik, bukan zona geografis. Asumsi inti nearest-school assignment tidak berlaku untuknya sama sekali.
+- **Rosemont Elementary (0,232×, sisi bawah, baru muncul di gelombang 3):** diverifikasi lewat `schools_national.json` — dalam radius 2 mi dari Rosemont ada **13 sekolah NCES nyata**, tapi hanya 4 di antaranya masuk subset "enam sekolah teranalisis" (Rolling Hills 1,01 mi, Meadowbrook 1,52 mi, Maynard Evans 1,74 mi, Ridgewood Park 1,81 mi). Dua sekolah dasar nyata yang lebih dekat dari sebagian blok — **Lockhart Elementary (1,39 mi)** dan **Lake Weston Elementary (1,85 mi)** — tidak termasuk subset teranalisis. Karena `nearest_school_within_radius()` hanya memilih di antara enam sekolah yang dianalisis, blok yang di dunia nyata masuk zona Lockhart/Lake Weston tetap jatuh ke Rosemont sebagai "terdekat yang dianalisis", membengkakkan penyebutnya. Ini bukan bug perbaikan Fase 7 — ini konsekuensi struktural dari cakupan enam-sekolah (§Fase 6 "jumlah sekolah teranalisis tetap 6, tidak 44") yang bertemu dengan kalibrasi berbasis nearest-school. Dicatat sebagai limitasi baru di `docs/LIMITATIONS.md`.
+
+### G7 — kurva jam, gelombang 3
+
+| Jam | 07:00 | 08:00 | 09:00 | 10:00 | 11:00 | 12:00 | 13:00 | 14:00 | 15:00 | 16:00 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| °C (berbobot panjang jalan) | 28,415 | 29,751 | 31,868 | 33,477 | 33,970 | 35,560 | 35,709 | 36,259 | **37,389** | 37,171 |
+
+`canonical_hour = "15:00"` tetap konsisten dengan gelombang 1. `delta_temporal_c = 8,974°C` (vs 9,223°C gelombang 1) — sedikit lebih kecil karena bbox lebih luas merata-ratakan lebih banyak jalan, tapi kesimpulannya sama: variasi antar-jam jauh melampaui kontras spasial AOI manapun yang terukur.
+
+### G1 — gerbang keras, gelombang 3, tetap LOLOS
+
+**2.095 dari 2.304 blok berpenduduk (90,9%)** melewati ambang pada jam kanonik (`THRESHOLD_DOSE_C_MIN` tidak disentuh, tetap 110,0):
+
+| Sekolah | Blok ter-assign | Blok merah | % |
+|---|---|---|---|
+| sch_maynard_evans_high | 751 | 704 | 93,7% |
+| sch_rolling_hills_elementary | 55 | 20 | 36,4% |
+| sch_meadowbrook_middle | 114 | 77 | 67,5% |
+| sch_ridgewood_park_elementary | 40 | 19 | 47,5% |
+| sch_rosemont_elementary | 964 | 929 | 96,4% |
+| sch_ucp_pine_hills_charter | 380 | 346 | 91,1% |
+
+Naik dari 44,6% (gelombang 1) ke 90,9% — sudah dijelaskan di §Fase 6 (bbox lebih luas menyertakan lebih banyak blok pada jarak jalan kaki jauh dari sekolah, mengakumulasi dosis lebih besar; bukan hasil menggeser `THRESHOLD`).
+
+### G2 — radius setara-dosis (FR-18), gelombang 3
+
+| Sekolah | Radius kebijakan | Radius setara-dosis | Selisih |
+|---|---|---|---|
+| sch_maynard_evans_high | 2,00 mi | 0,827 mi | −58,7% |
+| sch_rolling_hills_elementary | 2,00 mi | 0,65 mi | −67,5% |
+| sch_meadowbrook_middle | 2,00 mi | 0,667 mi | −66,7% |
+| sch_ridgewood_park_elementary | 2,00 mi | 0,634 mi | −68,3% |
+| sch_rosemont_elementary | 2,00 mi | 0,852 mi | −57,4% |
+| sch_ucp_pine_hills_charter | 2,00 mi | 0,566 mi | −71,7% |
+
+Konsisten dengan gelombang 1 secara arah dan magnitudo (radius setara-dosis selalu jauh di bawah radius kebijakan) — gerbang G2 fail branch tidak tersentuh.
+
+### G3 — dosis tereliminasi (FR-11), gelombang 3
+
+| Sekolah | Blok merah | Dosis tereliminasi/hari | /tahun ajaran | Setara menit di 42°C |
+|---|---|---|---|---|
+| sch_maynard_evans_high | 704 | 0,2 °C·menit | 29,3 | 0,0 mnt |
+| sch_rolling_hills_elementary | 20 | 0,0 °C·menit | 0,4 | 0,0 mnt |
+| sch_meadowbrook_middle | 77 | 0,3 °C·menit | 54,7 | 0,0 mnt |
+| sch_ridgewood_park_elementary | 19 | 1,5 °C·menit | 269,7 | 0,2 mnt |
+| sch_rosemont_elementary | 929 | 0,4 °C·menit | 66,5 | 0,0 mnt |
+| sch_ucp_pine_hills_charter | 346 | 0,1 °C·menit | 22,9 | 0,0 mnt |
+
+Angka-angka ini kecil, dan **wajib dibaca lewat PRD §8 poin 10, bukan sebagai kegagalan produk**: kontras suhu udara 2m antar-rute di AOI ini tipis (G8 di bawah), jadi "dosis yang dihindari dengan memilih rute lebih adem" memang mendekati nol untuk hampir semua sekolah — argumen produk berdiri di atas **memindah moda** (jalan → bus), bukan di atas "rute A lebih baik dari rute B". `equivalent_minutes_at_42c = 0,0` di lima dari enam sekolah bukan pembulatan yang disembunyikan; itu konsekuensi numerik langsung dari dosis tereliminasi yang memang di bawah satu menit setara.
+
+### G8 — kontras rute (FR-4), gelombang 3
+
+Seluruh **2.304 pasangan blok–sekolah**: `delta_mean_c` (coolest − shortest) rentang **−0,750°C hingga 0,000°C**, rata-rata **−0,055°C** — lebih negatif dari rata-rata gelombang 1 (−0,010°C) karena populasi blok 6× lebih besar menyertakan lebih banyak blok dengan rute alternatif yang benar-benar berbeda, tapi rentang ekstremnya (min/max) identik dengan gelombang 1. Kesimpulan sama: manfaat pemilihan rute kecil dan terukur, bukan nol tapi jauh dari besar.
+
+### G9 — exceedance (FR-19), gelombang 3
+
+| Sekolah | Hari exceedance/tahun (rata2 blok merah) |
+|---|---|
+| sch_maynard_evans_high | 19,2 |
+| sch_rolling_hills_elementary | 7,7 |
+| sch_meadowbrook_middle | 4,7 |
+| sch_ridgewood_park_elementary | 2,4 |
+| sch_rosemont_elementary | 15,0 |
+| sch_ucp_pine_hills_charter | 19,9 |
+
+Naik signifikan dari gelombang 1 (1,6–4,3 hari/tahun) — konsekuensi langsung populasi blok merah yang jauh lebih besar dan lebih jauh dari sekolah (rute lebih panjang → offset spasial dan `dose(suhu_stasiun + offset)` lebih sering melewati ambang di riwayat 2.130 hari ASOS). Metode tidak berubah dari §Fase 3 (hibrida, asumsi offset stabil antar-hari, PRD §8 poin 14, tidak diuji).
+
+### `LAMBDA_DETOUR`, gelombang 3
+
+| Sekolah | `LAMBDA_DETOUR` |
+|---|---|
+| sch_maynard_evans_high | 0,05 |
+| sch_rolling_hills_elementary | 0,02 |
+| sch_meadowbrook_middle | 0,02 |
+| sch_ridgewood_park_elementary | 0,02 |
+| sch_rosemont_elementary | 0,02 |
+| sch_ucp_pine_hills_charter | 0,05 |
+
+Naik dari `0,005`/`0,02` (gelombang 1) ke `0,02`/`0,05` — bbox 6× lebih besar berarti lebih banyak jalur berbiaya-hampir-sama yang butuh penalti jarak lebih besar untuk tetap lolos cap detour 1,4× di semua jam. Edge dibuang: **366 dari 39.208 (0,93%)**, di bawah gerbang 2%.
+
+### Temuan 2, direvisi — `misclassified.bus_not_needed = 0` bertahan, sebab berubah total
+
+Wave-1 (§Fase 4 di atas): nol karena **tidak ada blok berstatus `"bus"` sama sekali** dalam AOI sekecil itu — semuanya dalam radius 2 mi. **Ini tidak lagi benar di gelombang 3.** Bbox 60 mi² menghasilkan banyak blok `status_now = "bus"`: 661 di Maynard Evans High, 773 di Rosemont, 187 di UCP, 21 di Meadowbrook, 4 di Rolling Hills, 0 di Ridgewood Park. `bus_not_needed = 0` tetap bertahan, tapi sekarang karena alasan yang berbeda dan lebih informatif: **nol dari seluruh blok berstatus bus itu berklasifikasi hijau.** Setiap blok yang sudah cukup jauh untuk secara sah dapat bus (>2 mi) juga cukup jauh sehingga rute teradem-nya tetap melewati ambang dosis — pada AOI ini, jarak yang membuat seorang anak berhak atas bus jarak-standar juga membuatnya berhak atas bus karena panas. Dua kriteria kelayakan bertumpuk, tidak berlawanan.
+
+### Temuan terbuka — `verify_step3.py` gagal di satu sekolah, belum diselesaikan
+
+Menjalankan ulang `pipeline/verify_step3.py` (bukan bagian otomatis `run_all.py`, dijalankan manual saat verifikasi Fase 7) terhadap data gelombang 3 menemukan **18 blok** di `sch_maynard_evans_high` (dari 751, 2,4%) di mana dosis rute **terpendek** (jalur tetap per blok, bukan rute teradem yang bisa berpindah jalur) melonjak 16,6–20,1 °C·menit di jam 12:00 lalu turun kembali persis di 13:00, melewati toleransi wobble 15% (`check_dose_curve_shape`, pesan tool: *"indikasi raster jam tertukar"*). Kelima sekolah lain: nol pelanggaran. Ini **berbeda** dari wobble AOI-wide 12:00→13:00 yang sudah didokumentasikan di §Fase 3 (kurva rata-rata gelombang 1 turun tipis −0,051°C di rentang itu, dianggap derau near-baseline) — kurva rata-rata gelombang 3 di atas justru **naik** monoton 12:00→13:00 (35,560→35,709), jadi lonjakan 18 blok ini bukan sekadar bayangan derau AOI-wide, melainui anomali lokal yang belum terjelaskan.
+
+**Tidak ditambal dalam Fase 7 ini** — perbaikan raster-per-jam yang spekulatif tanpa investigasi yang lebih dalam berisiko melanggar aturan `CLAUDE.md` "jangan diam-diam ganti pendekatan". Dicatat di sini dan di `docs/LIMITATIONS.md` sebagai temuan terbuka yang butuh keputusan Revan: investigasi lebih lanjut (bandingkan GeoTIFF jam 12:00 vs 13:00 di lokasi 18 blok itu) atau diterima sebagai limitasi data yang dinyatakan eksplisit. **Tidak memengaruhi gerbang G1** (dihitung dari rute teradem di jam kanonik 15:00, bukan jam 12:00) — tetap 2.095 blok merah, LOLOS.
+
+### FR-17 — tidak dibangun
+
+Tombol refresh forecast (P1, dev plan urutan potong ke-5) sengaja tidak dibangun. Produk ini murni statis (PRD §6.1, "tidak ada backend server, tidak ada panggilan API saat runtime kecuali FR-17") — satu-satunya cara jujur membangun panggilan live FortyGuard dari situs statis adalah membungkus API key ke bundel browser, yang berarti mempublikasikannya ke siapa pun yang membuka DevTools. Bukan trade-off yang sepadan untuk fitur P1 yang eksplisit boleh dipotong. Dicatat di `docs/LIMITATIONS.md`, bukan diam-diam dihilangkan dari UI tanpa catatan.
+
+### Basemap offline — glyph self-hosted
+
+`web/src/lib/basemapStyle.ts` sebelumnya memuat glyph label peta dari `cdn.protomaps.com`, diambil lazily oleh MapLibre per viewport. Ini melanggar gerbang "demo jalan offline setelah load pertama, termasuk pan ke sudut AOI yang belum pernah dibuka" (dev plan §Fase 7). Diperbaiki: tiga fontstack yang dipakai tema (`Noto Sans Regular`, `Noto Sans Medium`, `Noto Sans Italic`) diunduh ke `web/public/fonts/` (rentang kode Latin dasar sampai general punctuation, ~1,2 MB total, sumber sama persis dengan CDN Protomaps) dan `glyphs` diarahkan ke path same-origin `/fonts/{fontstack}/{range}.pbf`. Satu-satunya request runtime yang tersisa adalah `/data/*` dan `/heatwalk-aoi.pmtiles`, keduanya same-origin.
+
+## Sumber data & sitasi (final, Fase 7)
+
+### Sitasi ilmiah
+
+- Lanza K, dkk. "Heat-Resilient Schoolyards: Access to Playgrounds and Shade." *J Phys Act Health* 2023;20(2):134–141. `journals.humankinetics.com/view/journals/jpah/20/2/article-p134.xml` — sumber `BASELINE_C = 33,0°C` dan `SHADE_COOLING_C` (§Fase 6).
+- Meng Y, dkk. "Investigation of heat stress on urban roadways for commuting children." *Urban Climate* 2023;49:101564. — sitasi pendukung dosis panas rute komuter anak.
+- Arizona DHS. *Managing Extreme Heat Recommendations for Schools* (pilot version), 2021. `azdhs.gov/documents/preparedness/epidemiology-disease-control/extreme-weather/heat/managing-extreme-heat-recommendations-for-schools.pdf` — sitasi ilmiah ambang perilaku panas, tetap dipakai meski kota demo pindah ke Florida (§Fase 1); bukan sandaran hukum.
+- **"Basu R, dkk. (2024)" — sitasi tidak lengkap sejak draf awal dan tidak berhasil diverifikasi ulang lewat pencarian literatur di Fase 7 (nama penulis umum di bidang epidemiologi panas, tidak cukup untuk menunjuk satu makalah spesifik tanpa berisiko salah kutip).** Dihapus dari daftar aktif di atas sampai sumber aslinya bisa dikonfirmasi — **jangan dikutip di pitch atau materi lain dalam bentuk ini.** Kalau Revan punya referensi spesifik yang dimaksud, tempelkan judul/DOI-nya di sini.
+
+### Data resmi & API
+
+- Florida Statute §1006.21 — *Transportation of public school students*; §1006.23 — *Hazardous walking conditions*. `flsenate.gov/Laws/Statutes/2024/1006.21`, `flsenate.gov/Laws/Statutes/2024/1006.23`. Sandaran hukum FR-5 & §1.2, menggantikan Arizona per pivot Fase 1.
+- OCPS Transportation FAQs — `ocps.net/transportation-faqs`. Sumber `walk_radius_mi = 2,0` dan `policy_source` (§1.3) — dipakai sebagai pengganti PDF kebijakan resmi yang tidak berhasil diakses (`403` di `go.boarddocs.com/fla/orcpsfl`), dicatat sebagai limitasi eksplisit di `docs/LIMITATIONS.md`.
+- FortyGuard API — `https://docs-api.fortyguard.com`. Sumber `tcm` (heatmap) dan `env_params`.
+- Iowa Environmental Mesonet ASOS (Iowa State University) — `https://mesonet.agron.iastate.edu`. Ground truth METAR (Fase 0) dan riwayat jam-jaman stasiun MCO 2019–2025 (G9, §Fase 3).
+- NCES EDGE — `nces.ed.gov/opengis/rest/services`. Layanan `EDGE_ADMINDATA_PUBLICSCH_2324` (enrollment + jenjang, §1.5.5) dan `EDGE_GEOCODE_PUBLICSCH_1920` (kepadatan sekolah, §1.3); tanpa filter bbox untuk `schools_national.json` (FR-20, §Fase 6).
+- TIGERweb (US Census Bureau) — `tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer/2`. Geometri dan `POP100` 2020 Census block (§1.5.5).
+- Census Bureau API — `api.census.gov`. 2020 DHC P12 (anak 5–17 per pita umur per blok) dan ACS 2022 5-year B19013 (pendapatan, block group) / B17001 (kemiskinan, tract) (§1.5.5).
+- OpenStreetMap / Overpass, lewat `osmnx` — `overpass-api.de`. Jaringan jalan pejalan kaki (§1.5.5).
+- Protomaps — basemap PMTiles self-hosted dan glyph font `Noto Sans` self-hosted (§Fase 7 di atas), sumber asal `cdn.protomaps.com`.

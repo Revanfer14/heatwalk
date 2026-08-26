@@ -15,9 +15,16 @@ interface BlockDetailPanelProps {
   allBlocks: BlockFeature[]
   schoolName: string
   schoolSummary: SchoolSummary | null
+  baselineC: number | null
 }
 
-export default function BlockDetailPanel({ block, allBlocks, schoolName, schoolSummary }: BlockDetailPanelProps) {
+export default function BlockDetailPanel({
+  block,
+  allBlocks,
+  schoolName,
+  schoolSummary,
+  baselineC,
+}: BlockDetailPanelProps) {
   const { properties } = block
   const dosePercent = deltaDosePercent(properties.shortest.dose, properties.coolest.dose)
   const deltaVsGreen = deltaVsNearestGreenBlock(block, allBlocks)
@@ -71,13 +78,16 @@ export default function BlockDetailPanel({ block, allBlocks, schoolName, schoolS
         <p className="text-sm text-ink-muted">
           <HeatValue>{properties.reason}</HeatValue>
         </p>
-        <HeatValue>
-          <SafeUntilLine safeUntilHour={properties.safe_until_hour} />
-        </HeatValue>
+        <SafeUntilLine safeUntilHour={properties.safe_until_hour} />
       </div>
 
       {properties.class === 'red' && schoolSummary !== null && (
-        <OutcomePanel schoolName={schoolName} kidsAffected={properties.kids_est} summary={schoolSummary} />
+        <OutcomePanel
+          schoolName={schoolName}
+          kidsAffected={properties.kids_est}
+          summary={schoolSummary}
+          baselineC={baselineC}
+        />
       )}
     </div>
   )

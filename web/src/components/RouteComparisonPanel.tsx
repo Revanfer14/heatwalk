@@ -1,4 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import HeatValue from '@/components/HeatValue'
 import Metric from '@/components/Metric'
 import TemperaturePair from '@/components/TemperaturePair'
 import {
@@ -27,7 +28,11 @@ export default function RouteComparisonPanel({ routes, hour }: RouteComparisonPa
     <section className="flex flex-col gap-4">
       <Metric
         label={`Coolest route, mean temperature at ${hour}`}
-        value={<TemperaturePair celsius={coolest.mean_c} />}
+        value={
+          <HeatValue>
+            <TemperaturePair celsius={coolest.mean_c} />
+          </HeatValue>
+        }
         size="headline"
       />
       <Table>
@@ -43,44 +48,66 @@ export default function RouteComparisonPanel({ routes, hour }: RouteComparisonPa
           <TableRow>
             <TableCell className="text-ink-muted">Distance</TableCell>
             <TableCell className="tabular-nums">{formatKilometers(metersToKilometers(shortest.len_m))}</TableCell>
-            <TableCell className="tabular-nums">{formatKilometers(metersToKilometers(coolest.len_m))}</TableCell>
-            <TableCell className="tabular-nums">{formatSignedMeters(coolest.len_m - shortest.len_m)}</TableCell>
+            <TableCell className="tabular-nums">
+              <HeatValue>{formatKilometers(metersToKilometers(coolest.len_m))}</HeatValue>
+            </TableCell>
+            <TableCell className="tabular-nums">
+              <HeatValue>{formatSignedMeters(coolest.len_m - shortest.len_m)}</HeatValue>
+            </TableCell>
           </TableRow>
           <TableRow>
             <TableCell className="text-ink-muted">Time</TableCell>
             <TableCell className="tabular-nums">{formatMinutes(shortest.minutes)}</TableCell>
-            <TableCell className="tabular-nums">{formatMinutes(coolest.minutes)}</TableCell>
-            <TableCell className="tabular-nums">{formatSignedMinutes(coolest.minutes - shortest.minutes)}</TableCell>
+            <TableCell className="tabular-nums">
+              <HeatValue>{formatMinutes(coolest.minutes)}</HeatValue>
+            </TableCell>
+            <TableCell className="tabular-nums">
+              <HeatValue>{formatSignedMinutes(coolest.minutes - shortest.minutes)}</HeatValue>
+            </TableCell>
           </TableRow>
           <TableRow>
             <TableCell className="text-ink-muted">Mean temp</TableCell>
             <TableCell>
-              <TemperaturePair celsius={shortest.mean_c} />
+              <HeatValue>
+                <TemperaturePair celsius={shortest.mean_c} />
+              </HeatValue>
             </TableCell>
             <TableCell>
-              <TemperaturePair celsius={coolest.mean_c} />
+              <HeatValue>
+                <TemperaturePair celsius={coolest.mean_c} />
+              </HeatValue>
             </TableCell>
             <TableCell className="tabular-nums">
-              {formatSignedTemperature(coolest.mean_c - shortest.mean_c)}
+              <HeatValue>{formatSignedTemperature(coolest.mean_c - shortest.mean_c)}</HeatValue>
             </TableCell>
           </TableRow>
           <TableRow>
             <TableCell className="text-ink-muted">Peak temp</TableCell>
             <TableCell>
-              <TemperaturePair celsius={shortest.peak_c} />
+              <HeatValue>
+                <TemperaturePair celsius={shortest.peak_c} />
+              </HeatValue>
             </TableCell>
             <TableCell>
-              <TemperaturePair celsius={coolest.peak_c} />
+              <HeatValue>
+                <TemperaturePair celsius={coolest.peak_c} />
+              </HeatValue>
             </TableCell>
             <TableCell className="tabular-nums">
-              {formatSignedTemperature(coolest.peak_c - shortest.peak_c)}
+              <HeatValue>{formatSignedTemperature(coolest.peak_c - shortest.peak_c)}</HeatValue>
             </TableCell>
           </TableRow>
           <TableRow>
             <TableCell className="text-ink-muted">Heat dose</TableCell>
-            <TableCell className="tabular-nums">{formatDose(shortest.dose)}</TableCell>
-            <TableCell className="tabular-nums">{formatDose(coolest.dose)}</TableCell>
-            <TableCell className="tabular-nums">{formatSignedPercent(dosePercent)}</TableCell>
+            <TableCell className="tabular-nums">
+              <HeatValue>{formatDose(shortest.dose)}</HeatValue>
+            </TableCell>
+            <TableCell className="tabular-nums">
+              <HeatValue>{formatDose(coolest.dose)}</HeatValue>
+            </TableCell>
+            <TableCell className="tabular-nums">
+              <HeatValue>{formatSignedPercent(dosePercent)}</HeatValue>
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>

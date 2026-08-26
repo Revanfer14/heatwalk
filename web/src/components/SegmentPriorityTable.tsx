@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import HeatValue from '@/components/HeatValue'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatPercent, formatSignedTemperature } from '@/lib/units'
@@ -38,8 +39,11 @@ export default function SegmentPriorityTable({ segments }: SegmentPriorityTableP
         </TableBody>
       </Table>
       <p className="text-xs text-ink-subtle">
-        Assumes a uniform cooling effect under full canopy shade — an estimate, not a local measurement. See
-        Methodology.
+        Assumes a uniform cooling effect under full canopy shade — an estimate, not a local measurement. See{' '}
+        <Link to="/methodology" className="underline underline-offset-3 hover:text-ink-muted">
+          Methodology
+        </Link>
+        .
       </p>
     </section>
   )

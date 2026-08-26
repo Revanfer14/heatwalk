@@ -15,6 +15,7 @@ interface DistrictTopStripProps {
   onToggleLayer: (layer: keyof LayerVisibility) => void
   tile: Tile | null
   fetchedAt: string | null
+  hideHeatData: boolean
 }
 
 export default function DistrictTopStrip({
@@ -26,13 +27,14 @@ export default function DistrictTopStrip({
   onToggleLayer,
   tile,
   fetchedAt,
+  hideHeatData,
 }: DistrictTopStripProps) {
   return (
     <div className="flex flex-col gap-3">
       {schoolSummary !== null && <SchoolSummaryRow summary={schoolSummary} />}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <ZoneLegend />
-        <LayerToggles layerVisibility={layerVisibility} onToggle={onToggleLayer} />
+        <ZoneLegend dimmed={hideHeatData} />
+        <LayerToggles layerVisibility={layerVisibility} onToggle={onToggleLayer} hideHeatData={hideHeatData} />
       </div>
       {hour !== null && hours.length > 0 && <HourSlider hours={hours} hour={hour} onHourChange={onHourChange} />}
       <TileCoverageInfo tile={tile} fetchedAt={fetchedAt} />

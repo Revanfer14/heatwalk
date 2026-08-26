@@ -13,6 +13,7 @@ interface DistrictDetailPanelProps {
   schoolName: string
   schoolSummary: SchoolSummary | null
   segments: SegmentPriorityRow[] | null
+  baselineC: number | null
 }
 
 export default function DistrictDetailPanel({
@@ -23,6 +24,7 @@ export default function DistrictDetailPanel({
   schoolName,
   schoolSummary,
   segments,
+  baselineC,
 }: DistrictDetailPanelProps) {
   if (unanalyzedNotice !== null) return <UnanalyzedSchoolNotice school={unanalyzedNotice} />
 
@@ -33,6 +35,7 @@ export default function DistrictDetailPanel({
         allBlocks={allBlocks}
         schoolName={schoolName}
         schoolSummary={schoolSummary}
+        baselineC={baselineC}
       />
     )
   }

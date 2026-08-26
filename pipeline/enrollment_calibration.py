@@ -1,5 +1,5 @@
 from pipeline import census_blocks
-from pipeline.geo_distance import distance_km
+from pipeline.block_assignment import nearest_school_within_radius
 
 MIN_VALID_FACTOR = 0.3
 MAX_VALID_FACTOR = 3.0
@@ -11,11 +11,7 @@ LEVEL_AGE_BAND_WEIGHTS = {
 }
 
 
-def _nearest_school(block_lonlat: list[float], schools: list[dict]) -> dict:
-    return min(schools, key=lambda school: distance_km(block_lonlat, [school["lon"], school["lat"]]))
-
-
-def _grade_band_estimate(bands: dict[str, int], level: str) -> float:
+def grade_band_estimate(bands: dict[str, int], level: str) -> float:
     weights = LEVEL_AGE_BAND_WEIGHTS[level]
     return sum(bands.get(band, 0) * weight for band, weight in weights.items())
 
@@ -30,8 +26,11 @@ def dasymetric_children_by_school(tile_id: str, bbox: tuple[float, float, float,
         if bands is None:
             continue
         block_lonlat = [float(block["INTPTLON"]), float(block["INTPTLAT"])]
-        school = _nearest_school(block_lonlat, schools)
-        totals[school["id"]] += _grade_band_estimate(bands, school["level"])
+        assignment = nearest_school_within_radius(block_lonlat, schools)
+        if assignment is None:
+            continue
+        school, _ = assignment
+        totals[school["id"]] += grade_band_estimate(bands, school["level"])
     return {school_id: round(total, 1) for school_id, total in totals.items()}
 
 
@@ -44,7 +43,7 @@ def correction_factors(schools: list[dict], dasymetric_totals: dict[str, int]) -
 
 
 def print_calibration_report(schools: list[dict], dasymetric_totals: dict[str, int], factors: dict[str, float | None]) -> None:
-    print("\nKalibrasi enrollment (nearest-school assignment, Census DHC P12 5-17 tahun):")
+    print("\nKalibrasi enrollment (nearest-school-dalam-radius, Census DHC P12 5-17 tahun):")
     for school in schools:
         estimate = dasymetric_totals[school["id"]]
         factor = factors[school["id"]]

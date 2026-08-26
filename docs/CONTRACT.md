@@ -14,13 +14,13 @@ Geometri dipisah dari suhu (PRD §5.6): `graph.json` sekali per sekolah, `temps.
 
 ## `tiles.json`
 
-Manifest mosaik tile. Dihasilkan `pipeline/step1_fetch_data.py` — real sejak Fase 1.5.4 (heatmap 10 jam ditarik untuk `orl_pine_hills_n`, nol NaN per jam, 42.200 kredit). `make_fixtures.py` **tidak lagi menulis file ini** — akan menimpa hasil real dengan asumsi status statis kalau dijalankan lagi.
+Manifest mosaik tile. Dihasilkan `pipeline/step1_fetch_data.py` — real sejak Fase 1.5.4 (heatmap 10 jam ditarik, nol NaN per jam). Tile id awal `orl_pine_hills_n` diganti `orl_ocps_core` di Fase 6 (bbox gabungan, lihat `docs/METHODOLOGY.md` §Fase 6). `make_fixtures.py` **tidak lagi menulis file ini** — akan menimpa hasil real dengan asumsi status statis kalau dijalankan lagi.
 
 ```json
 [
   {
-    "id": "orl_pine_hills_n",
-    "bbox": [-81.4763, 28.5722, -81.4241, 28.6167],
+    "id": "orl_ocps_core",
+    "bbox": [-81.4763, 28.5277, -81.3719, 28.6612],
     "status": "done",
     "hours_fetched": ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"]
   }
@@ -42,7 +42,7 @@ Geometri + topologi jalan untuk satu sekolah, **sekali saja**, tanpa suhu. Dihas
 
 ```json
 {
-  "meta": { "school_id": "sch_pine_hills_elem", "tile_id": "orl_pine_hills_n", "crs": "EPSG:4326" },
+  "meta": { "school_id": "sch_pine_hills_elem", "tile_id": "orl_ocps_core", "crs": "EPSG:4326" },
   "nodes": { "n1": [-81.4763, 28.5722] },
   "edges": {
     "n1-n2": { "u": "n1", "v": "n2", "len_m": 84.2, "geom": [[-81.4763, 28.5722], [-81.4760, 28.5723]] }

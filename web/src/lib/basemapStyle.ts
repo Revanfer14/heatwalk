@@ -8,7 +8,7 @@ export function buildGrayscaleStyle(pmtilesUrl: string): StyleSpecification {
 
   return {
     version: 8,
-    glyphs: 'https://cdn.protomaps.com/fonts/pbf/{fontstack}/{range}.pbf',
+    glyphs: '/fonts/{fontstack}/{range}.pbf',
     sources: {
       [PMTILES_SOURCE_ID]: {
         type: 'vector',

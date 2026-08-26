@@ -122,6 +122,7 @@ function DistrictRouteInner() {
           onToggleLayer={toggleLayer}
           tile={tile}
           fetchedAt={schoolData?.temps.meta.fetched_at ?? null}
+          hideHeatData={hideHeatData}
         />
       }
       detailPanel={
@@ -133,6 +134,7 @@ function DistrictRouteInner() {
           schoolName={selectedSchool.name}
           schoolSummary={schoolSummary}
           segments={segments}
+          baselineC={schoolData?.temps.meta.baseline_c ?? null}
         />
       }
     />

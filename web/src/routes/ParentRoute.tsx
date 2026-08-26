@@ -13,6 +13,7 @@ import { useParentRouteData } from '@/hooks/useParentRouteData'
 import { useRouteLayers } from '@/hooks/useRouteLayers'
 import { useFlyToSchool } from '@/hooks/useFlyToSchool'
 import { useAoiBoundaryLayer } from '@/hooks/useAoiBoundaryLayer'
+import { useOfficialZoneLayer } from '@/hooks/useOfficialZoneLayer'
 import { usePinMarker } from '@/hooks/usePinMarker'
 import { SAMPLE_LOCATIONS } from '@/lib/sampleLocations'
 
@@ -47,6 +48,13 @@ export default function ParentRoute() {
 
   useRouteLayers({ map, solvedRoutes, hideHeatData, routeFailed, theme })
   useAoiBoundaryLayer(map, tile, theme)
+  useOfficialZoneLayer({
+    map,
+    schoolPoint: selectedSchool !== null ? [selectedSchool.lon, selectedSchool.lat] : null,
+    walkRadiusMi: selectedSchool?.walk_radius_mi ?? null,
+    visible: true,
+    theme,
+  })
   usePinMarker({ map, pin, onPinChange: setPin })
   useFlyToSchool(map, selectedSchool, SCHOOL_FLY_TO_ZOOM)
 
@@ -99,7 +107,12 @@ export default function ParentRoute() {
             <div className="flex flex-col gap-4">
               <RouteComparisonPanel routes={solvedRoutes} hour={hour} />
               {matchedBlock !== null && (
-                <PetitionButton address={addressText} school={selectedSchool} block={matchedBlock.properties} />
+                <PetitionButton
+                  address={addressText}
+                  school={selectedSchool}
+                  block={matchedBlock.properties}
+                  hideHeatData={hideHeatData}
+                />
               )}
             </div>
           }

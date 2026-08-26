@@ -1,24 +1,8 @@
 from pipeline import census_acs, census_blocks
-from pipeline.enrollment_calibration import LEVEL_AGE_BAND_WEIGHTS
-from pipeline.geo_distance import distance_km
+from pipeline.block_assignment import MI_PER_KM, nearest_school
+from pipeline.enrollment_calibration import grade_band_estimate
 
-MI_PER_KM = 0.621371
 BLOCK_GROUP_GEOID_LENGTH = 12
-
-
-def _grade_band_estimate(bands: dict[str, int], level: str) -> float:
-    weights = LEVEL_AGE_BAND_WEIGHTS[level]
-    return sum(bands.get(band, 0) * weight for band, weight in weights.items())
-
-
-def _nearest_school(block_lonlat: list[float], schools: list[dict]) -> tuple[dict, float]:
-    best_school = None
-    best_km = None
-    for school in schools:
-        km = distance_km(block_lonlat, [school["lon"], school["lat"]])
-        if best_km is None or km < best_km:
-            best_km, best_school = km, school
-    return best_school, best_km
 
 
 def build_block_table(
@@ -38,10 +22,10 @@ def build_block_table(
 
         geoid = block["GEOID"]
         lon, lat = float(block["INTPTLON"]), float(block["INTPTLAT"])
-        school, distance_km_value = _nearest_school([lon, lat], schools)
+        school, distance_km_value = nearest_school([lon, lat], schools)
 
         bands = bands_by_geoid.get(geoid, {})
-        dasymetric_estimate = _grade_band_estimate(bands, school["level"])
+        dasymetric_estimate = grade_band_estimate(bands, school["level"])
         factor = correction_factors.get(school["id"]) or 1.0
         kids_est = round(dasymetric_estimate * factor)
 

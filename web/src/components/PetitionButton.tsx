@@ -10,13 +10,14 @@ interface PetitionButtonProps {
   address: string
   school: School
   block: PetitionBlockContext
+  hideHeatData: boolean
 }
 
-export default function PetitionButton({ address, school, block }: PetitionButtonProps) {
+export default function PetitionButton({ address, school, block, hideHeatData }: PetitionButtonProps) {
   const [copied, setCopied] = useState(false)
   const petitionText = buildPetitionText({ address, school, block })
 
-  if (petitionText === null) return null
+  if (petitionText === null || hideHeatData) return null
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(petitionText)

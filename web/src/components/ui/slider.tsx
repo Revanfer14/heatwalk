@@ -1,0 +1,59 @@
+import * as React from "react"
+import { Slider as SliderPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function Slider({
+  className,
+  defaultValue,
+  value,
+  min = 0,
+  max = 100,
+  valueText,
+  ...props
+}: React.ComponentProps<typeof SliderPrimitive.Root> & { valueText?: string }) {
+  const _values = React.useMemo(
+    () =>
+      Array.isArray(value)
+        ? value
+        : Array.isArray(defaultValue)
+          ? defaultValue
+          : [min, max],
+    [value, defaultValue, min, max]
+  )
+
+  return (
+    <SliderPrimitive.Root
+      data-slot="slider"
+      defaultValue={defaultValue}
+      value={value}
+      min={min}
+      max={max}
+      className={cn(
+        "relative flex w-full touch-none items-center select-none data-disabled:opacity-50 data-vertical:h-full data-vertical:min-h-40 data-vertical:w-auto data-vertical:flex-col",
+        className
+      )}
+      {...props}
+    >
+      <SliderPrimitive.Track
+        data-slot="slider-track"
+        className="relative grow overflow-hidden rounded-full bg-border-strong data-horizontal:h-0.5 data-horizontal:w-full data-vertical:h-full data-vertical:w-0.5"
+      >
+        <SliderPrimitive.Range
+          data-slot="slider-range"
+          className="absolute bg-border-strong select-none data-horizontal:h-full data-vertical:w-full"
+        />
+      </SliderPrimitive.Track>
+      {Array.from({ length: _values.length }, (_, index) => (
+        <SliderPrimitive.Thumb
+          data-slot="slider-thumb"
+          key={index}
+          aria-valuetext={valueText}
+          className="relative block size-4 shrink-0 rounded-full bg-ink shadow-[0_0_0_2px_var(--bg)] transition-shadow select-none after:absolute after:-inset-3.5 focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_var(--bg),0_0_0_4px_var(--ink)] disabled:pointer-events-none disabled:opacity-50"
+        />
+      ))}
+    </SliderPrimitive.Root>
+  )
+}
+
+export { Slider }

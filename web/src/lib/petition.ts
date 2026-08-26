@@ -1,5 +1,5 @@
 import { formatDose, formatTemperaturePair } from '@/lib/units'
-import type { BlockProperties, School } from '@/lib/types'
+import type { BlockClass, School } from '@/lib/types'
 
 interface PetitionStatute {
   stateName: string
@@ -18,10 +18,17 @@ function statuteForBlockId(blockId: string): PetitionStatute | null {
   return PETITION_STATUTES[stateFips] ?? null
 }
 
+export interface PetitionBlockContext {
+  block_id: string
+  class: BlockClass
+  coolest: { mean_c: number; peak_c: number; dose: number }
+  safe_until_hour: string | null
+}
+
 export interface PetitionInput {
   address: string
   school: School
-  block: BlockProperties
+  block: PetitionBlockContext
 }
 
 export function buildPetitionText(input: PetitionInput): string | null {
@@ -40,15 +47,15 @@ export function buildPetitionText(input: PetitionInput): string | null {
   const dose = formatDose(block.coolest.dose)
   const safeUntilLine =
     block.safe_until_hour !== null
-      ? `Rute ini masih di bawah ambang paparan sampai pukul ${block.safe_until_hour}.`
-      : 'Rute ini melewati ambang paparan sejak jam pertama yang tercatat.'
+      ? `This route stays under the exposure threshold until ${block.safe_until_hour}.`
+      : 'This route exceeds the exposure threshold from the first recorded hour.'
 
   return [
-    `Alamat: ${address}`,
-    `Sekolah: ${school.name}`,
-    `Bahkan rute teradem yang tersedia rata-rata ${meanPair}, puncak ${peakPair}.`,
-    `Dosis panas kumulatif rute teradem: ${dose}.`,
+    `Address: ${address}`,
+    `School: ${school.name}`,
+    `Even the coolest available route averages ${meanPair}, peaking at ${peakPair}.`,
+    `Cumulative heat dose on the coolest route: ${dose}.`,
     safeUntilLine,
-    `Diajukan berdasarkan ${statute.citation}, ketentuan hazardous walking condition negara bagian ${statute.stateName}.`,
+    `Submitted under ${statute.citation}, the ${statute.stateName} hazardous walking condition provision.`,
   ].join('\n')
 }

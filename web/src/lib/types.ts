@@ -74,3 +74,59 @@ export interface SchoolSummary {
 }
 
 export type SummaryBySchool = Record<string, SchoolSummary>
+
+export interface Tile {
+  id: string
+  bbox: [number, number, number, number]
+  status: 'pending' | 'done'
+  hours_fetched: string[]
+}
+
+export type GraphNode = [number, number]
+
+export interface GraphEdge {
+  u: string
+  v: string
+  len_m: number
+  geom: number[][]
+}
+
+export interface GraphMeta {
+  school_id: string
+  tile_id: string
+  crs: string
+}
+
+export interface SchoolGraph {
+  meta: GraphMeta
+  nodes: Record<string, GraphNode>
+  edges: Record<string, GraphEdge>
+}
+
+export type EdgeHourTriple = [number, number, number]
+
+export interface TempsMeta {
+  hours: string[]
+  canonical_hour: string
+  baseline_c: number
+  threshold: number
+  lambda_detour: number
+  fetched_at: string
+}
+
+export interface SchoolTemps {
+  meta: TempsMeta
+  edges: Record<string, Record<string, EdgeHourTriple>>
+}
+
+export interface SolvedRouteLeg extends RouteLeg {
+  minutes: number
+  geometry: number[][]
+}
+
+export interface SolvedRoutes {
+  originNode: string
+  schoolNode: string
+  shortest: SolvedRouteLeg
+  coolest: SolvedRouteLeg
+}

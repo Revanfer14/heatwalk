@@ -145,6 +145,59 @@ Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jala
 
 ---
 
+## `by_school/<school_id>/blocks_hours.json` — Fase 6
+
+Klasifikasi FR-8 dan dosis **per jam** per blok, dipakai choropleth Mode 1 saat slider jam digeser (FR-13). `blocks.geojson` tetap sumber kebenaran untuk jam kanonik; file ini adalah lapisan tambahan untuk jam-jam lain, bukan pengganti. Dihasilkan `pipeline/blocks_hours.py`, dipanggil dari `pipeline/step5_export.py` (asli) dan `pipeline/make_fixtures.py` (fixture) — murni re-serialisasi `shortest.by_hour` / `coolest.by_hour` yang sudah dihitung `pipeline/step3_routes.py`, nol routing ulang.
+
+```json
+{
+  "120950124023009": {
+    "07:00": { "shortest": 0.0, "coolest": 0.0, "class": "green" },
+    "15:00": { "shortest": 259.1, "coolest": 259.1, "class": "red" }
+  }
+}
+```
+
+| Field | Tipe | Satuan | Null? | Sumber |
+|---|---|---|---|---|
+| `<block_id>` | key | Census block GEOID | — | sama persis dengan key `block_id` di `blocks.geojson` sekolah yang sama — dicek programatik satu-satu (`pipeline/verify_step4.py:check_blocks_hours_matches_geojson`) |
+| `<block_id>.<HH:MM>` | key | — | — | subset dari `meta.hours` di `temps.json` sekolah yang sama |
+| `<block_id>.<HH:MM>.shortest` | `number` | °C·menit | tidak | dosis rute terpendek pada jam ini — `routed["blocks"][id]["shortest"]["by_hour"][hour]["dose"]` |
+| `<block_id>.<HH:MM>.coolest` | `number` | °C·menit | tidak | dosis rute teradem pada jam ini |
+| `<block_id>.<HH:MM>.class` | `"green" \| "yellow" \| "red"` | — | tidak | `pipeline/classification.py:classify()`, ambang sama dengan FR-8 |
+
+**Bukan pengganti `blocks.geojson`.** Frontend membaca geometri, `kids_est`, `reason`, `safe_until_hour`, dan properti lain dari `blocks.geojson` sekali; `blocks_hours.json` hanya dipakai untuk memperbarui `class` (warna choropleth) saat jam berganti — nol perhitungan ulang dosis di frontend.
+
+---
+
+## `by_school/<school_id>/segments.json` — Fase 6 (FR-15, P1)
+
+Top-`SEGMENT_PRIORITY_TOP_N` (20) segmen jalan yang paling banyak dilewati rute teradem blok merah/kuning sekolah ini pada jam kanonik, terurut berdasarkan `kids_affected` menurun lalu `peak_c` menurun. Dihasilkan `pipeline/segment_priority.py`, dipanggil dari `pipeline/step5_export.py` (asli) dan `pipeline/make_fixtures.py` (fixture). **Kolom penurunan suhu memakai asumsi `SHADE_COOLING_C` (°C) seragam** — lihat `docs/METHODOLOGY.md` dan `docs/LIMITATIONS.md`, bukan hasil pengukuran naungan nyata.
+
+```json
+[
+  {
+    "edge_id": "e412",
+    "street_name": "Silver Star Rd",
+    "kids_affected": 34,
+    "peak_c": 38.9,
+    "peak_shaded_c": 37.4,
+    "dose_reduction_pct": 18
+  }
+]
+```
+
+| Field | Tipe | Satuan | Null? | Sumber |
+|---|---|---|---|---|
+| `edge_id` | `string` | — | tidak | cocok satu-satu dengan key `edges` di `graph.json` sekolah yang sama |
+| `street_name` | `string` | — | tidak | nama jalan OSM; `"Unnamed segment"` kalau OSM tidak mencatat nama |
+| `kids_affected` | `integer` | anak | tidak, `> 0` | Σ `kids_est` blok yang rute teradem-nya (jam kanonik) melewati edge ini |
+| `peak_c` | `number` | °C | tidak | suhu puncak edge pada jam kanonik, dari `temps.json` |
+| `peak_shaded_c` | `number` | °C | tidak | `peak_c - SHADE_COOLING_C` — estimasi, asumsi ΔT seragam |
+| `dose_reduction_pct` | `number` | % (bulat) | tidak | penurunan dosis edge kalau suhu rata-ratanya juga turun `SHADE_COOLING_C` |
+
+---
+
 ## `schools.json`
 
 Array objek, satu per sekolah dalam AOI. **Real sejak Fase 1.5.5** — `pipeline/nces_schools.py` menarik NCES CCD (`EDGE_ADMINDATA_PUBLICSCH_2324`, cache `data/raw/nces_ccd_<tile_id>.json`), `pipeline/fixture_geometry.py:SCHOOLS_FIXTURE` mengimpornya, `pipeline/make_fixtures.py` menulisnya apa adanya ke `data/fixtures/schools.json` (nol entri fixture — sekolahnya sama persis dengan `data/out/schools.json`, hanya `by_school/` yang datanya sintetis).
@@ -177,9 +230,9 @@ Array objek, satu per sekolah dalam AOI. **Real sejak Fase 1.5.5** — `pipeline
 
 ---
 
-## `schools_national.json` — Fase 6 (FR-20), belum diproduksi pipeline
+## `schools_national.json` — Fase 6 (FR-20)
 
-Pin **seluruh sekolah NCES** di AS untuk Layer simbol nasional Mode 1, **tanpa angka analisis apa pun** — sekolah yang belum dianalisis tidak boleh menampilkan angka (aturan keras FR-20). Skema didokumentasikan di sini agar Fase 6 tidak menebak-nebak; belum ada produser pipeline sampai Fase 6 dimulai.
+Pin **seluruh sekolah NCES** di AS untuk Layer simbol nasional Mode 1, **tanpa angka analisis apa pun** — sekolah yang belum dianalisis tidak boleh menampilkan angka (aturan keras FR-20). Dihasilkan `pipeline/national_schools.py`, query berpaginasi ke endpoint yang sama dengan `pipeline/nces_schools.py` tapi tanpa filter bbox. Cache mentah di `data/raw/nces_ccd_national.json` (di-commit — bukti API dipakai). Koordinat dibulatkan 4 desimal (~11 m) untuk ukuran file.
 
 ```json
 [

@@ -19,6 +19,7 @@ def build_routing_graph(
         graph.add_edge(
             u,
             v,
+            edge_id=edge_id,
             len_m=len_m,
             temp_c=temp_c,
             peak_c=peak_c,
@@ -26,6 +27,10 @@ def build_routing_graph(
             weight_cool=weight_cool(dose_value, len_m, lambda_detour),
         )
     return graph
+
+
+def path_edge_ids(graph: nx.Graph, path: list[str]) -> list[str]:
+    return [graph[path[i]][path[i + 1]]["edge_id"] for i in range(len(path) - 1)]
 
 
 def summarize_route(graph: nx.Graph, path: list[str]) -> dict:

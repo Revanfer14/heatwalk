@@ -101,6 +101,49 @@ def _topology_edge(u: str, v: str, nodes: dict[str, list[float]], len_m: float) 
     }
 
 
+def nearest_grid_cell(
+    lon: float, lat: float, bbox: tuple[float, float, float, float] = AOI_BBOX
+) -> tuple[int, int]:
+    west, south, east, north = bbox
+    col = round((lon - west) / (east - west) * N_EDGE_COLS)
+    row = round((lat - south) / (north - south) * N_EDGE_ROWS)
+    return min(max(col, 0), N_EDGE_COLS), min(max(row, 0), N_EDGE_ROWS)
+
+
+def grid_path_edges(from_cell: tuple[int, int], to_cell: tuple[int, int]) -> list[str]:
+    col, row = from_cell
+    to_col, to_row = to_cell
+    edges: list[str] = []
+
+    while col != to_col:
+        next_col = col + 1 if to_col > col else col - 1
+        u, v = (col, next_col) if next_col > col else (next_col, col)
+        edges.append(edge_id(node_id(u, row), node_id(v, row)))
+        col = next_col
+
+    while row != to_row:
+        next_row = row + 1 if to_row > row else row - 1
+        u, v = (row, next_row) if next_row > row else (next_row, row)
+        edges.append(edge_id(node_id(col, u), node_id(col, v)))
+        row = next_row
+
+    return edges
+
+
+def _parse_node_id(node: str) -> tuple[int, int]:
+    col_str, row_str = node[1:].split("_")
+    return int(col_str), int(row_str)
+
+
+def build_street_names(edge_topology: dict[str, dict]) -> dict[str, str]:
+    names: dict[str, str] = {}
+    for eid, edge in edge_topology.items():
+        u_col, u_row = _parse_node_id(edge["u"])
+        _v_col, v_row = _parse_node_id(edge["v"])
+        names[eid] = f"Grid Ave {u_row}" if u_row == v_row else f"Grid St {u_col}"
+    return names
+
+
 def edge_midpoint_lon(edge: dict) -> float:
     return (edge["geom"][0][0] + edge["geom"][1][0]) / 2
 

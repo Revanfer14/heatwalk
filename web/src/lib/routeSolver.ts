@@ -39,6 +39,46 @@ export function solveRoutes(
   }
 }
 
+export interface RouteSegment {
+  edgeId: string
+  len_m: number
+  dose: number
+  geometry: number[][]
+}
+
+export function solveCoolestPathSegments(
+  graph: SchoolGraph,
+  temps: SchoolTemps,
+  schoolPoint: LonLat,
+  originPoint: LonLat,
+  hour: string,
+): RouteSegment[] | null {
+  const adjacency = buildRoutingGraph(graph.edges, temps.edges, hour, temps.meta.lambda_detour)
+  const schoolNode = nearestNode(graph.nodes, schoolPoint, adjacency.keys())
+  const originNode = nearestNode(graph.nodes, originPoint, adjacency.keys())
+  if (schoolNode === null || originNode === null) return null
+
+  const coolestResult = dijkstra(adjacency, schoolNode, 'weight_cool')
+  const coolestPath = reconstructPath(coolestResult, schoolNode, originNode)
+  if (coolestPath === null) return null
+
+  const originToSchoolPath = [...coolestPath].reverse()
+  const segments: RouteSegment[] = []
+  for (let i = 0; i < originToSchoolPath.length - 1; i += 1) {
+    const from = originToSchoolPath[i]
+    const to = originToSchoolPath[i + 1]
+    const edge = adjacency.get(from)?.find((candidate) => candidate.to === to)
+    if (edge === undefined) continue
+    segments.push({
+      edgeId: edge.edgeId,
+      len_m: edge.len_m,
+      dose: edge.dose,
+      geometry: graph.edges[edge.edgeId]?.geom ?? [],
+    })
+  }
+  return segments
+}
+
 export function coolestDoseAcrossHours(
   graph: SchoolGraph,
   temps: SchoolTemps,

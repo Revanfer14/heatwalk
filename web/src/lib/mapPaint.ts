@@ -1,5 +1,6 @@
 export interface RouteColors {
   ink: string
+  inkMuted: string
   inkSubtle: string
   bg: string
   zoneSafe: string
@@ -14,6 +15,7 @@ function readCssVariable(name: string): string {
 export function getRouteColors(): RouteColors {
   return {
     ink: readCssVariable('--ink'),
+    inkMuted: readCssVariable('--ink-muted'),
     inkSubtle: readCssVariable('--ink-subtle'),
     bg: readCssVariable('--bg'),
     zoneSafe: readCssVariable('--zone-safe'),

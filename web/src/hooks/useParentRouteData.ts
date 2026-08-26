@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useAppState } from '@/hooks/useAppState'
 import { useSchoolData } from '@/hooks/useSchoolData'
 import { useSolvedRoutes } from '@/hooks/useSolvedRoutes'
+import { useDefaultHour } from '@/hooks/useDefaultHour'
 import { findBlockAt } from '@/lib/pointInPolygon'
 import { distanceMiles, type LonLat } from '@/lib/geoDistance'
 import type { BlockFeature, Tile } from '@/lib/types'
@@ -18,11 +19,7 @@ export function useParentRouteData() {
   const selectedSchool = schools.find((school) => school.id === selectedSchoolId) ?? null
   const { data: schoolData, loading: schoolDataLoading, error: schoolDataError } = useSchoolData(selectedSchoolId)
 
-  useEffect(() => {
-    if (hour === null && schoolData !== null) {
-      setHour(schoolData.temps.meta.canonical_hour)
-    }
-  }, [hour, schoolData, setHour])
+  useDefaultHour(schoolData, hour, setHour)
 
   const originPoint: LonLat = [pin.lon, pin.lat]
   const isPinInAoi = isPinInBbox(originPoint, tile?.bbox)

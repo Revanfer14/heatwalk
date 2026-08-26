@@ -28,10 +28,13 @@ def check_red_not_empty(blocks_by_school: dict[str, list[dict]], errors: list[st
 
 
 def check_yellow_empty_is_reported(blocks_by_school: dict[str, list[dict]], notes: list[str]) -> None:
-    total_yellow = sum(1 for blocks in blocks_by_school.values() for block in blocks if block["class"] == "yellow")
+    all_blocks = [block for blocks in blocks_by_school.values() for block in blocks]
+    total_yellow = sum(1 for block in all_blocks if block["class"] == "yellow")
     if total_yellow == 0:
+        zero_delta = sum(1 for block in all_blocks if block["delta_mean_c"] == 0.0)
         notes.append(
-            "kategori kuning kosong (0 blok) — 331/368 blok punya delta_mean_c=0.000, lihat docs/METHODOLOGY.md"
+            f"kategori kuning kosong (0 blok) — {zero_delta}/{len(all_blocks)} blok punya "
+            "delta_mean_c=0.000, lihat docs/METHODOLOGY.md"
         )
     else:
         notes.append(f"kategori kuning: {total_yellow} blok")
@@ -92,6 +95,31 @@ def check_dose_radius_within_policy(schools: list[dict], summary: dict, errors: 
             errors.append(f"{school_id}: radius_setara_dosis_mi ({radius}) > radius_kebijakan_mi ({policy_radius})")
 
 
+def check_blocks_hours_matches_geojson(
+    school_ids: list[str], blocks_by_school: dict[str, list[dict]], errors: list[str]
+) -> None:
+    for school_id in school_ids:
+        blocks_hours_payload = _load(DATA_OUT_DIR / "by_school" / school_id / "blocks_hours.json")
+        geojson_block_ids = {block["block_id"] for block in blocks_by_school[school_id]}
+        blocks_hours_ids = set(blocks_hours_payload.keys())
+        if blocks_hours_ids != geojson_block_ids:
+            errors.append(f"{school_id}: block_id blocks_hours.json tidak cocok satu-satu dengan blocks.geojson")
+
+
+def check_blocks_hours_record_shape(base_dir: Path, schools: list[dict], errors: list[str]) -> None:
+    expected_hour_record_keys = {"shortest", "coolest", "class"}
+    for school in schools:
+        payload = _load(base_dir / "by_school" / school["id"] / "blocks_hours.json")
+        for block_id, by_hour in payload.items():
+            for hour, record in by_hour.items():
+                if set(record.keys()) != expected_hour_record_keys:
+                    errors.append(
+                        f"{base_dir.name}/{school['id']}/{block_id}/{hour}: kunci blocks_hours record "
+                        f"tidak cocok {expected_hour_record_keys}"
+                    )
+                    return
+
+
 def check_tiles_status(errors: list[str]) -> None:
     tiles = _load(DATA_OUT_DIR / "tiles.json")
     for tile in tiles:
@@ -133,7 +161,9 @@ def check_fixture_schema_parity(schools: list[dict], errors: list[str]) -> None:
 
     fixture_summary = _load(DATA_FIXTURES_DIR / "summary.json")
     real_summary = _load(DATA_OUT_DIR / "summary.json")
-    _shape_diff("summary.json", _key_shape(fixture_summary), _key_shape(real_summary), diffs)
+    fixture_summary_record = next(iter(fixture_summary.values()))
+    real_summary_record = next(iter(real_summary.values()))
+    _shape_diff("summary.json[record]", _key_shape(fixture_summary_record), _key_shape(real_summary_record), diffs)
 
     school_ids = [school["id"] for school in schools]
     for school_id in school_ids:
@@ -163,6 +193,10 @@ def main() -> int:
     check_dose_radius_within_policy(schools, summary, errors)
     check_tiles_status(errors)
     check_fixture_schema_parity(schools, errors)
+    check_blocks_hours_matches_geojson(school_ids, blocks_by_school, errors)
+    check_blocks_hours_record_shape(DATA_OUT_DIR, schools, errors)
+    if DATA_FIXTURES_DIR.exists():
+        check_blocks_hours_record_shape(DATA_FIXTURES_DIR, schools, errors)
 
     print(f"sekolah diperiksa: {len(schools)}")
     for note in notes:

@@ -39,6 +39,9 @@ INCOME_QUARTILE_PERCENTILE = 25.0
 
 CONTRAST_REPORT_TOP_N = 20
 
+SHADE_COOLING_C = 1.5
+SEGMENT_PRIORITY_TOP_N = 20
+
 EXCEEDANCE_STATION_ICAO = "MCO"
 EXCEEDANCE_STATION_START_DATE = "2019-01-01"
 EXCEEDANCE_STATION_END_DATE = "2025-12-31"
@@ -53,8 +56,8 @@ FETCH_HOURS = [f"{hour:02d}:00" for hour in range(7, 17)]
 
 TILES = [
     {
-        "id": "orl_pine_hills_n",
-        "bbox": (-81.4763, 28.5722, -81.4241, 28.6167),
+        "id": "orl_ocps_core",
+        "bbox": (-81.4763, 28.5277, -81.3719, 28.6612),
         "timezone": "America/New_York",
         "utc_offset_hours": -4,
         "status": "pending",

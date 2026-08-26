@@ -1,4 +1,4 @@
-from pipeline import fetch_heatmap_tile, write_out
+from pipeline import fetch_heatmap_tile, osm_network, write_out
 from pipeline.config import DATA_OUT_DIR, FETCH_HOURS, TILES
 
 
@@ -26,7 +26,18 @@ def fetch_all_tiles() -> dict[str, list[dict]]:
     }
 
 
+def fetch_walk_networks() -> None:
+    for tile in TILES:
+        path = osm_network.graph_path(tile["id"])
+        if path.exists():
+            print(f"osm walk network sudah ada: {path}")
+            continue
+        report = osm_network.save_walk_network(tile["id"], tile["bbox"])
+        print(f"osm walk network {tile['id']}: {report['n_nodes']} node, {report['n_edges']} edge")
+
+
 def main() -> None:
+    fetch_walk_networks()
     fetch_results_by_tile = fetch_all_tiles()
     manifest = build_tiles_manifest(fetch_results_by_tile)
 

@@ -2,7 +2,7 @@ import hashlib
 
 from pipeline import step4_classify, summary_build
 from pipeline.config import BASELINE_C, FETCH_HOURS, THRESHOLD_DOSE_C_MIN, WALK_SPEED_MPS
-from pipeline.fixture_geometry import block_heat_factor, school_lonlat
+from pipeline.fixture_geometry import block_heat_factor, grid_path_edges, nearest_grid_cell, school_lonlat
 from pipeline.fixture_temps import CANONICAL_HOUR, HOUR_OFFSET_C, ORLANDO_SPREAD_C
 from pipeline.geo_distance import distance_km
 
@@ -63,6 +63,7 @@ def _route_stats(block: dict, distance_km_value: float, hhmm: str) -> dict:
 
 
 def _build_routed_for_school(school: dict, school_blocks: list[dict], distances_km: dict[str, float]) -> dict:
+    school_cell = nearest_grid_cell(*school_lonlat(school))
     block_records: dict[str, dict] = {}
     for block in school_blocks:
         block_id = block["block_id"]
@@ -86,11 +87,15 @@ def _build_routed_for_school(school: dict, school_blocks: list[dict], distances_
                 "dose": routes["coolest"]["dose"],
             }
 
+        block_cell = nearest_grid_cell(*block["centroid"])
         block_records[block_id] = {
             "kids_est": 5 + int(_seeded_unit("kids", block["col"], block["row"]) * 40),
             "distance_mi": round(km * MI_PER_KM, 3),
             "shortest": {"len_m": shortest_len_m, "by_hour": shortest_by_hour},
-            "coolest": {"by_hour": coolest_by_hour},
+            "coolest": {
+                "by_hour": coolest_by_hour,
+                "path_edges_canonical": grid_path_edges(block_cell, school_cell),
+            },
         }
 
     return {
@@ -121,7 +126,7 @@ def _synthetic_daily_station_temps() -> dict[str, float]:
 
 def classify_and_summarize(
     blocks: list[dict], schools: list[dict], correction_factors: dict[str, float | None]
-) -> tuple[dict[str, list[dict]], dict]:
+) -> tuple[dict[str, list[dict]], dict, dict[str, dict]]:
     distances_km: dict[str, float] = {}
     blocks_by_school: dict[str, list[dict]] = {school["id"]: [] for school in schools}
     for block in blocks:
@@ -149,4 +154,4 @@ def classify_and_summarize(
         median_income_by_block_group, daily_station_temps, station_temp_on_fetch_date,
         SYNTHETIC_STATION_YEARS,
     )
-    return classified_by_school, summary
+    return classified_by_school, summary, routed_by_school

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import AddressInput from '@/components/AddressInput'
 import OutOfAoiNotice from '@/components/OutOfAoiNotice'
 import BottomSheet from '@/components/BottomSheet'
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useMapInstance } from '@/hooks/useMapInstance'
 import { useParentRouteData } from '@/hooks/useParentRouteData'
 import { useRouteLayers } from '@/hooks/useRouteLayers'
+import { useFlyToSchool } from '@/hooks/useFlyToSchool'
 import { useAoiBoundaryLayer } from '@/hooks/useAoiBoundaryLayer'
 import { usePinMarker } from '@/hooks/usePinMarker'
 import { SAMPLE_LOCATIONS } from '@/lib/sampleLocations'
@@ -47,11 +48,7 @@ export default function ParentRoute() {
   useRouteLayers({ map, solvedRoutes, hideHeatData, routeFailed, theme })
   useAoiBoundaryLayer(map, tile, theme)
   usePinMarker({ map, pin, onPinChange: setPin })
-
-  useEffect(() => {
-    if (map === null || selectedSchool === null) return
-    map.flyTo({ center: [selectedSchool.lon, selectedSchool.lat], zoom: SCHOOL_FLY_TO_ZOOM })
-  }, [map, selectedSchool])
+  useFlyToSchool(map, selectedSchool, SCHOOL_FLY_TO_ZOOM)
 
   if (bootLoading) {
     return <Skeleton className="fixed inset-x-4 top-16 h-24 rounded-lg" />

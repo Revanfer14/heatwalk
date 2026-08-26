@@ -1,0 +1,73 @@
+import type maplibregl from 'maplibre-gl'
+import { useOfficialZoneLayer } from '@/hooks/useOfficialZoneLayer'
+import { useDoseZoneLayer } from '@/hooks/useDoseZoneLayer'
+import { useDoseRadiusLayer } from '@/hooks/useDoseRadiusLayer'
+import { useNationalSchoolsLayer } from '@/hooks/useNationalSchoolsLayer'
+import { useNationalSchoolsClicks } from '@/hooks/useNationalSchoolsClicks'
+import { useRouteLayers } from '@/hooks/useRouteLayers'
+import { useSegmentHighlightLayer } from '@/hooks/useSegmentHighlightLayer'
+import type { LayerVisibility } from '@/lib/districtStateContext'
+import type { BlocksGeoJson, School, SolvedRoutes } from '@/lib/types'
+import type { SchoolNational } from '@/lib/districtTypes'
+import type { RouteSegment } from '@/lib/routeSolver'
+import type { LonLat } from '@/lib/geoDistance'
+
+interface UseDistrictMapLayersInput {
+  map: maplibregl.Map | null
+  schoolPoint: LonLat | null
+  walkRadiusMi: number | null
+  doseRadiusMi: number | null
+  blocks: BlocksGeoJson | null
+  layerVisibility: LayerVisibility
+  hideHeatData: boolean
+  theme: string
+  schools: School[]
+  nationalSchools: SchoolNational[] | null
+  onBlockClick: (blockId: string) => void
+  onSelectAnalyzed: (schoolId: string) => void
+  onSelectUnanalyzed: (school: SchoolNational) => void
+  solvedRoutes: SolvedRoutes | null
+  routeFailed: boolean
+  highlightedSegments: RouteSegment[]
+}
+
+export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
+  const {
+    map,
+    schoolPoint,
+    walkRadiusMi,
+    doseRadiusMi,
+    blocks,
+    layerVisibility,
+    hideHeatData,
+    theme,
+    schools,
+    nationalSchools,
+    onBlockClick,
+    onSelectAnalyzed,
+    onSelectUnanalyzed,
+    solvedRoutes,
+    routeFailed,
+    highlightedSegments,
+  } = input
+
+  useOfficialZoneLayer({ map, schoolPoint, walkRadiusMi, visible: layerVisibility.officialZone, theme })
+  useDoseZoneLayer({
+    map,
+    blocks,
+    visible: layerVisibility.doseZone && !hideHeatData,
+    theme,
+    onBlockClick,
+  })
+  useDoseRadiusLayer({
+    map,
+    schoolPoint,
+    doseRadiusMi,
+    visible: layerVisibility.doseRadius && !hideHeatData,
+    theme,
+  })
+  useNationalSchoolsLayer({ map, nationalSchools, theme })
+  useNationalSchoolsClicks({ map, schools, onSelectAnalyzed, onSelectUnanalyzed })
+  useRouteLayers({ map, solvedRoutes, hideHeatData, routeFailed, theme })
+  useSegmentHighlightLayer({ map, segments: hideHeatData ? [] : highlightedSegments, theme })
+}

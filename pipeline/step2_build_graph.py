@@ -3,6 +3,7 @@ import json
 from pipeline import edge_geometry, edge_sampling, hourly_curve, lambda_calibration, node_snapping, write_out
 from pipeline.config import (
     BASELINE_C,
+    DATA_INTERIM_DIR,
     DATA_OUT_DIR,
     FETCH_DATE,
     FETCH_HOURS,
@@ -31,6 +32,9 @@ def build_tile_dataset(tile: dict) -> dict:
     }
     kept_node_ids = {node_id for edge in kept_edges.values() for node_id in (edge["u"], edge["v"])}
     kept_nodes = {node_id: coord for node_id, coord in topology["nodes"].items() if node_id in kept_node_ids}
+    kept_street_names = {
+        edge_id: name for edge_id, name in topology["street_names"].items() if edge_id in kept_edges
+    }
 
     raw_dose_by_hour: dict[str, dict[str, float]] = {}
     temps_edges: dict[str, dict[str, list[float]]] = {}
@@ -53,6 +57,7 @@ def build_tile_dataset(tile: dict) -> dict:
         "hours": hours,
         "nodes": kept_nodes,
         "edges": kept_edges,
+        "street_names": kept_street_names,
         "temps_edges": temps_edges,
         "raw_dose_by_hour": raw_dose_by_hour,
         "total_edges_considered": topology["total_edges_considered"],
@@ -96,6 +101,9 @@ def main() -> None:
     utm_epsg = utm_epsg_for_lon((tile["bbox"][0] + tile["bbox"][2]) / 2)
 
     tile_dataset = build_tile_dataset(tile)
+    write_out.write_json(
+        DATA_INTERIM_DIR / "street_names" / f"{tile['id']}.json", tile_dataset["street_names"]
+    )
 
     dropped_pct = 100 * tile_dataset["dropped_edges_total"] / tile_dataset["total_edges_considered"]
     print(

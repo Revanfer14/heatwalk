@@ -1,4 +1,4 @@
-from pipeline import enrollment_calibration, step5_export
+from pipeline import blocks_hours, enrollment_calibration, segment_priority, step5_export
 from pipeline.config import DATA_FIXTURES_DIR, TILES
 from pipeline.fixture_classify import classify_and_summarize
 from pipeline.fixture_geometry import (
@@ -6,6 +6,7 @@ from pipeline.fixture_geometry import (
     build_block_grid,
     build_edge_topology,
     build_nodes,
+    build_street_names,
 )
 from pipeline.fixture_temps import build_temps_payload
 from pipeline.graph_integrity import check_no_orphan_edges
@@ -35,6 +36,7 @@ def main() -> None:
     edge_topology = build_edge_topology()
     temps_payload = build_temps_payload(edge_topology)
     check_no_orphan_edges(edge_topology, temps_payload)
+    fixture_street_names = build_street_names(edge_topology)
 
     dasymetric_totals = enrollment_calibration.dasymetric_children_by_school(
         FIXTURE_TILE["id"], FIXTURE_TILE["bbox"], SCHOOLS_FIXTURE
@@ -42,7 +44,9 @@ def main() -> None:
     correction_factors = enrollment_calibration.correction_factors(SCHOOLS_FIXTURE, dasymetric_totals)
     enrollment_calibration.print_calibration_report(SCHOOLS_FIXTURE, dasymetric_totals, correction_factors)
 
-    classified_by_school, summary = classify_and_summarize(blocks, SCHOOLS_FIXTURE, correction_factors)
+    classified_by_school, summary, routed_by_school = classify_and_summarize(
+        blocks, SCHOOLS_FIXTURE, correction_factors
+    )
 
     write_json(DATA_FIXTURES_DIR / "schools.json", SCHOOLS_FIXTURE)
     write_json(DATA_FIXTURES_DIR / "summary.json", summary)
@@ -51,10 +55,17 @@ def main() -> None:
     for school in SCHOOLS_FIXTURE:
         school_id = school["id"]
         school_dir = DATA_FIXTURES_DIR / "by_school" / school_id
-        write_json(school_dir / "graph.json", build_graph_payload(school, edge_topology))
+        graph_payload = build_graph_payload(school, edge_topology)
+        write_json(school_dir / "graph.json", graph_payload)
         write_json(school_dir / "temps.json", temps_payload)
         blocks_geojson = step5_export.build_blocks_geojson(classified_by_school[school_id], polygons_by_geoid)
         write_json(school_dir / "blocks.geojson", blocks_geojson)
+        blocks_hours_payload = blocks_hours.build_blocks_hours(routed_by_school[school_id])
+        write_json(school_dir / "blocks_hours.json", blocks_hours_payload)
+        segments_payload = segment_priority.build_segment_priority(
+            routed_by_school[school_id], graph_payload, temps_payload, fixture_street_names
+        )
+        write_json(school_dir / "segments.json", segments_payload)
         for feature in blocks_geojson["features"]:
             class_counts[feature["properties"]["class"]] += 1
 

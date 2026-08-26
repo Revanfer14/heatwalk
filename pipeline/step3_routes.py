@@ -24,6 +24,7 @@ def route_school(school: dict, blocks: list[dict], utm_epsg: int) -> dict:
     hours = temps_payload["meta"]["hours"]
     lambda_detour = temps_payload["meta"]["lambda_detour"]
 
+    canonical_hour = temps_payload["meta"]["canonical_hour"]
     school_node = node_snapping.snap_point(nodes, school["lon"], school["lat"], utm_epsg)
     block_nodes = node_snapping.snap_points(
         nodes, [block["lon"] for block in blocks], [block["lat"] for block in blocks], utm_epsg
@@ -74,6 +75,8 @@ def route_school(school: dict, blocks: list[dict], utm_epsg: int) -> dict:
                     "dose": coolest_stats["dose"],
                     "detour_ratio": round(detour_ratio, 3),
                 }
+                if hour == canonical_hour:
+                    record["coolest"]["path_edges_canonical"] = routing.path_edge_ids(hour_graph, coolest_path)
 
     unreachable_block_ids = [
         block_id for block_id, record in block_records.items() if not record["shortest"]["by_hour"]

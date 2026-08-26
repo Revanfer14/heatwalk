@@ -22,6 +22,13 @@ def _edge_geometry_wgs84(undirected, u: str, v: str, data: dict) -> LineString:
     return _straight_line_geometry(undirected, u, v)
 
 
+def _street_name(edge_data: dict) -> str | None:
+    name = edge_data.get("name")
+    if isinstance(name, list):
+        return name[0] if name else None
+    return name
+
+
 def _simplified_geom(geometry_utm, to_wgs84: Transformer) -> list[list[float]]:
     simplified_utm = geometry_utm.simplify(SIMPLIFY_TOLERANCE_M, preserve_topology=False)
     simplified_wgs84 = shapely_transform(to_wgs84.transform, simplified_utm)
@@ -40,6 +47,7 @@ def build_topology(tile_id: str, bbox: tuple[float, float, float, float]) -> dic
     node_compact_ids: dict[str, str] = {}
     nodes: dict[str, list[float]] = {}
     edges: dict[str, dict] = {}
+    street_names: dict[str, str | None] = {}
     node_to_edges: dict[str, list[str]] = {}
 
     dropped_self_loop = 0
@@ -82,6 +90,7 @@ def build_topology(tile_id: str, bbox: tuple[float, float, float, float]) -> dic
             "geom": _simplified_geom(geometry_utm, to_wgs84),
             "sampling_geometry_utm": geometry_utm,
         }
+        street_names[edge_id] = _street_name(data)
         node_to_edges.setdefault(u_id, []).append(edge_id)
         node_to_edges.setdefault(v_id, []).append(edge_id)
 
@@ -94,6 +103,7 @@ def build_topology(tile_id: str, bbox: tuple[float, float, float, float]) -> dic
     return {
         "nodes": nodes,
         "edges": edges,
+        "street_names": street_names,
         "adjacency": adjacency,
         "to_utm": to_utm,
         "to_wgs84": to_wgs84,

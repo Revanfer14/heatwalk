@@ -67,6 +67,13 @@ export function formatMinutes(minutes: number): string {
   return `${Math.round(minutes)} min`
 }
 
+export function formatPercent(
+  percent: number,
+  fractionDigits: number = DEFAULT_PERCENT_FRACTION_DIGITS,
+): string {
+  return `${percent.toFixed(fractionDigits)}%`
+}
+
 export function formatSignedPercent(
   percent: number,
   fractionDigits: number = DEFAULT_PERCENT_FRACTION_DIGITS,
@@ -91,5 +98,13 @@ export function formatSignedMeters(meters: number): string {
 export function formatSignedMinutes(minutes: number): string {
   const sign = minutes > 0 ? '+' : ''
   return `${sign}${Math.round(minutes)} min`
+}
+
+export function percentOf(part: number, total: number): number {
+  return total > 0 ? (part / total) * 100 : 0
+}
+
+export function percentChange(current: number, baseline: number): number {
+  return baseline > 0 ? ((current - baseline) / baseline) * 100 : 0
 }
 

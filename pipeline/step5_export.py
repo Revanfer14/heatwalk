@@ -5,7 +5,15 @@ from pyproj import Transformer
 from shapely.geometry import shape
 from shapely.ops import transform, unary_union
 
-from pipeline import block_geometry, census_acs, classification, enrollment_calibration, summary_build
+from pipeline import (
+    block_geometry,
+    blocks_hours,
+    census_acs,
+    classification,
+    enrollment_calibration,
+    segment_priority,
+    summary_build,
+)
 from pipeline.config import (
     DATA_INTERIM_DIR,
     DATA_OUT_DIR,
@@ -96,9 +104,22 @@ def main() -> None:
     )
     write_json(DATA_OUT_DIR / "summary.json", summary)
 
+    street_names = segment_priority.load_street_names(tile["id"])
+
     for school in schools:
         blocks_geojson = build_blocks_geojson(classified_by_school[school["id"]], polygons_by_geoid)
         write_json(DATA_OUT_DIR / "by_school" / school["id"] / "blocks.geojson", blocks_geojson)
+
+        blocks_hours_payload = blocks_hours.build_blocks_hours(routed_by_school[school["id"]])
+        write_json(DATA_OUT_DIR / "by_school" / school["id"] / "blocks_hours.json", blocks_hours_payload)
+
+        school_dir = DATA_OUT_DIR / "by_school" / school["id"]
+        school_graph = _load_json(school_dir / "graph.json")
+        school_temps = _load_json(school_dir / "temps.json")
+        segments_payload = segment_priority.build_segment_priority(
+            routed_by_school[school["id"]], school_graph, school_temps, street_names
+        )
+        write_json(school_dir / "segments.json", segments_payload)
 
     utm_epsg = utm_epsg_for_lon((tile["bbox"][0] + tile["bbox"][2]) / 2)
     report_g5(schools, classified_by_school, polygons_by_geoid, utm_epsg)

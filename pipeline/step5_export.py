@@ -21,10 +21,13 @@ from pipeline.config import (
     EXCEEDANCE_STATION_END_DATE,
     EXCEEDANCE_STATION_START_DATE,
     FETCH_DATE,
+    SUBGRAPH_CATCHMENT_BUFFER_KM,
     TILES,
     utm_epsg_for_lon,
 )
 from pipeline.exceedance import school_years_spanned, station_temp_at_local_hour_by_date
+from pipeline.graph_integrity import check_no_orphan_edges
+from pipeline.subgraph_prune import prune_to_catchment
 from pipeline.write_out import mirror_to_web, write_json
 
 CLASSIFIED_DIR = DATA_INTERIM_DIR / "classified"
@@ -120,6 +123,20 @@ def main() -> None:
             routed_by_school[school["id"]], school_graph, school_temps, street_names
         )
         write_json(school_dir / "segments.json", segments_payload)
+
+        pruned_graph, pruned_temps = prune_to_catchment(
+            school_graph, school_temps, school, SUBGRAPH_CATCHMENT_BUFFER_KM
+        )
+        check_no_orphan_edges(pruned_graph["edges"], pruned_temps)
+        write_json(school_dir / "graph.json", pruned_graph)
+        write_json(school_dir / "temps.json", pruned_temps)
+
+        graph_bytes = (school_dir / "graph.json").stat().st_size
+        temps_bytes = (school_dir / "temps.json").stat().st_size
+        print(
+            f"  {school['id']:32s} subgraph pruned {len(school_graph['edges'])} -> {len(pruned_graph['edges'])} edges "
+            f"graph.json={graph_bytes / 1024:.0f}KB temps.json={temps_bytes / 1024:.0f}KB"
+        )
 
     utm_epsg = utm_epsg_for_lon((tile["bbox"][0] + tile["bbox"][2]) / 2)
     report_g5(schools, classified_by_school, polygons_by_geoid, utm_epsg)

@@ -60,11 +60,11 @@ Fill choropleth memakai token yang sama pada opacity 18% (safe), 22% (reroute), 
 
 ### Basemap
 
-**Protomaps PMTiles self-hosted.** Satu file `.pmtiles` hasil ekstrak bbox AOI, di-commit ke `web/public/heatwalk-aoi.pmtiles`, dibaca browser lewat HTTP range request. Style dari `protomaps-themes-base` tema `grayscale`, dengan label, jalan, dan badan air diturunkan saturasinya sampai netral penuh.
+**Protomaps PMTiles self-hosted.** Satu file `.pmtiles` hasil ekstrak bbox AOI, di-commit ke `web/public/heatwalk-aoi.pmtiles`, dibaca browser lewat HTTP range request. Style dari `protomaps-themes-base` tema `light` — basemap berwarna standar (taman hijau, air biru, jalan/bangunan warna natural), bukan `grayscale`.
 
 Tanpa tile server pihak ketiga, tanpa API key. Ini yang membuat verifikasi "cabut internet, demo tetap jalan" (dev plan Fase 7) benar-benar lolos, bukan lolos karena kebetulan tile-nya masih ter-cache.
 
-Kalau basemap-nya berwarna, seluruh sistem ini batal — periksa style-nya di layar sebelum menulis komponen berikutnya. Atribusi OpenStreetMap wajib terlihat di peta, dan atribusi itu memakai `--ink-subtle`, bukan warna.
+**Keputusan produk 2026-08-27 (Revan): basemap sengaja diganti dari `grayscale` ke `light` berwarna**, menggantikan aturan lama "kalau basemap-nya berwarna, seluruh sistem ini batal". Konsekuensinya, aturan "warna hanya di peta/legend/badge" di atas sekarang dibaca sebagai *warna non-peta tetap monokrom*, bukan lagi *basemap itu sendiri harus netral*. Overlay dosis panas, legend, dan badge klasifikasi tetap wajib kontras jelas terhadap basemap berwarna ini — verifikasi kontras AOI secara visual di layar tiap kali basemap atau palet overlay berubah, karena warna basemap sekarang bisa bentrok dengan warna zona (terutama merah/kuning terhadap jalan/bangunan). Atribusi OpenStreetMap wajib terlihat di peta.
 
 ### Rute
 
@@ -261,7 +261,8 @@ Bukan tambahan — produknya soal keselamatan anak dan akan dipresentasikan ke l
 - [ ] `prefers-reduced-motion` mematikan seluruh transisi.
 - [ ] Focus ring terlihat di setiap elemen interaktif.
 - [ ] Tidak ada komentar tersisa di `components/ui/`.
-- [ ] Basemap benar-benar grayscale, dan atribusi OpenStreetMap terlihat.
+- [ ] Basemap memakai tema `light` protomaps-themes-base, dan atribusi OpenStreetMap terlihat.
+- [ ] Overlay dosis panas, legend, dan badge klasifikasi tetap kontras jelas terhadap basemap berwarna (cek merah/kuning zona vs warna jalan/bangunan basemap).
 - [ ] Slider jam monokrom, diskrit, dan jumlah tick-nya sama dengan panjang `meta.hours`.
 - [ ] Angka berganti tanpa tween saat jam digeser; hanya geometri rute yang fade.
 - [ ] Slider dapat digeser penuh dengan keyboard, dan `aria-valuetext` berisi jam.

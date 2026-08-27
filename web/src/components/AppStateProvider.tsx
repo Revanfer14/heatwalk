@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AppStateContext, type AppStateContextValue, type PinPosition } from '@/lib/appStateContext'
 import { useTheme } from '@/hooks/useTheme'
+import { useMapInstance } from '@/hooks/useMapInstance'
 import { SAMPLE_LOCATIONS } from '@/lib/sampleLocations'
 import type { School, Tile } from '@/lib/types'
 
 const DEFAULT_PIN: PinPosition = { lon: SAMPLE_LOCATIONS[0].lon, lat: SAMPLE_LOCATIONS[0].lat }
+const MAP_READY_FALLBACK_MS = 3000
 
 export default function AppStateProvider({ children }: { children: ReactNode }) {
+  const { map } = useMapInstance()
   const [schools, setSchools] = useState<School[]>([])
   const [tile, setTile] = useState<Tile | null>(null)
   const [bootLoading, setBootLoading] = useState(true)
@@ -28,19 +31,35 @@ export default function AppStateProvider({ children }: { children: ReactNode }) 
         if (cancelled) return
         setSchools(schoolsResult)
         setTile(tilesResult[0] ?? null)
-        setSelectedSchoolIdState((current) => current ?? schoolsResult[0]?.id ?? null)
       })
       .catch((error: unknown) => {
-        if (!cancelled) setBootError(error instanceof Error ? error.message : 'Failed to load boot data')
-      })
-      .finally(() => {
-        if (!cancelled) setBootLoading(false)
+        if (!cancelled) {
+          setBootError(error instanceof Error ? error.message : 'Failed to load boot data')
+          setBootLoading(false)
+        }
       })
 
     return () => {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (schools.length === 0) return
+
+    const selectFirstSchool = (): void => {
+      setSelectedSchoolIdState((current) => current ?? schools[0]?.id ?? null)
+      setBootLoading(false)
+    }
+
+    if (map !== null) {
+      selectFirstSchool()
+      return
+    }
+
+    const fallbackTimeoutId = window.setTimeout(selectFirstSchool, MAP_READY_FALLBACK_MS)
+    return () => window.clearTimeout(fallbackTimeoutId)
+  }, [map, schools])
 
   const setSelectedSchoolId = useCallback((schoolId: string) => {
     setSelectedSchoolIdState(schoolId)

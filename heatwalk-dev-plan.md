@@ -556,7 +556,7 @@ Cek: apakah Orlando sudah lolos seluruh checklist Fase 4? Ya → Phoenix pipelin
 
 ### 5.1 Shell
 
-- MapLibre v5 raw (bukan `react-map-gl`). Basemap: `web/public/heatwalk-aoi.pmtiles`, style `protomaps-themes-base` tema `grayscale`, disesuaikan ke netral penuh sesuai `DESIGN.md`. Bbox ekstraksi PMTiles mencakup **gabungan seluruh `TILES`**
+- MapLibre v5 raw (bukan `react-map-gl`). Basemap: `web/public/heatwalk-aoi.pmtiles`, style `protomaps-themes-base` tema `light` (basemap berwarna standar — lihat keputusan produk 2026-08-27 di `DESIGN.md`). Bbox ekstraksi PMTiles mencakup **gabungan seluruh `TILES`**
 - Register protocol **sekali** di komponen root: `maplibregl.addProtocol("pmtiles", protocol.tile)`, dengan `removeProtocol` di cleanup
 - **Satu instance MapLibre untuk kedua mode.** Peta hidup di atas router. Berpindah `/` ↔ `/district` hanya mengganti panel dan memicu `flyTo` — peta tidak boleh unmount
 - Route: `/` (Mode 2, default) dan `/district` (Mode 1). Header persisten berisi empat hal saja: wordmark · segmented switch `Parent` / `District` · toggle FR-16 · toggle tema

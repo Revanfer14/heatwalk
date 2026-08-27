@@ -3,8 +3,8 @@ import type { StyleSpecification } from 'maplibre-gl'
 
 const PMTILES_SOURCE_ID = 'heatwalk-aoi'
 
-export function buildGrayscaleStyle(pmtilesUrl: string): StyleSpecification {
-  const theme = namedTheme('grayscale')
+export function buildBasemapStyle(pmtilesUrl: string): StyleSpecification {
+  const theme = namedTheme('light')
 
   return {
     version: 8,

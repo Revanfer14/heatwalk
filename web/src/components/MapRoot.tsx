@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import { useNavigate } from 'react-router-dom'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { buildGrayscaleStyle } from '@/lib/basemapStyle'
+import { buildBasemapStyle } from '@/lib/basemapStyle'
 import { useMapInstance } from '@/hooks/useMapInstance'
 import { DOC_LINKS_ATTRIBUTION_HTML, DOC_ROUTE_ATTRIBUTE } from '@/lib/docLinksAttribution'
 
@@ -14,7 +14,7 @@ const AOI_ZOOM = 12.5
 function createAoiMap(container: HTMLDivElement): maplibregl.Map {
   return new maplibregl.Map({
     container,
-    style: buildGrayscaleStyle(PMTILES_URL),
+    style: buildBasemapStyle(PMTILES_URL),
     center: AOI_CENTER,
     zoom: AOI_ZOOM,
     attributionControl: { compact: true, customAttribution: DOC_LINKS_ATTRIBUTION_HTML },

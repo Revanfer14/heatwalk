@@ -118,7 +118,7 @@ Line-height: 1,5 untuk body, 1,15 untuk display dan angka headline. Panjang bari
 ## Spasi, garis, radius
 
 - Skala 4px: `4 · 8 · 12 · 16 · 24 · 32 · 48 · 64 · 96`. Tidak ada nilai di luar skala.
-- **Garis dulu, bayangan belakangan.** Pemisahan dikerjakan `1px solid --border`. Shadow hanya untuk elemen yang benar-benar melayang: dialog, popover, dropdown, bottom sheet.
+- **Garis dulu, bayangan belakangan.** Pemisahan dikerjakan `1px solid --border`. Shadow hanya untuk elemen yang benar-benar melayang: dialog, popover, dropdown, bottom sheet, panel peta mengambang, dan cluster kontrol mengambang (lihat keputusan produk 2026-08-27 kedua di bawah).
 - Radius: `4px` untuk input dan tombol, `8px` untuk panel dan dialog, `9999px` hanya untuk pill/badge. Peta dan choropleth **tanpa radius** — bentuk kotak-kotak per blok itu disengaja (PRD FR-7), jangan dihaluskan.
 - Border tabel: hanya garis horizontal. Tidak ada garis vertikal, tidak ada zebra striping.
 
@@ -199,19 +199,28 @@ Token diturunkan lewat `@theme` Tailwind v4 di satu file `web/src/styles/theme.c
 
 ## Layout per mode
 
+**Keputusan produk 2026-08-27 (Revan), kedua: header persisten dibubarkan, diganti panel peta mengambang tunggal.** Sebelumnya arsitektur mengikat header penuh-lebar 48px plus (khusus Mode 1) tiga kolom penuh-tinggi yang menempel ke tepi viewport. Peta di baliknya memang sudah full-bleed secara teknis, tapi terkurung di keempat sisi sehingga terbaca sebagai jendela, bukan latar. Aturan baru: **peta mengisi seluruh viewport, dan seluruh produk dioperasikan dari satu panel mengambang.** Konsekuensinya, "empat hal di header" di atas sekarang tersebar ke dua tempat — wordmark pindah ke baris atas panel, tiga toggle jadi cluster kontrol mengambang — dan aturan "tiga kolom Mode 1" di bawah digantikan seluruhnya oleh subbagian baru. Prinsip yang tidak berubah: peta satu instance yang sama di kedua mode, tidak pernah di-unmount, dan FR-16 tetap harus terasa seperti lampu dimatikan — dengan peta benar-benar penuh layar sekarang, efeknya justru lebih kuat, bukan lebih lemah.
+
 ### Kerangka bersama
 
-Satu aplikasi, dua route: `/` untuk mode orang tua (pintu masuk default) dan `/district` untuk mode distrik. Tidak ada login dan tidak ada sidebar navigasi — cuma ada dua tujuan, jadi navigasinya berbentuk **segmented control dua item** berlabel `Parent` / `District` di kanan header.
+Satu aplikasi, dua route: `/` untuk mode orang tua (pintu masuk default) dan `/district` untuk mode distrik. Tidak ada login dan tidak ada sidebar navigasi — cuma ada dua tujuan, dipilih lewat **segmented control dua item** berlabel `Parent` / `District`.
 
-Header persisten setinggi 48px, `--surface` dengan garis bawah `--border`, isinya empat hal dan tidak lebih: wordmark · segmented switch · toggle "hide heat data" (FR-16) · toggle tema.
+**Peta mengisi seluruh viewport**, di bawah semua elemen lain, tanpa header opaque. Di atasnya mengambang dua hal saja:
 
-**Peta adalah satu instance yang sama di kedua mode.** Dia hidup di atas router; berpindah mode hanya mengganti panel di sekelilingnya dan memicu `flyTo`. Jangan pernah unmount peta saat pindah route — selain memicu reload basemap, itu memutus adegan kedua video demo, yang justru bertugas membuktikan kedua mode berbagi satu engine.
+1. **Panel peta** — satu `<section>` `--surface-raised`, border penuh, radius `8px`, shadow (lihat aturan shadow di atas), inset `16px` dari tepi kiri, atas, bawah viewport, lebar tetap `380px` pada viewport ≥768px. Baris atas panel berisi wordmark + label AOI (`HeatWalk` · `Orlando`) pada layar pertama, atau tombol kembali + judul konteks (`‹ Jackson Elementary`) saat menyelam ke detail. Isi panel di bawahnya scroll sendiri; baris bawah panel (footer) menampilkan hitungan hasil/cakupan, setara dengan atribusi status.
+2. **Cluster kontrol** — satu wadah kecil mengambang di kanan atas, `--surface-raised`, border, radius `8px`, shadow, isinya persis tiga hal yang dulu di header (segmented switch `Parent`/`District` · toggle "hide heat data" FR-16 · toggle tema) plus tombol collapse/expand panel.
+
+**Nol kontrol lain yang mengambang di atas peta.** Slider jam, legend zona, dan toggle layer semuanya hidup **di dalam** panel, bukan sebagai elemen terpisah di atas peta — inilah yang membuat "operasikan semuanya dari panel samping" benar secara harfiah.
+
+**Peta adalah satu instance yang sama di kedua mode.** Dia hidup di atas router; berpindah mode hanya mengganti isi panel dan memicu `flyTo`. Jangan pernah unmount peta saat pindah route — selain memicu reload basemap, itu memutus adegan kedua video demo, yang justru bertugas membuktikan kedua mode berbagi satu engine. `map.setPadding` wajib mengikuti geometri panel yang sedang tampil di kedua mode, supaya `flyTo` memusatkan target di area peta yang benar-benar terlihat, bukan di belakang panel.
 
 ### Mode 2 — orang tua (mobile-first, 390px naik)
 
-Peta full-bleed, panel sebagai bottom sheet dengan dua detent: peek (kalimat status + slider jam) dan expanded (panel perbandingan penuh). Input alamat mengambang di atas, chip alamat contoh tepat di bawahnya. Target sentuh minimum 44px.
+Pada viewport ≥768px, panel peta di atas dipakai sebagai **panel samping**: satu tampilan berisi input alamat → kalimat status → slider jam → kalimat "aman sampai jam X" → panel perbandingan rute → tombol permohonan, berurutan ke bawah, scroll di dalam panel. Tidak ada detent — semuanya kelihatan sekaligus kalau muat, sisanya di-scroll.
 
-**Slider jam ikut di detent peek.** Dia kontrol utama mode ini; menyembunyikannya di balik expand berarti orang tua tidak pernah tahu jam bisa diganti.
+Di bawah 768px, panel yang sama dirender sebagai **bottom sheet** dua detent: peek (kalimat status + slider jam) dan expanded (panel perbandingan penuh). Input alamat mengambang di atas sheet, chip alamat contoh tepat di bawahnya. Target sentuh minimum 44px.
+
+**Slider jam ikut di detent peek** (mobile) atau selalu terlihat tanpa scroll berlebihan (panel samping). Dia kontrol utama mode ini; menyembunyikannya berarti orang tua tidak pernah tahu jam bisa diganti.
 
 Hierarki di layar pertama: kalimat status → slider jam → dua rute di peta → suhu rute teradem.
 
@@ -221,9 +230,13 @@ Kalimat `Aman kalau pulang sebelum 13:00` (`safe_until_hour`) tampil tepat di ba
 
 ### Mode 1 — distrik (desktop, 1280px naik)
 
-Tiga kolom: daftar sekolah (280px) · peta (fleksibel) · panel detail (360px). Panel detail berubah isi mengikuti seleksi, bukan menumpuk. Ringkasan sekolah (FR-12) tampil sebagai baris metrik di atas peta, bukan sebagai grid card.
+Satu panel peta yang sama, dipakai sebagai **tumpukan tiga tampilan** yang saling menggantikan (bukan menumpuk), dinavigasi dengan tombol kembali di baris atas panel:
 
-Slider jam duduk di bawah baris metrik, selebar kolom peta. Di mode ini dia mengontrol layer zona: menggesernya mengganti warna choropleth, bukan angka panel.
+1. **Daftar sekolah** — pencarian + daftar sekolah teranalisis dan (opsional) sekolah nasional belum teranalisis.
+2. **Sekolah terpilih** — ringkasan sekolah (FR-12) sebagai grid metrik dua kolom (bukan baris horizontal — lebar panel 380px tidak cukup untuk baris), legend zona, toggle layer (A/B/C), slider jam, lalu (kalau ada) export CSV dan tabel prioritas segmen. Kembali → daftar sekolah.
+3. **Blok terpilih** — panel detail blok (FR-9), termasuk "lihat kenapa" (FR-10) dan panel outcome (FR-11) saat kategori merah. Kembali → sekolah terpilih.
+
+Slider jam ada di tampilan 2, di dalam panel. Di mode ini dia mengontrol layer zona: menggesernya mengganti warna choropleth, bukan angka panel.
 
 ---
 
@@ -267,3 +280,7 @@ Bukan tambahan — produknya soal keselamatan anak dan akan dipresentasikan ke l
 - [ ] Angka berganti tanpa tween saat jam digeser; hanya geometri rute yang fade.
 - [ ] Slider dapat digeser penuh dengan keyboard, dan `aria-valuetext` berisi jam.
 - [ ] Berpindah `/` ↔ `/district` tidak me-remount peta: basemap tidak berkedip, tile tidak dimuat ulang.
+- [ ] Peta terlihat di keempat sisi panel (atas, bawah, kanan, dan celah kiri) — tidak ada bar opaque penuh-lebar tersisa.
+- [ ] Collapse panel mengembalikan peta ke tampilan penuh, dan cluster kontrol tetap dapat diakses saat panel collapsed.
+- [ ] `map.setPadding` cocok dengan geometri panel yang benar-benar tampil (samping vs bottom sheet vs collapsed) di kedua mode — uji dengan memilih sekolah dan cek pusat `flyTo` tidak tersembunyi di belakang panel.
+- [ ] Di bawah 768px, panel peta menjadi bottom sheet; di atasnya, panel samping tetap 380px dan tidak melebar.

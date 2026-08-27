@@ -13,7 +13,7 @@ export default function DocPageShell({ eyebrow, title, children }: DocPageShellP
   const navigate = useNavigate()
 
   return (
-    <div className="fixed inset-0 z-20 overflow-y-auto bg-bg pt-12">
+    <div className="fixed inset-0 z-doc overflow-y-auto bg-bg">
       <div className="mx-auto flex max-w-[70ch] flex-col gap-8 px-4 py-10">
         <div className="flex flex-col gap-3">
           <Button

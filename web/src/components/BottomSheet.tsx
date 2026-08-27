@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { forwardRef, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -7,11 +7,17 @@ interface BottomSheetProps {
   expanded: ReactNode
 }
 
-export default function BottomSheet({ peek, expanded }: BottomSheetProps) {
+const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(function BottomSheet(
+  { peek, expanded },
+  ref,
+) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-10 rounded-t-lg border-t border-border bg-surface-raised shadow-lg">
+    <div
+      ref={ref}
+      className="fixed inset-x-0 bottom-0 z-panel rounded-t-lg border-t border-border bg-surface-raised shadow-lg"
+    >
       <button
         type="button"
         onClick={() => setIsExpanded((current) => !current)}
@@ -32,4 +38,6 @@ export default function BottomSheet({ peek, expanded }: BottomSheetProps) {
       </div>
     </div>
   )
-}
+})
+
+export default BottomSheet

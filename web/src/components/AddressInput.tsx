@@ -31,7 +31,7 @@ export default function AddressInput({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-raised p-3 shadow-sm">
+    <div className="flex flex-col gap-3">
       <input
         value={addressText}
         onChange={(event) => onAddressTextChange(event.target.value)}

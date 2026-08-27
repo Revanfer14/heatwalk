@@ -23,6 +23,8 @@ export interface AppStateContextValue {
   setHideHeatData: (hidden: boolean) => void
   theme: ThemeMode
   setTheme: (theme: ThemeMode) => void
+  panelCollapsed: boolean
+  setPanelCollapsed: (collapsed: boolean) => void
 }
 
 export const AppStateContext = createContext<AppStateContextValue | null>(null)

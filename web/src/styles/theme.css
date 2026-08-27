@@ -144,6 +144,10 @@
   --radius-lg: 8px;
   --radius-xl: 8px;
   --radius-4xl: 9999px;
+
+  --z-index-panel: 10;
+  --z-index-controls: 20;
+  --z-index-doc: 30;
 }
 
 body {

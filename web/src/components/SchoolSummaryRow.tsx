@@ -15,8 +15,8 @@ export default function SchoolSummaryRow({ summary }: SchoolSummaryRowProps) {
   const doseRadiusChangePct = percentChange(summary.radius_setara_dosis_mi, summary.radius_kebijakan_mi)
 
   return (
-    <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
-      <div className="flex flex-wrap gap-x-6 gap-y-3">
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
         <Metric label="Students in walk zone" value={summary.in_walk_zone} />
         <Metric
           label="Route change is enough"
@@ -33,8 +33,8 @@ export default function SchoolSummaryRow({ summary }: SchoolSummaryRowProps) {
           }
         />
       </div>
-      <Separator orientation="vertical" className="h-10" />
-      <div className="flex flex-wrap gap-x-6 gap-y-3">
+      <Separator />
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
         <Metric label="Policy radius" value={formatMiles(summary.radius_kebijakan_mi)} />
         <Metric
           label="Dose-equivalent radius"
@@ -43,8 +43,8 @@ export default function SchoolSummaryRow({ summary }: SchoolSummaryRowProps) {
           }
         />
       </div>
-      <Separator orientation="vertical" className="h-10" />
-      <div className="flex flex-wrap gap-x-6 gap-y-3">
+      <Separator />
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
         <Metric label="Gets bus, doesn't need it" value={<HeatValue>{summary.misclassified.bus_not_needed}</HeatValue>} />
         <Metric label="Walks, should get bus" value={<HeatValue>{summary.misclassified.walk_should_bus}</HeatValue>} />
       </div>

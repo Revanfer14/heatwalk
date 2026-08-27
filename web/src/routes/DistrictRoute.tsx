@@ -1,8 +1,6 @@
+import { useRef } from 'react'
 import DistrictStateProvider from '@/components/DistrictStateProvider'
-import DistrictLayout from '@/components/DistrictLayout'
-import SchoolList from '@/components/SchoolList'
-import DistrictTopStrip from '@/components/DistrictTopStrip'
-import DistrictDetailPanel from '@/components/DistrictDetailPanel'
+import DistrictPanel from '@/components/DistrictPanel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMapInstance } from '@/hooks/useMapInstance'
 import { useDistrictRouteData } from '@/hooks/useDistrictRouteData'
@@ -12,6 +10,8 @@ import { useFlyToSchool } from '@/hooks/useFlyToSchool'
 import { useAoiBoundaryLayer } from '@/hooks/useAoiBoundaryLayer'
 import { useSegmentPriority } from '@/hooks/useSegmentPriority'
 import { useDistrictSelectionHandlers } from '@/hooks/useDistrictSelectionHandlers'
+import { useIsSidePanelViewport } from '@/hooks/useIsSidePanelViewport'
+import { useMapPanelPadding } from '@/hooks/useMapPanelPadding'
 import { applyHourClass } from '@/lib/applyHourClass'
 import type { LonLat } from '@/lib/geoDistance'
 
@@ -19,6 +19,8 @@ const SCHOOL_FLY_TO_ZOOM = 13.5
 
 function DistrictRouteInner() {
   const { map } = useMapInstance()
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  const isSidePanel = useIsSidePanelViewport()
   const {
     schools,
     tile,
@@ -39,6 +41,9 @@ function DistrictRouteInner() {
     setIncludeUnanalyzed,
     unanalyzedNotice,
     setUnanalyzedNotice,
+    panelView,
+    setPanelView,
+    panelCollapsed,
     selectedSchool,
     schoolData,
     blocksHours,
@@ -59,11 +64,8 @@ function DistrictRouteInner() {
   )
   const routeFailed = selectedBlock?.properties.class === 'red'
   const { segments } = useSegmentPriority(selectedSchoolId)
-  const { handleSelectAnalyzed, handleSelectUnanalyzed, handleBlockClick } = useDistrictSelectionHandlers({
-    setSelectedSchoolId,
-    setSelectedBlockId,
-    setUnanalyzedNotice,
-  })
+  const { handleSelectAnalyzed, handleSelectUnanalyzed, handleBlockClick, handleBackToSchools, handleBackToSchool } =
+    useDistrictSelectionHandlers({ setSelectedSchoolId, setSelectedBlockId, setUnanalyzedNotice, setPanelView })
 
   useDistrictMapLayers({
     map,
@@ -86,6 +88,7 @@ function DistrictRouteInner() {
 
   useFlyToSchool(map, selectedSchool, SCHOOL_FLY_TO_ZOOM)
   useAoiBoundaryLayer(map, tile, theme)
+  useMapPanelPadding(map, { isSidePanel, collapsed: panelCollapsed, panelRef })
 
   if (bootLoading) return <Skeleton className="fixed inset-x-4 top-16 h-24 rounded-lg" />
 
@@ -98,45 +101,33 @@ function DistrictRouteInner() {
   }
 
   return (
-    <DistrictLayout
-      schoolList={
-        <SchoolList
-          analyzedSchools={schools}
-          nationalSchools={nationalSchools}
-          selectedSchoolId={selectedSchoolId}
-          onSelectAnalyzed={handleSelectAnalyzed}
-          onSelectUnanalyzed={handleSelectUnanalyzed}
-          searchText={schoolSearchText}
-          onSearchTextChange={setSchoolSearchText}
-          includeUnanalyzed={includeUnanalyzed}
-          onIncludeUnanalyzedChange={setIncludeUnanalyzed}
-        />
-      }
-      topStrip={
-        <DistrictTopStrip
-          schoolSummary={schoolSummary}
-          hours={schoolData?.temps.meta.hours ?? []}
-          hour={hour}
-          onHourChange={setHour}
-          layerVisibility={layerVisibility}
-          onToggleLayer={toggleLayer}
-          tile={tile}
-          fetchedAt={schoolData?.temps.meta.fetched_at ?? null}
-          hideHeatData={hideHeatData}
-        />
-      }
-      detailPanel={
-        <DistrictDetailPanel
-          unanalyzedNotice={unanalyzedNotice}
-          selectedBlock={selectedBlock}
-          allBlocks={schoolData?.blocks.features ?? []}
-          schoolId={selectedSchool.id}
-          schoolName={selectedSchool.name}
-          schoolSummary={schoolSummary}
-          segments={segments}
-          baselineC={schoolData?.temps.meta.baseline_c ?? null}
-        />
-      }
+    <DistrictPanel
+      panelRef={panelRef}
+      collapsed={panelCollapsed}
+      panelView={panelView}
+      schools={schools}
+      nationalSchools={nationalSchools}
+      selectedSchoolId={selectedSchoolId}
+      selectedSchool={selectedSchool}
+      schoolData={schoolData}
+      schoolSummary={schoolSummary}
+      selectedBlock={selectedBlock}
+      unanalyzedNotice={unanalyzedNotice}
+      tile={tile}
+      hour={hour}
+      onHourChange={setHour}
+      layerVisibility={layerVisibility}
+      onToggleLayer={toggleLayer}
+      hideHeatData={hideHeatData}
+      segments={segments}
+      schoolSearchText={schoolSearchText}
+      onSearchTextChange={setSchoolSearchText}
+      includeUnanalyzed={includeUnanalyzed}
+      onIncludeUnanalyzedChange={setIncludeUnanalyzed}
+      onSelectAnalyzed={handleSelectAnalyzed}
+      onSelectUnanalyzed={handleSelectUnanalyzed}
+      onBackToSchools={handleBackToSchools}
+      onBackToSchool={handleBackToSchool}
     />
   )
 }

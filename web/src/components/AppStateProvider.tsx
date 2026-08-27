@@ -19,6 +19,7 @@ export default function AppStateProvider({ children }: { children: ReactNode }) 
   const [hour, setHour] = useState<string | null>(null)
   const [hideHeatData, setHideHeatData] = useState(false)
   const [theme, setTheme] = useTheme()
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -82,8 +83,23 @@ export default function AppStateProvider({ children }: { children: ReactNode }) 
       setHideHeatData,
       theme,
       setTheme,
+      panelCollapsed,
+      setPanelCollapsed,
     }),
-    [schools, tile, bootLoading, bootError, selectedSchoolId, setSelectedSchoolId, pin, hour, hideHeatData, theme, setTheme],
+    [
+      schools,
+      tile,
+      bootLoading,
+      bootError,
+      selectedSchoolId,
+      setSelectedSchoolId,
+      pin,
+      hour,
+      hideHeatData,
+      theme,
+      setTheme,
+      panelCollapsed,
+    ],
   )
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

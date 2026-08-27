@@ -7,7 +7,11 @@ export interface LayerVisibility {
   doseRadius: boolean
 }
 
+export type DistrictPanelView = 'schools' | 'school' | 'block'
+
 export interface DistrictStateContextValue {
+  panelView: DistrictPanelView
+  setPanelView: (view: DistrictPanelView) => void
   selectedBlockId: string | null
   setSelectedBlockId: (blockId: string | null) => void
   layerVisibility: LayerVisibility

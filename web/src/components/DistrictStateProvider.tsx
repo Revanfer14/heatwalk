@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import {
   DistrictStateContext,
+  type DistrictPanelView,
   type DistrictStateContextValue,
   type LayerVisibility,
 } from '@/lib/districtStateContext'
@@ -13,6 +14,7 @@ const DEFAULT_LAYER_VISIBILITY: LayerVisibility = {
 }
 
 export default function DistrictStateProvider({ children }: { children: ReactNode }) {
+  const [panelView, setPanelView] = useState<DistrictPanelView>('schools')
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [layerVisibility, setLayerVisibility] = useState<LayerVisibility>(DEFAULT_LAYER_VISIBILITY)
   const [schoolSearchText, setSchoolSearchText] = useState('')
@@ -25,6 +27,8 @@ export default function DistrictStateProvider({ children }: { children: ReactNod
 
   const value = useMemo<DistrictStateContextValue>(
     () => ({
+      panelView,
+      setPanelView,
       selectedBlockId,
       setSelectedBlockId,
       layerVisibility,
@@ -36,7 +40,7 @@ export default function DistrictStateProvider({ children }: { children: ReactNod
       unanalyzedNotice,
       setUnanalyzedNotice,
     }),
-    [selectedBlockId, layerVisibility, toggleLayer, schoolSearchText, includeUnanalyzed, unanalyzedNotice],
+    [panelView, selectedBlockId, layerVisibility, toggleLayer, schoolSearchText, includeUnanalyzed, unanalyzedNotice],
   )
 
   return <DistrictStateContext.Provider value={value}>{children}</DistrictStateContext.Provider>

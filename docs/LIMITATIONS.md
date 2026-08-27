@@ -92,6 +92,10 @@ Kolom FR-15 ("estimasi penurunan suhu puncak jika diteduhi") memakai konstanta s
 
 Sejak §Fase 8 (`docs/METHODOLOGY.md`), peta memuat basemap dari OpenFreeMap (`tiles.openfreemap.org`, style `liberty`) alih-alih file `.pmtiles` self-hosted. Ini menggantikan bug cakupan bbox yang salah (arsip lama hanya menutupi ~seperempat AOI terkunci) dengan trade-off yang berbeda: **peta tidak lagi berfungsi tanpa internet**, dan tidak ada API key untuk dikendalikan kalau layanan ini rate-limit atau tidak tersedia di tengah masa penjurian. Gerbang "demo jalan offline" pada dev plan Fase 7 tidak lagi berlaku untuk lapisan basemap — bagian lain aplikasi (data `data/out/`, graph, routing, klasifikasi) tetap sepenuhnya statis dan offline setelah load pertama.
 
+### 21. Empat lingkaran kebijakan menjorok keluar bbox tile data panas di sisi barat
+
+Sejak §Fase 10 (`docs/METHODOLOGY.md`) semua blok sensus yang berpotongan bbox diklasifikasi — termasuk blok tak berpenduduk, yang otomatis membawa `kids_est = 0` — dan Mode 1 me-render gabungan blok seluruh sekolah (FR-22), sehingga lubang *di dalam* bbox tertutup. Yang tersisa murni geometri: lingkaran kebijakan 2,0 mi Meadowbrook Middle, Ridgewood Park Elementary, UCP Pine Hills Charter, dan Maynard Evans High menjorok melewati batas barat bbox tile data panas (`-81.4763`), dan blok sensus di luar bbox tidak pernah di-fetch. Terukur dari data: ±17%, ±15%, ±7%, dan ±1% luas lingkaran masing-masing tetap tanpa choropleth; Rosemont dan Rolling Hills tertutup penuh. Ini keputusan produk sadar (2026-08-27): menutupnya menuntut perluasan bbox + fetch TIGERweb/FortyGuard baru, dinilai tidak sepadan tiga hari sebelum deadline. Angka anak tidak terpengaruh — area di luar bbox memang tidak pernah masuk kolam blok.
+
 ---
 
 Dicatat di sini, bukan disamarkan: angka kecil, kategori kosong, dan faktor di luar rentang validasi di dokumen ini semuanya adalah **hasil pengukuran**, bukan kegagalan yang disembunyikan. Ini yang membedakan produk yang mengukur dari yang mengklaim.

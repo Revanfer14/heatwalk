@@ -52,6 +52,8 @@ def main() -> None:
     write_json(DATA_FIXTURES_DIR / "summary.json", summary)
 
     class_counts = {"green": 0, "yellow": 0, "red": 0}
+    blocks_geojson_by_school: dict[str, dict] = {}
+    blocks_hours_by_school: dict[str, dict] = {}
     for school in SCHOOLS_FIXTURE:
         school_id = school["id"]
         school_dir = DATA_FIXTURES_DIR / "by_school" / school_id
@@ -60,14 +62,25 @@ def main() -> None:
         write_json(school_dir / "temps.json", temps_payload)
         blocks_geojson = step5_export.build_blocks_geojson(classified_by_school[school_id], polygons_by_geoid)
         write_json(school_dir / "blocks.geojson", blocks_geojson)
+        blocks_geojson_by_school[school_id] = blocks_geojson
         blocks_hours_payload = blocks_hours.build_blocks_hours(routed_by_school[school_id])
         write_json(school_dir / "blocks_hours.json", blocks_hours_payload)
+        blocks_hours_by_school[school_id] = blocks_hours_payload
         segments_payload = segment_priority.build_segment_priority(
             routed_by_school[school_id], graph_payload, temps_payload, fixture_street_names
         )
         write_json(school_dir / "segments.json", segments_payload)
         for feature in blocks_geojson["features"]:
             class_counts[feature["properties"]["class"]] += 1
+
+    write_json(
+        DATA_FIXTURES_DIR / "district_blocks.geojson",
+        step5_export.build_district_blocks_geojson(blocks_geojson_by_school),
+    )
+    write_json(
+        DATA_FIXTURES_DIR / "district_blocks_hours.json",
+        step5_export.build_district_blocks_hours(blocks_hours_by_school),
+    )
 
     print(f"blocks: {sum(class_counts.values())} total -> {class_counts}")
     print(f"schools: {len(SCHOOLS_FIXTURE)}")

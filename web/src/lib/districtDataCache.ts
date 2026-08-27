@@ -1,7 +1,9 @@
+import type { BlocksGeoJson } from '@/lib/types'
 import type { BlocksHours, SegmentPriorityRow } from '@/lib/districtTypes'
 
-const blocksHoursCache = new Map<string, Promise<BlocksHours>>()
 const segmentsCache = new Map<string, Promise<SegmentPriorityRow[]>>()
+let districtBlocksPromise: Promise<BlocksGeoJson> | null = null
+let districtBlocksHoursPromise: Promise<BlocksHours> | null = null
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(path)
@@ -11,14 +13,24 @@ async function fetchJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function loadBlocksHours(schoolId: string): Promise<BlocksHours> {
-  const cached = blocksHoursCache.get(schoolId)
-  if (cached !== undefined) return cached
+export function loadDistrictBlocks(): Promise<BlocksGeoJson> {
+  if (districtBlocksPromise === null) {
+    districtBlocksPromise = fetchJson<BlocksGeoJson>('/data/district_blocks.geojson')
+    districtBlocksPromise.catch(() => {
+      districtBlocksPromise = null
+    })
+  }
+  return districtBlocksPromise
+}
 
-  const promise = fetchJson<BlocksHours>(`/data/by_school/${schoolId}/blocks_hours.json`)
-  blocksHoursCache.set(schoolId, promise)
-  promise.catch(() => blocksHoursCache.delete(schoolId))
-  return promise
+export function loadDistrictBlocksHours(): Promise<BlocksHours> {
+  if (districtBlocksHoursPromise === null) {
+    districtBlocksHoursPromise = fetchJson<BlocksHours>('/data/district_blocks_hours.json')
+    districtBlocksHoursPromise.catch(() => {
+      districtBlocksHoursPromise = null
+    })
+  }
+  return districtBlocksHoursPromise
 }
 
 export function loadSegmentPriority(schoolId: string): Promise<SegmentPriorityRow[]> {

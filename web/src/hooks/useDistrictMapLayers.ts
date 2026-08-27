@@ -1,6 +1,7 @@
 import type maplibregl from 'maplibre-gl'
 import { useOfficialZoneLayer } from '@/hooks/useOfficialZoneLayer'
 import { useDoseZoneLayer } from '@/hooks/useDoseZoneLayer'
+import { useBlockTempLabelsLayer } from '@/hooks/useBlockTempLabelsLayer'
 import { useDoseRadiusLayer } from '@/hooks/useDoseRadiusLayer'
 import { useNationalSchoolsLayer } from '@/hooks/useNationalSchoolsLayer'
 import { useNationalSchoolsClicks } from '@/hooks/useNationalSchoolsClicks'
@@ -58,6 +59,12 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
     visible: layerVisibility.doseZone && !hideHeatData,
     theme,
     onBlockClick,
+  })
+  useBlockTempLabelsLayer({
+    map,
+    blocks,
+    visible: layerVisibility.doseZone && !hideHeatData,
+    theme,
   })
   useDoseRadiusLayer({
     map,

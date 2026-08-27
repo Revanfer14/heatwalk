@@ -12,7 +12,6 @@ import { useSegmentPriority } from '@/hooks/useSegmentPriority'
 import { useDistrictSelectionHandlers } from '@/hooks/useDistrictSelectionHandlers'
 import { useIsSidePanelViewport } from '@/hooks/useIsSidePanelViewport'
 import { useMapPanelPadding } from '@/hooks/useMapPanelPadding'
-import { applyHourClass } from '@/lib/applyHourClass'
 import type { LonLat } from '@/lib/geoDistance'
 
 const SCHOOL_FLY_TO_ZOOM = 13.5
@@ -46,14 +45,15 @@ function DistrictRouteInner() {
     panelCollapsed,
     selectedSchool,
     schoolData,
-    blocksHours,
+    districtBlocks,
+    districtBlocksError,
+    policyCircleBlocks,
     nationalSchools,
     schoolSummary,
     selectedBlock,
   } = useDistrictRouteData()
 
   const schoolPoint: LonLat | null = selectedSchool !== null ? [selectedSchool.lon, selectedSchool.lat] : null
-  const hourAdjustedBlocks = schoolData !== null ? applyHourClass(schoolData.blocks, blocksHours, hour) : null
 
   const { solvedRoutes, highlightedSegments } = useDistrictSelectedRoute(
     schoolData?.graph ?? null,
@@ -65,14 +65,21 @@ function DistrictRouteInner() {
   const routeFailed = selectedBlock?.properties.class === 'red'
   const { segments } = useSegmentPriority(selectedSchoolId)
   const { handleSelectAnalyzed, handleSelectUnanalyzed, handleBlockClick, handleBackToSchools, handleBackToSchool } =
-    useDistrictSelectionHandlers({ setSelectedSchoolId, setSelectedBlockId, setUnanalyzedNotice, setPanelView })
+    useDistrictSelectionHandlers({
+      districtBlocks,
+      selectedSchoolId,
+      setSelectedSchoolId,
+      setSelectedBlockId,
+      setUnanalyzedNotice,
+      setPanelView,
+    })
 
   useDistrictMapLayers({
     map,
     schoolPoint,
     walkRadiusMi: selectedSchool?.walk_radius_mi ?? null,
     doseRadiusMi: schoolSummary?.radius_setara_dosis_mi ?? null,
-    blocks: hourAdjustedBlocks,
+    blocks: policyCircleBlocks,
     layerVisibility,
     hideHeatData,
     theme,
@@ -92,7 +99,7 @@ function DistrictRouteInner() {
 
   if (bootLoading) return <Skeleton className="fixed inset-x-4 top-16 h-24 rounded-lg" />
 
-  if (bootError !== null || selectedSchool === null) {
+  if (bootError !== null || districtBlocksError !== null || selectedSchool === null) {
     return (
       <div className="fixed inset-x-4 top-16 rounded-lg border border-border bg-surface-raised p-4 text-sm text-ink-muted">
         Could not load HeatWalk data. Reload to try again.

@@ -48,6 +48,9 @@ Tombol, tautan, border, teks, ikon, chart, tabel — semuanya monokrom, di kedua
 | `--zone-safe` | `#3F6B4A` | `#7FB08C` | hijau — rute terpendek sudah aman |
 | `--zone-reroute` | `#B07A1A` | `#E0B25C` | kuning — perlu pemilihan rute |
 | `--zone-bus` | `#A33A28` | `#E0705C` | merah — rute teradem pun gagal |
+| `--route-coolest` | `#1E5FA8` | `#7FB3EA` | biru — rute teradem, "jawaban" (FR-28) |
+| `--route-heat-cool` | `#1E5FA8` | `#7FB3EA` | biru — ujung dingin ramp suhu rute |
+| `--route-heat-hot` | `#C2410C` | `#F59E0B` | oren — ujung panas ramp suhu rute |
 
 Fill choropleth memakai token yang sama pada opacity 18% (safe), 22% (reroute), 30% (bus), dengan stroke 1px pada warna penuh.
 
@@ -70,13 +73,20 @@ Tanpa API key. **Keputusan produk 2026-08-27 malam (Revan):** rencana basemap se
 
 | Elemen | Gaya |
 |---|---|
-| Rute terpendek | 2px, `--ink-subtle`, dashed `4 4` |
-| Rute teradem | 5px solid `--ink`, dengan casing 8px `--bg` di bawahnya |
+| Rute terpendek (data panas tampil, FR-28) | 2,5px solid, warna per segmen: ramp `--route-heat-cool` → `--route-heat-hot` sesuai `temp_c`, tanpa dasharray |
+| Rute terpendek (FR-16 aktif) | 2px `--ink-subtle`, dashed `4 4` — balik ke netral |
+| Rute teradem | 5px solid `--route-coolest`, dengan casing 8px `--bg` di bawahnya |
 | Rute teradem yang **gagal** (FR-10) | 5px solid `--zone-bus`, casing sama |
-| Segmen penyumbang dosis tertinggi | 7px `--zone-bus`, opacity 100%, di atas layer rute |
+| Segmen prioritas top-5 (FR-24) | 7px `--zone-bus`, opacity 100%, di atas layer rute, + label rank |
 | Lingkaran walk zone resmi | 1,5px `--ink-muted`, dashed `6 6`, tanpa fill |
+| Lingkaran radius setara-dosis (FR-18) | 1,5px solid `--ink`, tanpa fill |
+| Hover pada salah satu lingkaran (FR-26) | garis menebal ke 3px + tooltip deskripsi |
 
-Rute teradem sengaja memakai tinta, bukan warna — dia jawabannya, dan di layar monokrom garis hitam tebal adalah benda paling menonjol yang ada.
+**Keputusan produk 2026-08-27 (Revan):** rute teradem memakai **biru** (`--route-coolest`), bukan tinta — biru adalah jawaban; ramp biru→oren pada rute terpendek menunjukkan paparan panas status quo. Dua rute tetap terbedakan tanpa warna lewat lebar (2,5px vs 5px + casing) dan legend berlabel. Saat FR-16 aktif, ramp dan rute teradem hilang total — rute terpendek kembali netral abu putus-putus, momen "lampu dimatikan" tetap utuh.
+
+### Label di atas choropleth
+
+Label suhu blok (FR-23): `Noto Sans Bold` ~10px, warna `--ink`, halo `--bg` 1,5px, di pusat poligon blok, muncul mulai zoom ±12,5 (collision detection MapLibre menangani kerapatan). Label rank top-5 segmen (FR-24): angka `1`–`5` dengan gaya sama, di midpoint segmen. Keduanya data panas — sembunyi saat FR-16.
 
 ### Penanda lokasi
 
@@ -89,7 +99,7 @@ Peran penanda dibedakan **lewat bentuk dan glyph, tidak pernah lewat warna** —
 
 Sekolah teranalisis memakai border/glyph `--ink`; sekolah belum teranalisis (Mode 1) memakai `--ink-subtle`. Teardrop dipakai khusus untuk titik yang **dipilih dan digeser** orang tua; chip untuk tempat yang **sudah tetap** — kontrasnya harus tetap terbaca setelah difilter grayscale.
 
-Setiap label teks di atas peta (nama sekolah, `Your location`) wajib punya halo/outline `--bg` selebar minimal 1,5px di sekelilingnya, supaya tetap kontras terhadap basemap berwarna di kedua tema (lihat keputusan basemap di atas). `text-font` memakai salah satu dari tiga fontstack self-hosted di `web/public/fonts/` (`Noto Sans Regular` / `Medium` / `Italic`).
+Setiap label teks di atas peta (nama sekolah, `Your location`, label suhu blok) wajib punya halo/outline `--bg` selebar minimal 1,5px di sekelilingnya, supaya tetap kontras terhadap basemap berwarna di kedua tema (lihat keputusan basemap di atas). `text-font` dilayani glyph server OpenFreeMap; yang tersedia hanya **`Noto Sans Regular` / `Bold` / `Italic`** — `Medium` dan `SemiBold` mengembalikan 404 sejak basemap pindah ke `liberty` (fontstack self-hosted di `web/public/fonts/` sudah dihapus). Jangan memakai fontstack lain di layer symbol.
 
 Pin sekolah di Mode 1 (101 ribu+ sekolah nasional) hanya dirender sebagai chip + label pada zoom ≥ 10; di bawah itu mereka tetap titik `circle` polos (basemap AOI toh tidak ter-cover di bawah zoom itu). Pin sekolah teranalisis diberi `symbol-sort-key` lebih tinggi supaya tidak pernah kalah tabrakan label dari sekolah lain.
 
@@ -223,9 +233,9 @@ Satu aplikasi, dua route: `/` untuk mode orang tua (pintu masuk default) dan `/d
 **Peta mengisi seluruh viewport**, di bawah semua elemen lain, tanpa header opaque. Di atasnya mengambang dua hal saja:
 
 1. **Panel peta** — satu `<section>` `--surface-raised`, border penuh, radius `8px`, shadow (lihat aturan shadow di atas), inset `16px` dari tepi kiri, atas, bawah viewport, lebar tetap `380px` pada viewport ≥768px. Baris atas panel berisi wordmark + label AOI (`HeatWalk` · `Orlando`) pada layar pertama, atau tombol kembali + judul konteks (`‹ Jackson Elementary`) saat menyelam ke detail. Isi panel di bawahnya scroll sendiri; baris bawah panel (footer) menampilkan hitungan hasil/cakupan, setara dengan atribusi status.
-2. **Cluster kontrol** — satu wadah kecil mengambang di kanan atas, `--surface-raised`, border, radius `8px`, shadow, isinya persis tiga hal yang dulu di header (segmented switch `Parent`/`District` · toggle "hide heat data" FR-16 · toggle tema) plus tombol collapse/expand panel.
+2. **Cluster kontrol** — satu wadah kecil mengambang di kanan atas, `--surface-raised`, border, radius `8px`, shadow, isinya empat hal (segmented switch `Parent`/`District` · toggle "hide heat data" FR-16 · toggle tema · tombol info metodologi FR-25, keputusan produk 2026-08-27) plus tombol collapse/expand panel.
 
-**Nol kontrol lain yang mengambang di atas peta.** Slider jam, legend zona, dan toggle layer semuanya hidup **di dalam** panel, bukan sebagai elemen terpisah di atas peta — inilah yang membuat "operasikan semuanya dari panel samping" benar secara harfiah.
+**Nol kontrol lain yang mengambang di atas peta** — dengan satu pengecualian disengaja (keputusan produk 2026-08-27, FR-27): **legend peta sisi kanan**, yang justru harus terlihat saat panel samping di-collapse. Slider jam, toggle layer, dan export tetap hidup **di dalam** panel; legend mengambang di sisi kanan (bisa dilipat, sadar-mode), dan `map.setPadding` ikut me-reserve lebarnya supaya `flyTo` tetap terpusat di area yang benar-benar terlihat.
 
 **Peta adalah satu instance yang sama di kedua mode.** Dia hidup di atas router; berpindah mode hanya mengganti isi panel dan memicu `flyTo`. Jangan pernah unmount peta saat pindah route — selain memicu reload basemap, itu memutus adegan kedua video demo, yang justru bertugas membuktikan kedua mode berbagi satu engine. `map.setPadding` wajib mengikuti geometri panel yang sedang tampil di kedua mode, supaya `flyTo` memusatkan target di area peta yang benar-benar terlihat, bukan di belakang panel.
 
@@ -248,7 +258,7 @@ Kalimat `Aman kalau pulang sebelum 13:00` (`safe_until_hour`) tampil tepat di ba
 Satu panel peta yang sama, dipakai sebagai **tumpukan tiga tampilan** yang saling menggantikan (bukan menumpuk), dinavigasi dengan tombol kembali di baris atas panel:
 
 1. **Daftar sekolah** — pencarian + daftar sekolah teranalisis dan (opsional) sekolah nasional belum teranalisis.
-2. **Sekolah terpilih** — ringkasan sekolah (FR-12) sebagai grid metrik dua kolom (bukan baris horizontal — lebar panel 380px tidak cukup untuk baris), legend zona, toggle layer (A/B/C), slider jam, lalu (kalau ada) export CSV dan tabel prioritas segmen. Kembali → daftar sekolah.
+2. **Sekolah terpilih** — ringkasan sekolah (FR-12) sebagai grid metrik dua kolom (bukan baris horizontal — lebar panel 380px tidak cukup untuk baris), toggle layer (A/B/C), slider jam, lalu (kalau ada) export CSV dan tabel prioritas segmen. Kembali → daftar sekolah. Legend zona tidak lagi di panel — pindah ke legend peta sisi kanan (FR-27).
 3. **Blok terpilih** — panel detail blok (FR-9), termasuk "lihat kenapa" (FR-10) dan panel outcome (FR-11) saat kategori merah. Kembali → sekolah terpilih.
 
 Slider jam ada di tampilan 2, di dalam panel. Di mode ini dia mengontrol layer zona: menggesernya mengganti warna choropleth, bukan angka panel.
@@ -289,7 +299,9 @@ Bukan tambahan — produknya soal keselamatan anak dan akan dipresentasikan ke l
 - [ ] `prefers-reduced-motion` mematikan seluruh transisi.
 - [ ] Focus ring terlihat di setiap elemen interaktif.
 - [ ] Tidak ada komentar tersisa di `components/ui/`.
-- [ ] Basemap memakai tema `light` protomaps-themes-base, dan atribusi OpenStreetMap terlihat.
+- [ ] Basemap memakai style `liberty` dari OpenFreeMap, dan atribusi OpenStreetMap terlihat.
+- [ ] Semua layer symbol memakai `Noto Sans Regular`/`Bold`/`Italic` (fontstack lain 404 di glyph server).
+- [ ] FR-16 mematikan **semua** layer data panas: zona, label suhu, top-5 segmen, tooltip radius dosis, ramp rute — tersisa lingkaran kebijakan + rute terpendek netral saja.
 - [ ] Overlay dosis panas, legend, dan badge klasifikasi tetap kontras jelas terhadap basemap berwarna (cek merah/kuning zona vs warna jalan/bangunan basemap).
 - [ ] Slider jam monokrom, diskrit, dan jumlah tick-nya sama dengan panjang `meta.hours`.
 - [ ] Angka berganti tanpa tween saat jam digeser; hanya geometri rute yang fade.

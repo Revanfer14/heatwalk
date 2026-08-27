@@ -28,6 +28,7 @@ export interface BlockProperties {
   status_rec: StatusRec
   reason: string
   safe_until_hour: string | null
+  temp_label?: string
 }
 
 export interface BlockFeature {

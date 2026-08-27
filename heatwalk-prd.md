@@ -481,6 +481,44 @@ Fungsinya adalah demonstrasi kriteria "API sentral, bukan dekoratif" dalam satu 
 
 Satu tombol yang memicu panggilan live ke FortyGuard forecast 12 jam, membuktikan pipeline berfungsi. Wajib punya loading state dan error handling yang jelas, dan terisolasi total dari jalur demo utama.
 
+### Feedback QA demo 2026-08-27
+
+Tujuh FR berikut lahir dari QA demo menjelang submission. Keputusan coverage FR-22 dan warna FR-28 adalah keputusan produk eksplisit Revan, 2026-08-27.
+
+#### FR-22 — Cakupan zona penuh di dalam lingkaran *(P0)*
+
+Interior lingkaran kebijakan **dan** lingkaran radius setara-dosis di Mode 1 harus tertutup penuh choropleth zona — tidak boleh ada "lubang" abu-abu basemap di dalamnya, karena lubang terbaca sebagai "distrik tidak tahu" padahal datanya ada.
+
+Caranya dua lapis: (1) pipeline mengklasifikasi **semua** blok sensus yang berpotongan bbox, termasuk blok dengan `POP100 = 0` (sebelumnya di-skip); blok kosong otomatis punya `kids_est = 0` sehingga tidak mengubah metrik anak di `summary.json`; (2) Mode 1 me-render file blok **gabungan seluruh sekolah** (`district_blocks.geojson`), bukan file per-sekolah — file per-sekolah adalah partisi nearest-school, sehingga blok di dalam lingkaran sekolah X yang lebih dekat ke sekolah Y tidak pernah muncul di view X.
+
+Aturan penutupnya (keputusan Revan, 2026-08-27): render dibatasi ke **interior lingkaran kebijakan sekolah terpilih** — blok di luar lingkaran itu (termasuk blok milik sekolah lain yang berada di luar lingkaran sekolah terpilih) tidak dirender sama sekali. Zona hijau/merah hanya pernah tampil di dalam lingkaran yang sedang digambar; clip dihitung client-side dari centroid blok vs `walk_radius_mi` (`web/src/lib/blocksInsidePolicyCircle.ts`).
+
+Pengecualian yang diterima secara sadar dan didokumentasikan di `docs/LIMITATIONS.md`: porsi lingkaran kebijakan yang jatuh **di luar bbox tile data panas** di sisi barat tetap kosong — terukur ±17% lingkaran Meadowbrook Middle, ±15% Ridgewood Park Elementary, ±7% UCP Pine Hills Charter, ±1% Maynard Evans High (Rosemont dan Rolling Hills penuh). Menutupnya menuntut perluasan bbox + fetch API baru, dinilai tidak sepadan 3 hari sebelum deadline.
+
+#### FR-23 — Label suhu blok *(P1)*
+
+Pada zoom cukup dekat, tiap blok menampilkan label suhu rata-rata rutenya (mis. `36.6°C`) di pusat blok, berganti mengikuti slider jam (dari `blocks_hours` per jam). Label adalah data panas: sembunyi total saat FR-16, dan memakai halo `--bg` supaya terbaca di atas basemap berwarna.
+
+#### FR-24 — Highlight top-5 segmen prioritas *(P1)*
+
+Lima segmen teratas `segments.json` (urutan existing: kids terdampang, lalu suhu puncak) dirender persisten di peta dengan garis tebal kategori merah + label rank 1–5, dan tabel FR-15 mendapat kolom rank; klik baris tabel menerbangkan peta ke segmennya dan menegaskan highlight-nya. Hilang saat FR-16.
+
+#### FR-25 — Tombol info metodologi *(P2)*
+
+Satu tombol ikon di cluster kontrol yang membuka `/methodology`. Panel metodologi sudah ada; tombol ini membuatnya ditemukan tanpa harus tahu link tersembunyi di atribusi peta.
+
+#### FR-26 — Deskripsi lingkaran saat hover *(P2)*
+
+Hover pada lingkaran kebijakan (putus-putus) atau lingkaran radius setara-dosis (solid) menebalkan garisnya dan menampilkan tooltip penjelasan: apa lingkaran ini, berapa milnya (dari data, bukan teks mati), dan untuk lingkaran kebijakan — bahwa 2,0 mi adalah kebijakan **distrik** (OCPS, seragam K–12 per FS 1006.23), bukan aturan federal. Tooltip radius setara-dosis ikut sembunyi saat FR-16.
+
+#### FR-27 — Legend peta sisi kanan *(P1)*
+
+Legend mengambang di sisi kanan peta, bisa dilipat, sadar-mode: kelas zona + makna kedua lingkaran + garis top-5 (Mode 1); rute + ramp suhu + lingkaran kebijakan (Mode 2). Ini **pengecualian disengaja** atas aturan "nol kontrol lain yang mengambang di atas peta" di DESIGN.md — legend dipindah ke atas peta supaya selalu terlihat saat panel samping collapsed, dan `map.setPadding` ikut me-reserve lebarnya. Konten legend meredup saat FR-16.
+
+#### FR-28 — Warna suhu di rute Mode 2 *(P1)*
+
+Rute terpendest diberi warna per segmen mengikuti suhu jalannya pada jam terpilih: ramp **biru → oren** (biru = di baseline, makin oren = makin panas), jangkar domain dari `meta.baseline_c` sampai segmen terpanas di jalur. Rute teradem berubah dari tinta hitam menjadi **biru solid** — keputusan produk 2026-08-27: biru = "jawaban", ramp di rute terpendest = paparan status quo. Saat FR-16, rute terpendest kembali netral abu putus-putus dan seluruh warna hilang — momen "lampu dimatikan" tetap utuh.
+
 ---
 
 ## 5. Data requirements

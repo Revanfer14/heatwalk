@@ -50,6 +50,22 @@ def build_blocks_geojson(classified_blocks: list[dict], polygons_by_geoid: dict[
     return {"type": "FeatureCollection", "features": features}
 
 
+def build_district_blocks_geojson(blocks_geojson_by_school: dict[str, dict]) -> dict:
+    features = [
+        feature
+        for blocks_geojson in blocks_geojson_by_school.values()
+        for feature in blocks_geojson["features"]
+    ]
+    return {"type": "FeatureCollection", "features": features}
+
+
+def build_district_blocks_hours(blocks_hours_by_school: dict[str, dict]) -> dict:
+    merged: dict[str, dict] = {}
+    for blocks_hours_payload in blocks_hours_by_school.values():
+        merged.update(blocks_hours_payload)
+    return merged
+
+
 def _dose_zone_area_m2(classified_blocks: list[dict], polygons_by_geoid: dict[str, dict], to_utm) -> float:
     non_red_geometries = [
         transform(to_utm, shape(polygons_by_geoid[block["block_id"]]))
@@ -109,12 +125,16 @@ def main() -> None:
 
     street_names = segment_priority.load_street_names(tile["id"])
 
+    blocks_geojson_by_school: dict[str, dict] = {}
+    blocks_hours_by_school: dict[str, dict] = {}
     for school in schools:
         blocks_geojson = build_blocks_geojson(classified_by_school[school["id"]], polygons_by_geoid)
         write_json(DATA_OUT_DIR / "by_school" / school["id"] / "blocks.geojson", blocks_geojson)
+        blocks_geojson_by_school[school["id"]] = blocks_geojson
 
         blocks_hours_payload = blocks_hours.build_blocks_hours(routed_by_school[school["id"]])
         write_json(DATA_OUT_DIR / "by_school" / school["id"] / "blocks_hours.json", blocks_hours_payload)
+        blocks_hours_by_school[school["id"]] = blocks_hours_payload
 
         school_dir = DATA_OUT_DIR / "by_school" / school["id"]
         school_graph = _load_json(school_dir / "graph.json")
@@ -140,6 +160,15 @@ def main() -> None:
 
     utm_epsg = utm_epsg_for_lon((tile["bbox"][0] + tile["bbox"][2]) / 2)
     report_g5(schools, classified_by_school, polygons_by_geoid, utm_epsg)
+
+    district_blocks = build_district_blocks_geojson(blocks_geojson_by_school)
+    write_json(DATA_OUT_DIR / "district_blocks.geojson", district_blocks)
+    district_blocks_hours = build_district_blocks_hours(blocks_hours_by_school)
+    write_json(DATA_OUT_DIR / "district_blocks_hours.json", district_blocks_hours)
+    print(
+        f"\ndistrict_blocks.geojson: {len(district_blocks['features'])} fitur, "
+        f"district_blocks_hours.json: {len(district_blocks_hours)} blok"
+    )
 
     copied = mirror_to_web()
     print(f"\nfiles copied to web/public/data: {len(copied)}")

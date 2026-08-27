@@ -98,7 +98,7 @@ Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jala
 
 ## `by_school/<school_id>/blocks.geojson`
 
-`FeatureCollection`, satu Feature per census block **milik sekolah ini** (assignment blok→sekolah, §1.3). Klasifikasi dihitung pada `meta.canonical_hour`, bukan dirata-rata antar jam (FR-8). **Real sejak Fase 4** — `pipeline/step4_classify.py` + `pipeline/step5_export.py` (asli, 368 blok berpenduduk gelombang 1) / `pipeline/fixture_classify.py` + `pipeline/make_fixtures.py` (fixture, `data/fixtures/`).
+`FeatureCollection`, satu Feature per census block **milik sekolah ini** (assignment blok→sekolah, §1.3). Klasifikasi dihitung pada `meta.canonical_hour`, bukan dirata-rata antar jam (FR-8). **Real sejak Fase 4** — `pipeline/step4_classify.py` + `pipeline/step5_export.py` (asli, 368 blok berpenduduk gelombang 1) / `pipeline/fixture_classify.py` + `pipeline/make_fixtures.py` (fixture, `data/fixtures/`). **Sejak Fase 10 blok dengan `POP100 = 0` ikut diklasifikasi** (FR-22): `kids_est` mereka 0, geometri tetap penuh, supaya interior lingkaran walk zone tertutup choropleth. Skema properti tidak berubah.
 
 ```json
 {
@@ -152,8 +152,8 @@ Klasifikasi FR-8 dan dosis **per jam** per blok, dipakai choropleth Mode 1 saat 
 ```json
 {
   "120950124023009": {
-    "07:00": { "shortest": 0.0, "coolest": 0.0, "class": "green" },
-    "15:00": { "shortest": 259.1, "coolest": 259.1, "class": "red" }
+    "07:00": { "shortest": 0.0, "coolest": 0.0, "mean_c": 28.4, "class": "green" },
+    "15:00": { "shortest": 259.1, "coolest": 259.1, "mean_c": 36.9, "class": "red" }
   }
 }
 ```
@@ -164,9 +164,24 @@ Klasifikasi FR-8 dan dosis **per jam** per blok, dipakai choropleth Mode 1 saat 
 | `<block_id>.<HH:MM>` | key | — | — | subset dari `meta.hours` di `temps.json` sekolah yang sama |
 | `<block_id>.<HH:MM>.shortest` | `number` | °C·menit | tidak | dosis rute terpendek pada jam ini — `routed["blocks"][id]["shortest"]["by_hour"][hour]["dose"]` |
 | `<block_id>.<HH:MM>.coolest` | `number` | °C·menit | tidak | dosis rute teradem pada jam ini |
+| `<block_id>.<HH:MM>.mean_c` | `number` | °C | tidak | suhu rata-rata rute terpendek pada jam ini — dipakai label suhu blok (FR-23, Fase 10) |
 | `<block_id>.<HH:MM>.class` | `"green" \| "yellow" \| "red"` | — | tidak | `pipeline/classification.py:classify()`, ambang sama dengan FR-8 |
 
-**Bukan pengganti `blocks.geojson`.** Frontend membaca geometri, `kids_est`, `reason`, `safe_until_hour`, dan properti lain dari `blocks.geojson` sekali; `blocks_hours.json` hanya dipakai untuk memperbarui `class` (warna choropleth) saat jam berganti — nol perhitungan ulang dosis di frontend.
+**Bukan pengganti `blocks.geojson`.** Frontend membaca geometri, `kids_est`, `reason`, `safe_until_hour`, dan properti lain dari `blocks.geojson` sekali; `blocks_hours.json` hanya dipakai untuk memperbarui `class` (warna choropleth) dan `mean_c` (label suhu) saat jam berganti — nol perhitungan ulang dosis di frontend.
+
+---
+
+## `district_blocks.geojson` — Fase 10 (FR-22)
+
+Gabungan seluruh `by_school/*/blocks.geojson` menjadi satu `FeatureCollection` di root `data/out/`. Karena assignment nearest-school bersifat partisi disjoint, gabungan = semua blok yang diklasifikasi, tanpa duplikat `block_id`. Skema per-Feature identik dengan `by_school/<school_id>/blocks.geojson`.
+
+Mode 1 (distrik) me-render file ini, bukan file per-sekolah: blok di dalam lingkaran sekolah X yang assignment-nya ke sekolah Y (karena lebih dekat) tetap tampil di view X dengan klasifikasi rutenya ke Y — supaya interior lingkaran tertutup penuh. Render dibatasi ke interior lingkaran kebijakan sekolah terpilih: blok yang centroid-nya di luar `walk_radius_mi` sekolah terpilih tidak dirender (clip client-side, `web/src/lib/blocksInsidePolicyCircle.ts`) — zona tidak pernah tampil di luar lingkaran yang digambar. Mode 2 (parent) dan export CSV FR-14 tetap memakai file per-sekolah.
+
+---
+
+## `district_blocks_hours.json` — Fase 10 (FR-23)
+
+Gabungan seluruh `by_school/*/blocks_hours.json` menjadi satu objek di root `data/out/`; skema per-`<block_id>` per-jam identik (termasuk `mean_c`). Dipakai Mode 1 bersama `district_blocks.geojson`.
 
 ---
 
@@ -319,5 +334,7 @@ sch_ridgewood_park_elementary,120950123052001,15:00,3083.2,3342.6,37.97,37.22,-0
 - Setiap angka yang tampil di UI harus bisa ditelusuri ke satu baris tabel di atas.
 - Setiap tempat yang menampilkan °C·menit **wajib** menampilkan °C di sebelahnya; setiap angka headline wajib punya °F. Satu-satunya tempat konversi ini hidup di kode: `web/src/lib/units.ts`.
 - `edge_id` di `temps.json` **wajib** cocok satu-satu dengan `graph.json` sekolah yang sama — dicek programatik di setiap build (`pipeline/graph_integrity.py:check_no_orphan_edges`, dipakai `step2_build_graph.py` dan `make_fixtures.py`), bukan dengan mata.
+- `district_blocks.geojson` / `district_blocks_hours.json` **wajib** merupakan gabungan tepat (union) dari seluruh `by_school/*` — `block_id` tidak boleh duplikat dan tidak boleh ada blok yang ada di per-sekolah tapi hilang di gabungan. Keduanya ditulis di `pipeline/step5_export.py` dari objek yang sama dengan file per-sekolah, jadi paritasnya by construction.
+- Frontend menurunkan `temp_label` (string `NN.N°C` untuk label peta FR-23) di client dari `mean_c` — `applyHourClass` yang menstempelnya ke fitur blok in-memory; properti itu **tidak pernah ada di file data**.
 - Kalau skema di atas berubah, `pipeline/make_fixtures.py` diupdate di commit yang sama.
 - FR-5 (tombol permohonan hazardous walking) dibangun di `web/src/lib/petition.ts`. Ia menolak membangun teks (`null`) untuk blok non-merah dan untuk `block_id` berkode FIPS negara bagian yang tidak punya entri sitasi statuta — Arizona sengaja tidak dimasukkan (PRD §5.5).

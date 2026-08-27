@@ -108,7 +108,7 @@ def main() -> None:
     blocks = block_table.build_block_table(tile["id"], tile["bbox"], schools, correction_factors)
 
     ROUTES_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"\nRouting per blok, {len(blocks)} blok berpenduduk, {len(schools)} sekolah:")
+    print(f"\nRouting per blok, {len(blocks)} blok (termasuk POP100=0), {len(schools)} sekolah:")
     for school in schools:
         school_blocks = [block for block in blocks if block["school_id"] == school["id"]]
         routed = route_school(school, school_blocks, utm_epsg)

@@ -4,9 +4,11 @@ import { useDistrictState } from '@/hooks/useDistrictState'
 import { useSchoolData } from '@/hooks/useSchoolData'
 import { useSummary } from '@/hooks/useSummary'
 import { useNationalSchools } from '@/hooks/useNationalSchools'
-import { useBlocksHours } from '@/hooks/useBlocksHours'
+import { useDistrictBlocks } from '@/hooks/useDistrictBlocks'
 import { useDefaultHour } from '@/hooks/useDefaultHour'
-import type { BlockFeature } from '@/lib/types'
+import { applyHourClass } from '@/lib/applyHourClass'
+import { blocksInsidePolicyCircle } from '@/lib/blocksInsidePolicyCircle'
+import { findDistrictBlock } from '@/lib/findDistrictBlock'
 
 export function useDistrictRouteData() {
   const appState = useAppState()
@@ -16,16 +18,26 @@ export function useDistrictRouteData() {
 
   const selectedSchool = schools.find((school) => school.id === selectedSchoolId) ?? null
   const { data: schoolData, loading: schoolDataLoading, error: schoolDataError } = useSchoolData(selectedSchoolId)
-  const { blocksHours } = useBlocksHours(selectedSchoolId)
+  const { districtBlocks, districtBlocksHours, error: districtBlocksError } = useDistrictBlocks()
   const { summary } = useSummary()
   const { schools: nationalSchools, loading: nationalSchoolsLoading } = useNationalSchools()
 
   useDefaultHour(schoolData, hour, setHour)
 
-  const selectedBlock = useMemo<BlockFeature | null>(() => {
-    if (schoolData === null || selectedBlockId === null) return null
-    return schoolData.blocks.features.find((feature) => feature.properties.block_id === selectedBlockId) ?? null
-  }, [schoolData, selectedBlockId])
+  const selectedBlock = useMemo(
+    () => findDistrictBlock(districtBlocks, selectedBlockId),
+    [districtBlocks, selectedBlockId],
+  )
+
+  const policyCircleBlocks = useMemo(() => {
+    if (districtBlocks === null || selectedSchool === null) return null
+    const circleBlocks = blocksInsidePolicyCircle(
+      districtBlocks,
+      [selectedSchool.lon, selectedSchool.lat],
+      selectedSchool.walk_radius_mi,
+    )
+    return applyHourClass(circleBlocks, districtBlocksHours, hour)
+  }, [districtBlocks, districtBlocksHours, hour, selectedSchool])
 
   const schoolSummary = selectedSchoolId !== null ? (summary?.[selectedSchoolId] ?? null) : null
 
@@ -36,7 +48,10 @@ export function useDistrictRouteData() {
     schoolData,
     schoolDataLoading,
     schoolDataError,
-    blocksHours,
+    districtBlocks,
+    districtBlocksHours,
+    districtBlocksError,
+    policyCircleBlocks,
     nationalSchools,
     nationalSchoolsLoading,
     schoolSummary,

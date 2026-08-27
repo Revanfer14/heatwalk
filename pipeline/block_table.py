@@ -17,9 +17,6 @@ def build_block_table(
 
     table: list[dict] = []
     for block in raw_blocks:
-        if block["POP100"] <= 0:
-            continue
-
         geoid = block["GEOID"]
         lon, lat = float(block["INTPTLON"]), float(block["INTPTLAT"])
         school, distance_km_value = nearest_school([lon, lat], schools)

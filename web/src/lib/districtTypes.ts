@@ -11,6 +11,7 @@ export interface SchoolNational {
 export interface BlockHourRecord {
   shortest: number
   coolest: number
+  mean_c: number
   class: BlockClass
 }
 

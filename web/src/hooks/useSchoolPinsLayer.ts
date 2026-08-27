@@ -60,7 +60,7 @@ export function useSchoolPinsLayer(input: UseSchoolPinsLayerInput): void {
           ],
           'icon-anchor': 'center',
           'text-field': ['get', 'name'],
-          'text-font': ['Noto Sans Medium'],
+          'text-font': ['Noto Sans Bold'],
           'text-size': [
             'interpolate',
             ['linear'],

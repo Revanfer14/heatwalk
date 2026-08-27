@@ -1,7 +1,11 @@
+import { findDistrictBlock } from '@/lib/findDistrictBlock'
+import type { BlocksGeoJson } from '@/lib/types'
 import type { DistrictPanelView } from '@/lib/districtStateContext'
 import type { SchoolNational } from '@/lib/districtTypes'
 
 interface UseDistrictSelectionHandlersInput {
+  districtBlocks: BlocksGeoJson | null
+  selectedSchoolId: string | null
   setSelectedSchoolId: (schoolId: string) => void
   setSelectedBlockId: (blockId: string | null) => void
   setUnanalyzedNotice: (school: SchoolNational | null) => void
@@ -19,7 +23,8 @@ interface DistrictSelectionHandlers {
 export function useDistrictSelectionHandlers(
   input: UseDistrictSelectionHandlersInput,
 ): DistrictSelectionHandlers {
-  const { setSelectedSchoolId, setSelectedBlockId, setUnanalyzedNotice, setPanelView } = input
+  const { districtBlocks, selectedSchoolId, setSelectedSchoolId, setSelectedBlockId, setUnanalyzedNotice, setPanelView } =
+    input
 
   return {
     handleSelectAnalyzed: (schoolId: string) => {
@@ -34,6 +39,10 @@ export function useDistrictSelectionHandlers(
       setPanelView('block')
     },
     handleBlockClick: (blockId: string) => {
+      const block = findDistrictBlock(districtBlocks, blockId)
+      if (block !== null && block.properties.school_id !== selectedSchoolId) {
+        setSelectedSchoolId(block.properties.school_id)
+      }
       setSelectedBlockId(blockId)
       setUnanalyzedNotice(null)
       setPanelView('block')

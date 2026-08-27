@@ -424,7 +424,7 @@ Kuning butuh `dose(terpendek) > THRESHOLD ≥ dose(teradem)` — celah di antara
 
 Dicek programatik oleh `pipeline/verify_step4.py`: kategori merah tidak kosong (gerbang keras, G1); kategori kuning kosong dicatat sebagai `CATATAN`, bukan gerbang; jumlah `kids_est` blok walk per sekolah sama dengan `summary.json.in_walk_zone`; setiap blok merah punya `reason` non-kosong yang memuat angka konkret; `reroute_enough + no_safe_route ≤ in_walk_zone`; `0 < radius_setara_dosis_mi ≤ radius_kebijakan_mi`; kunci properti `blocks.geojson` sama persis dengan `classification.BLOCK_PROPERTY_KEYS`; **paritas skema rekursif** antara `data/fixtures/` dan `data/out/` (kunci `schools.json`, `summary.json`, dan `blocks.geojson` sampai level `shortest`/`coolest`/`misclassified`, tidak termasuk `graph.json`/`temps.json` yang skemanya tidak berubah sejak Fase 2 dan sudah diverifikasi di sana); `tiles.json` — tiap tile berstatus `"done"` punya `hours_fetched` non-kosong. Semua lulus pada commit ini kecuali temuan kuning-kosong yang secara sengaja ditandai dilaporkan-bukan-gerbang.
 
-`pipeline/run_all.py` memverifikasi keseluruhan rantai `step3_routes → step3b_outcomes → step4_classify → step5_export` bisa dijalankan ulang dari cache yang sudah ada (`data/raw/`, `by_school/*/graph.json`+`temps.json`) **tanpa satu panggilan API pun**, dan menghasilkan `data/out/` serta `web/public/data/` byte-identik dengan yang sudah di-commit — bukti bahwa pipeline benar-benar deterministik dari data yang sama.
+`pipeline/run_all.py` memverifikasi keseluruhan rantai bisa dijalankan ulang dari cache **tanpa satu panggilan API pun** dan menghasilkan `data/out/` serta `web/public/data/` yang deterministik dari data yang sama. *(Klaim jalur re-run di paragraf ini sudah usang sejak Fase 8 — `step5_export` kini memangkas graph per-sekolah di tempat, sehingga re-run harus mulai dari `step2_build_graph`, bukan `step3_routes`. Rincian dan angka verifikasinya di §Fase 10.)*
 
 ## [Fase 6] Perluasan cakupan — bbox tunggal digabung, bukan mosaik tile
 
@@ -618,6 +618,31 @@ Bahkan sekadar menutup AOI penuh plus margin secukupnya untuk mengisi layar defa
 - `web/public/heatwalk-aoi.pmtiles` dan `web/public/fonts/` dihapus dari repo; dependency `pmtiles` dan `protomaps-themes-base` dicabut dari `web/package.json`.
 
 **Yang tidak berubah:** satu instance MapLibre lintas mode, batas AOI putus-putus dan `OutOfAoiNotice` (keduanya dibaca dari `tiles.json`, bukan dari basemap), dan seluruh layer analisis (choropleth blok, radius, rute, pin sekolah nasional).
+
+## [Fase 10] Blok tak berpenduduk, ekspor distrik gabungan, `mean_c` per jam
+
+**Pemicu (feedback QA demo 2026-08-27, FR-22/FR-23):** interior lingkaran kebijakan di Mode 1 menampakkan "lubang" abu-abu. Penyebab pertama: blok dengan `POP100 = 0` di-skip sejak awal (`pipeline/block_table.py`) — taman, danau, kuburan, dan area industri tidak pernah diklasifikasi. Penyebab kedua: Mode 1 me-render file blok per-sekolah, padahal file itu partisi nearest-school — blok di dalam lingkaran X yang lebih dekat ke sekolah Y tidak pernah muncul di view X.
+
+**Perubahan pipeline:** filter `POP100` dihapus; `kids_est` blok kosong otomatis 0 (band DHC kosong) sehingga seluruh metrik anak stabil; `blocks_hours.json` kini membawa `mean_c` rute terpendek per jam (bahan label suhu FR-23); `step5_export` menulis `district_blocks.geojson` (gabungan keenam file per-sekolah) + `district_blocks_hours.json` ke root `data/out/`; `make_fixtures` menulis pasangan file yang sama.
+
+**Angka sebelum → sesudah** (jalur: re-run penuh dari step2, nol panggilan API):
+
+| Metrik | sebelum | sesudah |
+|---|---|---|
+| blok diklasifikasi | 2.304 | 3.198 (+1 unreachable di Evans) |
+| hijau / kuning / merah | 209 / 0 / 2.095 | 243 / 0 / 2.955 |
+| `in_walk_zone` keenam sekolah | 2402/513/886/471/560/150 | identik |
+| `no_safe_route` keenam sekolah | 986/203/672/309/435/108 | identik |
+| `radius_setara_dosis_mi` Evans | 0,827 | 1,075 |
+| `radius_setara_dosis_mi` lima sekolah lain | 0,566–0,852 | berubah ≤ 0,01 |
+
+Diverifikasi terhadap commit sebelumnya: **tidak ada satu pun blok lama yang berubah kelas** — seluruh 34 blok hijau baru adalah blok `POP100 = 0`. Pergeseran radius Evans murni karena koridor hijau tak berpenduduk yang terjauh kini terlihat (blok `120950124031072`, 1,075 mi); definisi metrik — jarak maksimum blok yang rute terademnya di bawah ambang pada jam kanonik (`pipeline/dose_radius.py`) — tidak berubah. Rata-rata turunan blok merah (`dose_eliminated_per_child_*`, `days_exceedance_per_year`) ikut bergeser karena penyebutnya kini mencakup blok merah tak berpenduduk; semua ditampilkan apa adanya di `summary.json`.
+
+**Celah barat, terukur:** union blok menutup 100% bbox, tapi lingkaran kebijakan 2,0 mi empat sekolah menjorok melewati batas barat bbox `-81,4763`: ±17% luas lingkaran Meadowbrook, ±15% Ridgewood Park, ±7% UCP Pine Hills, ±1% Evans (Rosemont dan Rolling Hills penuh). Blok di luar bbox tidak pernah di-fetch; menutupnya menuntut bbox baru + fetch baru — keputusan produk 2026-08-27: diterima, didokumentasikan di `docs/LIMITATIONS.md` #21.
+
+**Verifikasi baru di `pipeline/verify_step4.py`:** kunci record `blocks_hours` kini `{shortest, coolest, mean_c, class}` (dicek di data asli dan fixture); `district_blocks.geojson` dicek bebas duplikat `block_id` dan identik dengan union file per-sekolah; `district_blocks_hours.json` dicek satu-satu kuncinya terhadap geojson pasangannya. Pemeriksaan paritas fixture dipindah ke `pipeline/verify_schema_parity.py`; keduanya kini juga mencakup pasangan file distrik gabungan.
+
+**Ukuran payload:** `district_blocks.geojson` 5,8 MB + `district_blocks_hours.json` 2,3 MB di-fetch sekali per sesi distrik (cache); `web/public/data` tumbuh menjadi ±44 MB — masih statis penuh, tanpa backend.
 
 ## Sumber data & sitasi (final, Fase 7)
 

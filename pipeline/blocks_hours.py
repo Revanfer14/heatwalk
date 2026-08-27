@@ -19,6 +19,7 @@ def build_blocks_hours(routed: dict) -> dict[str, dict[str, dict]]:
             by_hour[hour] = {
                 "shortest": shortest_dose,
                 "coolest": coolest_dose,
+                "mean_c": shortest_hour["mean_c"],
                 "class": classification.classify(shortest_dose, coolest_dose, threshold),
             }
         blocks_hours[block_id] = by_hour

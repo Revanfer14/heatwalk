@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pipeline import classification
 from pipeline.config import DATA_FIXTURES_DIR, DATA_OUT_DIR
+from pipeline.verify_schema_parity import check_fixture_schema_parity
 
 REASON_HAS_DIGIT = re.compile(r"\d")
 
@@ -106,18 +107,43 @@ def check_blocks_hours_matches_geojson(
             errors.append(f"{school_id}: block_id blocks_hours.json tidak cocok satu-satu dengan blocks.geojson")
 
 
+def check_hour_record_shape(payload: dict, label: str, errors: list[str]) -> None:
+    expected_hour_record_keys = {"shortest", "coolest", "mean_c", "class"}
+    for block_id, by_hour in payload.items():
+        for hour, record in by_hour.items():
+            if set(record.keys()) != expected_hour_record_keys:
+                errors.append(
+                    f"{label}/{block_id}/{hour}: kunci blocks_hours record "
+                    f"tidak cocok {expected_hour_record_keys}"
+                )
+                return
+
+
 def check_blocks_hours_record_shape(base_dir: Path, schools: list[dict], errors: list[str]) -> None:
-    expected_hour_record_keys = {"shortest", "coolest", "class"}
     for school in schools:
         payload = _load(base_dir / "by_school" / school["id"] / "blocks_hours.json")
-        for block_id, by_hour in payload.items():
-            for hour, record in by_hour.items():
-                if set(record.keys()) != expected_hour_record_keys:
-                    errors.append(
-                        f"{base_dir.name}/{school['id']}/{block_id}/{hour}: kunci blocks_hours record "
-                        f"tidak cocok {expected_hour_record_keys}"
-                    )
-                    return
+        check_hour_record_shape(payload, f"{base_dir.name}/by_school/{school['id']}", errors)
+    district_payload = _load(base_dir / "district_blocks_hours.json")
+    check_hour_record_shape(district_payload, f"{base_dir.name}/district_blocks_hours.json", errors)
+
+
+def _block_ids(geojson_path: Path) -> list[str]:
+    geojson = _load(geojson_path)
+    return [feature["properties"]["block_id"] for feature in geojson["features"]]
+
+
+def check_district_blocks_partition(schools: list[dict], errors: list[str]) -> None:
+    district_ids = _block_ids(DATA_OUT_DIR / "district_blocks.geojson")
+    if len(set(district_ids)) != len(district_ids):
+        errors.append("district_blocks.geojson: ada block_id duplikat")
+    per_school_ids: set[str] = set()
+    for school in schools:
+        per_school_ids.update(_block_ids(DATA_OUT_DIR / "by_school" / school["id"] / "blocks.geojson"))
+    if set(district_ids) != per_school_ids:
+        errors.append("district_blocks.geojson: block_id tidak cocok dengan union file per-sekolah")
+    district_hours = _load(DATA_OUT_DIR / "district_blocks_hours.json")
+    if set(district_hours.keys()) != set(district_ids):
+        errors.append("district_blocks_hours.json: kunci tidak cocok satu-satu dengan district_blocks.geojson")
 
 
 def check_tiles_status(errors: list[str]) -> None:
@@ -125,54 +151,6 @@ def check_tiles_status(errors: list[str]) -> None:
     for tile in tiles:
         if tile["status"] == "done" and not tile.get("hours_fetched"):
             errors.append(f"tile {tile['id']}: status=done tapi hours_fetched kosong")
-
-
-def _key_shape(value: object) -> object:
-    if isinstance(value, dict):
-        return {key: _key_shape(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_key_shape(value[0])] if value else []
-    return None
-
-
-def _shape_diff(path: str, fixture_shape: object, real_shape: object, diffs: list[str]) -> None:
-    if isinstance(fixture_shape, dict) and isinstance(real_shape, dict):
-        fixture_keys, real_keys = set(fixture_shape), set(real_shape)
-        for key in sorted(fixture_keys - real_keys):
-            diffs.append(f"{path}.{key} hanya ada di fixture")
-        for key in sorted(real_keys - fixture_keys):
-            diffs.append(f"{path}.{key} hanya ada di data asli")
-        for key in fixture_keys & real_keys:
-            _shape_diff(f"{path}.{key}", fixture_shape[key], real_shape[key], diffs)
-    elif isinstance(fixture_shape, list) and isinstance(real_shape, list):
-        if fixture_shape and real_shape:
-            _shape_diff(f"{path}[]", fixture_shape[0], real_shape[0], diffs)
-
-
-def check_fixture_schema_parity(schools: list[dict], errors: list[str]) -> None:
-    if not DATA_FIXTURES_DIR.exists():
-        errors.append("data/fixtures/ tidak ada — jalankan `python -m pipeline.make_fixtures` dulu")
-        return
-
-    diffs: list[str] = []
-    fixture_schools = _load(DATA_FIXTURES_DIR / "schools.json")
-    real_schools = _load(DATA_OUT_DIR / "schools.json")
-    _shape_diff("schools.json", _key_shape(fixture_schools), _key_shape(real_schools), diffs)
-
-    fixture_summary = _load(DATA_FIXTURES_DIR / "summary.json")
-    real_summary = _load(DATA_OUT_DIR / "summary.json")
-    fixture_summary_record = next(iter(fixture_summary.values()))
-    real_summary_record = next(iter(real_summary.values()))
-    _shape_diff("summary.json[record]", _key_shape(fixture_summary_record), _key_shape(real_summary_record), diffs)
-
-    school_ids = [school["id"] for school in schools]
-    for school_id in school_ids:
-        relative_path = f"by_school/{school_id}/blocks.geojson"
-        fixture_geojson = _load(DATA_FIXTURES_DIR / relative_path)
-        real_geojson = _load(DATA_OUT_DIR / relative_path)
-        _shape_diff(relative_path, _key_shape(fixture_geojson), _key_shape(real_geojson), diffs)
-
-    errors.extend(f"paritas skema fixture vs asli: {diff}" for diff in diffs)
 
 
 def main() -> int:
@@ -194,6 +172,7 @@ def main() -> int:
     check_tiles_status(errors)
     check_fixture_schema_parity(schools, errors)
     check_blocks_hours_matches_geojson(school_ids, blocks_by_school, errors)
+    check_district_blocks_partition(schools, errors)
     check_blocks_hours_record_shape(DATA_OUT_DIR, schools, errors)
     if DATA_FIXTURES_DIR.exists():
         check_blocks_hours_record_shape(DATA_FIXTURES_DIR, schools, errors)

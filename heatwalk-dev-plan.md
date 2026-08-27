@@ -32,7 +32,7 @@ Gerbang lain yang berlaku bersifat operasional, bukan magnitudo: `tcm` terverifi
 - **Engine graph, bukan raster.** PRD §6.2. Raster cost-distance (`skimage.graph.MCP_Geometric`) hanya fallback darurat dan hanya untuk Mode 1.
 - **GeoJSON di-`fetch()`, bukan di-`import`.**
 - **Tidak ada autentikasi, tidak ada database.** Live demo wajib terbuka di incognito tanpa login (submission form field 12). Mode dipisah lewat route `/` dan `/district`, bukan lewat akun.
-- **Basemap di-host sendiri** sebagai satu file `.pmtiles` di `web/public/`. Tidak ada tile server pihak ketiga, tidak ada API key peta.
+- **Basemap dari OpenFreeMap** (`tiles.openfreemap.org`, style `liberty`), tanpa API key. Keputusan produk 2026-08-27: basemap self-hosted `.pmtiles` diganti — lihat `docs/METHODOLOGY.md` §Fase 8. Peta sekarang butuh internet.
 - **Cakupan lewat mosaik tile, bukan satu bbox.** `config.py` menerima daftar `TILES` (PRD §5.6). Menambah cakupan = menambah entri, nol kode baru.
 - **Semua slice waktu di menit `:00`.** Menit non-`:00` mengembalikan nol tile secara senyap.
 - **Geometri dipisah dari suhu.** `graph.json` sekali per sekolah, `temps.json` berisi angka per jam. Jangan pernah menduplikasi geometri per jam.
@@ -74,9 +74,8 @@ heatwalk/
 │               └── blocks.geojson
 ├── web/                        # Vite + React 19 + TS + Tailwind v4 + MapLibre v5
 │   ├── public/
-│   │   ├── data/                  # symlink/copy dari data/out (fetch on-demand per sekolah)
-│   │   └── heatwalk-aoi.pmtiles   # basemap self-hosted, bbox gabungan seluruh TILES
-│   └── src/
+│   │   └── data/                  # symlink/copy dari data/out (fetch on-demand per sekolah)
+│   └── src/                       # basemap: OpenFreeMap remote (tiles.openfreemap.org), bukan file lokal
 │       ├── routes/              # "/" mode orang tua, "/district" mode distrik
 │       ├── components/
 │       │   └── ui/              # shadcn, komentar bawaan dihapus
@@ -301,7 +300,7 @@ Catat kurvanya di `docs/METHODOLOGY.md` beserta metodenya. Berapa pun hasilnya, 
 
 - [ ] `utm_epsg_for_lon()` diuji di AOI Orlando, distorsi jarak <1% vs geodesik
 - [ ] `config.py` bersih dari nilai per-kota hardcoded dan konstanta gerbang mati — grep manual
-- [ ] bbox final Orlando terkunci; tidak ada bbox sementara tersisa di kode atau di ekstraksi PMTiles
+- [ ] bbox final Orlando terkunci; tidak ada bbox sementara tersisa di kode (basemap tidak lagi diekstrak lokal — lihat §Fase 8)
 - [ ] `TILES` berisi minimal entri `orl_pine_hills_n` berstatus `"pending"`
 - [ ] `docs/CONTRACT.md` memuat skema `tiles.json` dan `by_school/`
 - [ ] `python pipeline/make_fixtures.py` menghasilkan `data/out/tiles.json` dan `data/out/by_school/<fake_id>/` yang valid
@@ -556,8 +555,7 @@ Cek: apakah Orlando sudah lolos seluruh checklist Fase 4? Ya → Phoenix pipelin
 
 ### 5.1 Shell
 
-- MapLibre v5 raw (bukan `react-map-gl`). Basemap: `web/public/heatwalk-aoi.pmtiles`, style `protomaps-themes-base` tema `light` (basemap berwarna standar — lihat keputusan produk 2026-08-27 di `DESIGN.md`). Bbox ekstraksi PMTiles mencakup **gabungan seluruh `TILES`**
-- Register protocol **sekali** di komponen root: `maplibregl.addProtocol("pmtiles", protocol.tile)`, dengan `removeProtocol` di cleanup
+- MapLibre v5 raw (bukan `react-map-gl`). Basemap: style URL remote `https://tiles.openfreemap.org/styles/liberty` (basemap berwarna standar — lihat keputusan produk 2026-08-27 di `DESIGN.md`, diperbarui lagi 2026-08-27 malam di `docs/METHODOLOGY.md` §Fase 8 saat pindah dari PMTiles self-hosted)
 - **Satu instance MapLibre untuk kedua mode.** Peta hidup di atas router. Berpindah `/` ↔ `/district` hanya mengganti panel dan memicu `flyTo` — peta tidak boleh unmount
 - Route: `/` (Mode 2, default) dan `/district` (Mode 1). Header persisten berisi empat hal saja: wordmark · segmented switch `Parent` / `District` · toggle FR-16 · toggle tema
 - Muat `schools.json` + `tiles.json` lewat `fetch()` sekali di boot. `graph.*.json` dan `blocks.geojson` di-`fetch()` **on-demand per sekolah**
@@ -701,7 +699,7 @@ Tombol yang memicu satu panggilan live ke FortyGuard. Wajib loading state, error
 ### 8.1 Deploy
 
 - Vercel statis dari `web/`. **Buka sendiri di incognito browser bersih** sebelum submit
-- Cek ulang `heatwalk-aoi.pmtiles` di production: statusnya `206`, bukan `200`
+- Cek ulang basemap OpenFreeMap termuat di production (bukan lagi diverifikasi lewat status `206` — itu gerbang untuk arsip PMTiles lokal, sudah gugur sejak §Fase 8)
 
 ### 8.2 README
 
@@ -747,8 +745,8 @@ Semua 13 field. Cek gerbang tanggal Phoenix sudah dieksekusi sebelum menulis fie
 | NaN raster <10% | 1.5 | Per tile per jam | Buang jam itu dari `meta.hours`; kalau semua jam gagal, cek bbox |
 | **🚩 G1 kategori merah ≥1 blok** | **3** | **Rute teradem tetap lewat ambang** | Kalibrasi ulang `THRESHOLD`, dokumentasikan |
 | Gerbang tanggal Phoenix | 5.0 | Orlando lulus Fase 4 pada 27 Agu 12:00 | Phoenix dibuang total, bukan dikurangi |
-| Basemap `206 Partial Content` | 5/8 | Preview Vercel | Pindah file ke Cloudflare R2 |
-| Demo jalan offline | 7 | Cabut internet, termasuk pan peta | Cari runtime call yang bocor |
+| ~~Basemap `206 Partial Content`~~ | ~~5/8~~ | **Gugur §Fase 8** — basemap pindah ke OpenFreeMap remote, tidak ada lagi file range-request lokal | — |
+| ~~Demo jalan offline~~ | ~~7~~ | **Gugur §Fase 8** — basemap butuh internet; keputusan produk 2026-08-27 malam, lihat `docs/METHODOLOGY.md` | — |
 | Live link di incognito | 8 | Buka bersih | Perbaiki sebelum submit |
 
 Tidak ada gerbang berbasis besarnya delta suhu. G7, G8, G9, dan G5 dihitung dan dilaporkan apa adanya.

@@ -1,22 +1,5 @@
-import { layers, namedTheme } from 'protomaps-themes-base'
-import type { StyleSpecification } from 'maplibre-gl'
+export const BASEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 
-const PMTILES_SOURCE_ID = 'heatwalk-aoi'
-
-export function buildBasemapStyle(pmtilesUrl: string): StyleSpecification {
-  const theme = namedTheme('light')
-
-  return {
-    version: 8,
-    glyphs: '/fonts/{fontstack}/{range}.pbf',
-    sources: {
-      [PMTILES_SOURCE_ID]: {
-        type: 'vector',
-        url: `pmtiles://${pmtilesUrl}`,
-        attribution:
-          '<a href="https://openstreetmap.org/copyright" target="_blank">© OpenStreetMap</a>',
-      },
-    },
-    layers: layers(PMTILES_SOURCE_ID, theme, { lang: 'en' }),
-  }
-}
+export const BASEMAP_ATTRIBUTION_HTML =
+  '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a>' +
+  ' · <a href="https://openstreetmap.org/copyright" target="_blank">© OpenStreetMap</a>'

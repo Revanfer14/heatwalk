@@ -99,13 +99,13 @@ Detail lengkap di PRD §6 dan dev plan bagian "Prinsip arsitektur".
 - **Engine graph, bukan raster.** Raster cost-distance (`skimage.graph.MCP_Geometric`) hanya fallback darurat, hanya untuk Mode 1.
 - **GeoJSON di-`fetch()`, bukan di-`import`.**
 - **Tidak ada autentikasi, tidak ada database.** Live demo wajib terbuka di incognito tanpa login (submission form field 12). Dua mode dipisah lewat route `/` dan `/district`, bukan lewat akun.
-- **Basemap di-host sendiri** sebagai satu file `.pmtiles` di `web/public/`. Tidak ada tile server pihak ketiga, tidak ada API key peta.
+- **Basemap dari OpenFreeMap** (`tiles.openfreemap.org`, style `liberty`), tanpa API key. Keputusan produk 2026-08-27: basemap self-hosted `.pmtiles` diganti karena cakupan bbox lokal (13 MB–128 GB tergantung luas) tidak bisa menutupi AOI penuh dengan biaya wajar; lihat `docs/METHODOLOGY.md` §Fase 8. Konsekuensinya, gerbang "demo jalan offline" dan "basemap `206`" gugur — peta sekarang butuh internet.
 - **Satu instance MapLibre untuk kedua mode.** Peta hidup di atas router dan tidak pernah di-unmount saat pindah route.
 - Setiap angka yang muncul di UI harus bisa ditelusuri ke satu file di `data/out/`.
 - Setiap tempat yang menampilkan °C·menit **wajib** menampilkan °C di sebelahnya. Setiap angka headline wajib punya °F di samping °C.
-- Ditolak permanen: `deck.gl`, `react-map-gl`, PostGIS, DuckDB, Parquet, backend apa pun, ORM apa pun, autentikasi, tile server pihak ketiga.
+- Ditolak permanen: `deck.gl`, `react-map-gl`, PostGIS, DuckDB, Parquet, backend apa pun, ORM apa pun, autentikasi, tile server yang butuh API key.
 
-Stack yang dipakai: Python 3.11 (`geopandas`, `rasterio`, `numpy`, `osmnx`, `networkx`, `httpx`) · React 19 + TypeScript + Vite + Tailwind v4 + MapLibre GL JS v5 + Protomaps PMTiles + shadcn/ui + Inter + Recharts · Vercel statis.
+Stack yang dipakai: Python 3.11 (`geopandas`, `rasterio`, `numpy`, `osmnx`, `networkx`, `httpx`) · React 19 + TypeScript + Vite + Tailwind v4 + MapLibre GL JS v5 + OpenFreeMap (vector tiles, tanpa API key) + shadcn/ui + Inter + Recharts · Vercel statis.
 
 ---
 

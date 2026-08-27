@@ -60,9 +60,9 @@ Fill choropleth memakai token yang sama pada opacity 18% (safe), 22% (reroute), 
 
 ### Basemap
 
-**Protomaps PMTiles self-hosted.** Satu file `.pmtiles` hasil ekstrak bbox AOI, di-commit ke `web/public/heatwalk-aoi.pmtiles`, dibaca browser lewat HTTP range request. Style dari `protomaps-themes-base` tema `light` — basemap berwarna standar (taman hijau, air biru, jalan/bangunan warna natural), bukan `grayscale`.
+**OpenFreeMap remote, style `liberty`.** Style URL `https://tiles.openfreemap.org/styles/liberty`, dibaca MapLibre langsung sebagai style JSON — basemap berwarna standar (taman hijau, air biru, jalan/bangunan warna natural), bukan `grayscale`.
 
-Tanpa tile server pihak ketiga, tanpa API key. Ini yang membuat verifikasi "cabut internet, demo tetap jalan" (dev plan Fase 7) benar-benar lolos, bukan lolos karena kebetulan tile-nya masih ter-cache.
+Tanpa API key. **Keputusan produk 2026-08-27 malam (Revan):** rencana basemap self-hosted PMTiles (`web/public/heatwalk-aoi.pmtiles`) diganti ke tile server pihak ketiga OpenFreeMap — lihat `docs/METHODOLOGY.md` §Fase 8 untuk alasan dan angka biaya cakupannya. Konsekuensinya, verifikasi "cabut internet, demo tetap jalan" (dev plan Fase 7) **tidak lagi berlaku untuk basemap** — peta butuh internet saat runtime. Bagian lain aplikasi (data `data/out/`, graph, routing) tetap sepenuhnya offline setelah load pertama.
 
 **Keputusan produk 2026-08-27 (Revan): basemap sengaja diganti dari `grayscale` ke `light` berwarna**, menggantikan aturan lama "kalau basemap-nya berwarna, seluruh sistem ini batal". Konsekuensinya, aturan "warna hanya di peta/legend/badge" di atas sekarang dibaca sebagai *warna non-peta tetap monokrom*, bukan lagi *basemap itu sendiri harus netral*. Overlay dosis panas, legend, dan badge klasifikasi tetap wajib kontras jelas terhadap basemap berwarna ini — verifikasi kontras AOI secara visual di layar tiap kali basemap atau palet overlay berubah, karena warna basemap sekarang bisa bentrok dengan warna zona (terutama merah/kuning terhadap jalan/bangunan). Atribusi OpenStreetMap wajib terlihat di peta.
 
@@ -77,6 +77,21 @@ Tanpa tile server pihak ketiga, tanpa API key. Ini yang membuat verifikasi "cabu
 | Lingkaran walk zone resmi | 1,5px `--ink-muted`, dashed `6 6`, tanpa fill |
 
 Rute teradem sengaja memakai tinta, bukan warna — dia jawabannya, dan di layar monokrom garis hitam tebal adalah benda paling menonjol yang ada.
+
+### Penanda lokasi
+
+Peran penanda dibedakan **lewat bentuk dan glyph, tidak pernah lewat warna** — konsekuensi langsung dari larangan ikon berwarna di atas. Ikon glyph dari `lucide-react`, stroke `1,5`, ukuran `16`.
+
+| Peran | Bentuk | Glyph | Anchor |
+|---|---|---|---|
+| Your location (bisa digeser, Mode 2) | Teardrop, isi `--ink`, outline 1,5px `--bg` | `House`, warna `--bg`, di kepala teardrop | Ujung bawah (titik presisi) |
+| Sekolah (tempat tetap, kedua mode) | Chip persegi radius `4px`, isi `--bg`, border 1,5px | `GraduationCap`, warna border | Tengah |
+
+Sekolah teranalisis memakai border/glyph `--ink`; sekolah belum teranalisis (Mode 1) memakai `--ink-subtle`. Teardrop dipakai khusus untuk titik yang **dipilih dan digeser** orang tua; chip untuk tempat yang **sudah tetap** — kontrasnya harus tetap terbaca setelah difilter grayscale.
+
+Setiap label teks di atas peta (nama sekolah, `Your location`) wajib punya halo/outline `--bg` selebar minimal 1,5px di sekelilingnya, supaya tetap kontras terhadap basemap berwarna di kedua tema (lihat keputusan basemap di atas). `text-font` memakai salah satu dari tiga fontstack self-hosted di `web/public/fonts/` (`Noto Sans Regular` / `Medium` / `Italic`).
+
+Pin sekolah di Mode 1 (101 ribu+ sekolah nasional) hanya dirender sebagai chip + label pada zoom ≥ 10; di bawah itu mereka tetap titik `circle` polos (basemap AOI toh tidak ter-cover di bawah zoom itu). Pin sekolah teranalisis diberi `symbol-sort-key` lebih tinggi supaya tidak pernah kalah tabrakan label dari sekolah lain.
 
 ---
 
@@ -284,3 +299,6 @@ Bukan tambahan — produknya soal keselamatan anak dan akan dipresentasikan ke l
 - [ ] Collapse panel mengembalikan peta ke tampilan penuh, dan cluster kontrol tetap dapat diakses saat panel collapsed.
 - [ ] `map.setPadding` cocok dengan geometri panel yang benar-benar tampil (samping vs bottom sheet vs collapsed) di kedua mode — uji dengan memilih sekolah dan cek pusat `flyTo` tidak tersembunyi di belakang panel.
 - [ ] Di bawah 768px, panel peta menjadi bottom sheet; di atasnya, panel samping tetap 380px dan tidak melebar.
+- [ ] Setiap sekolah di peta punya ikon pin dan nama pada zoom ≥ 10.
+- [ ] Penanda rumah dan sekolah tetap bisa dibedakan setelah screenshot difilter `saturate(0)`.
+- [ ] Seluruh teks peta punya halo `--bg` dan terbaca di atas basemap berwarna, di kedua tema.

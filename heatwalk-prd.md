@@ -714,14 +714,14 @@ Kekhawatiran umum "cakupan trotoar OSM sering bolong" berlaku untuk `footway`, t
 | Styling | Tailwind v4 |
 | Chart | Recharts |
 | Routing client-side | Dijkstra manual (~50 baris), tanpa library |
-| Basemap | Protomaps PMTiles self-hosted — satu file statis, tanpa API key |
+| Basemap | OpenFreeMap (vector tiles remote, style `liberty`) — tanpa API key, butuh internet saat runtime |
 | Komponen UI | shadcn/ui (Radix + Tailwind), allowlist di `DESIGN.md` |
 | Font | Inter, self-hosted via `@fontsource-variable/inter` |
 | Hosting | Vercel (statis) |
 
 **Pemisahan mode:** dua route pada satu aplikasi — `/` untuk Mode 2 (pintu masuk default) dan `/district` untuk Mode 1 — dengan satu segmented switch di header. **Instance MapLibre tidak boleh di-unmount saat berpindah mode**; transisi Mode 2 → Mode 1 di video demo adalah `flyTo` pada peta yang sama, dan itulah bukti visual bahwa keduanya satu engine.
 
-**Basemap:** file `.pmtiles` hasil ekstrak bbox gabungan seluruh `TILES`, di-commit ke `web/public/`, dibaca browser lewat HTTP range request. Tidak ada tile server pihak ketiga, tidak ada API key yang bisa habis atau di-retire di tengah masa penjurian. Ekstrak ulang setiap kali gelombang tile bertambah, dan verifikasi ulang status `206 Partial Content`.
+**Basemap:** style URL remote `https://tiles.openfreemap.org/styles/liberty`. Tidak ada API key yang bisa habis atau di-retire di tengah masa penjurian. Keputusan produk 2026-08-27 malam (lihat `docs/METHODOLOGY.md` §Fase 8): rencana awal PMTiles self-hosted diganti karena satu bbox lokal tidak bisa menutupi AOI + zoom-keluar FR-20 dengan biaya file yang wajar untuk di-commit ke git (128 GB untuk cakupan planet penuh). Konsekuensi yang diterima: peta butuh internet saat runtime, jadi klaim "demo jalan offline" pada dev plan dicabut untuk basemap.
 
 **Ukuran file:** graph dipecah **per sekolah**, bukan per AOI, dan geometri dipisah dari suhu (§5.6). Satu sekolah ≈ 5–15 ribu edge → `graph.json` 2–4 MB setelah disederhanakan Douglas-Peucker, `temps.json` ±200 KB untuk sepuluh jam. Target ≤5 MB untuk `graph.json`; kalau lewat, naikkan toleransi penyederhanaan sebelum mengganti format.
 

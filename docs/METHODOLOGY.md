@@ -580,9 +580,44 @@ Menjalankan ulang `pipeline/verify_step3.py` (bukan bagian otomatis `run_all.py`
 
 Tombol refresh forecast (P1, dev plan urutan potong ke-5) sengaja tidak dibangun. Produk ini murni statis (PRD §6.1, "tidak ada backend server, tidak ada panggilan API saat runtime kecuali FR-17") — satu-satunya cara jujur membangun panggilan live FortyGuard dari situs statis adalah membungkus API key ke bundel browser, yang berarti mempublikasikannya ke siapa pun yang membuka DevTools. Bukan trade-off yang sepadan untuk fitur P1 yang eksplisit boleh dipotong. Dicatat di `docs/LIMITATIONS.md`, bukan diam-diam dihilangkan dari UI tanpa catatan.
 
-### Basemap offline — glyph self-hosted
+### Basemap offline — glyph self-hosted *(superseded, lihat §Fase 8 di bawah)*
 
-`web/src/lib/basemapStyle.ts` sebelumnya memuat glyph label peta dari `cdn.protomaps.com`, diambil lazily oleh MapLibre per viewport. Ini melanggar gerbang "demo jalan offline setelah load pertama, termasuk pan ke sudut AOI yang belum pernah dibuka" (dev plan §Fase 7). Diperbaiki: tiga fontstack yang dipakai tema (`Noto Sans Regular`, `Noto Sans Medium`, `Noto Sans Italic`) diunduh ke `web/public/fonts/` (rentang kode Latin dasar sampai general punctuation, ~1,2 MB total, sumber sama persis dengan CDN Protomaps) dan `glyphs` diarahkan ke path same-origin `/fonts/{fontstack}/{range}.pbf`. Satu-satunya request runtime yang tersisa adalah `/data/*` dan `/heatwalk-aoi.pmtiles`, keduanya same-origin.
+`web/src/lib/basemapStyle.ts` sebelumnya memuat glyph label peta dari `cdn.protomaps.com`, diambil lazily oleh MapLibre per viewport. Ini melanggar gerbang "demo jalan offline setelah load pertama, termasuk pan ke sudut AOI yang belum pernah dibuka" (dev plan §Fase 7). Diperbaiki saat itu: tiga fontstack yang dipakai tema (`Noto Sans Regular`, `Noto Sans Medium`, `Noto Sans Italic`) diunduh ke `web/public/fonts/` (rentang kode Latin dasar sampai general punctuation, ~1,2 MB total, sumber sama persis dengan CDN Protomaps) dan `glyphs` diarahkan ke path same-origin `/fonts/{fontstack}/{range}.pbf`. Satu-satunya request runtime yang tersisa saat itu adalah `/data/*` dan `/heatwalk-aoi.pmtiles`, keduanya same-origin.
+
+**Catatan historis:** pendekatan ini digantikan §Fase 8 di bawah. `web/public/fonts/` dan `web/public/heatwalk-aoi.pmtiles` sudah dihapus dari repo; tersedia di riwayat git kalau keputusan dibalik.
+
+## [Fase 8] Basemap pindah ke OpenFreeMap — PMTiles self-hosted dicabut
+
+**Pemicu:** peta di `/district` menampilkan pita abu-abu di luar area kecil di tengah AOI. Investigasi menemukan `web/public/heatwalk-aoi.pmtiles` diekstrak dengan bbox yang lebih kecil dari `TILES[0]["bbox"]` di `pipeline/config.py`:
+
+| | west | south | east | north |
+|---|---|---|---|---|
+| `TILES[0]["bbox"]` | -81.4763 | 28.5277 | -81.3719 | 28.6612 |
+| bounds arsip lama (`pmtiles show`) | -81.4763 | 28.5722 | -81.4241 | 28.6167 |
+
+Arsip lama cuma berisi 79 tile z0–15. Probe langsung dengan `pmtiles tile` mengonfirmasi: `z14/4484/6832` (barat AOI) mengembalikan 22.642 byte, tapi `z14/4487/6835` (timur AOI), `z14/4486/6836` (selatan AOI), dan `z12/1121/1709` (selatan AOI) semuanya **0 byte** — sekitar tiga perempat AOI terkunci tidak punya basemap sama sekali.
+
+**Kenapa tidak sekadar re-extract dengan bbox yang benar.** Basemap self-hosted `.pmtiles` di-commit sebagai file statis, jadi cakupannya selalu terbatas pada bbox ekstraksi. Angka nyata dari `pmtiles extract --dry-run` terhadap build harian Protomaps (`build.protomaps.com`):
+
+| cakupan | ukuran arsip |
+|---|---|
+| seluruh planet, z0–15 | 128,2 GB |
+| Metro Orlando ~90×70 km, z0–15 | 82 MB |
+| Orange County, z0–15 | 53 MB |
+| AOI terkunci + margin 6 km, z0–15 | 13 MB (sekadar menutup AOI penuh) |
+| arsip lama (bug) | 2,7 MB |
+
+Bahkan sekadar menutup AOI penuh plus margin secukupnya untuk mengisi layar default sudah 5× ukuran arsip lama, dan FR-20 (`heatwalk-prd.md` §"Lapisan sekolah nasional") secara eksplisit meminta zoom-keluar sampai skala ribuan sekolah tetap berguna — area itu jauh melampaui bbox `TILES` mana pun yang bisa diekstrak dengan biaya wajar untuk di-commit ke git.
+
+**Keputusan Revan, 2026-08-27 malam:** ganti ke tile server pihak ketiga **OpenFreeMap** (`https://tiles.openfreemap.org`, style `liberty`), diverifikasi tanpa API key dan tanpa signup (style JSON dan tile MVT sama-sama `200` lewat curl langsung). Style `liberty` dipakai apa adanya karena paletnya (`background #f8f4f0`, air `rgb(158,189,255)`, taman `#d8e8c8`) sudah cocok dengan `DESIGN.md` — basemap berwarna standar, bukan grayscale — sehingga tidak perlu keputusan desain baru.
+
+**Konsekuensi yang diterima secara eksplisit, bukan diam-diam:**
+- Gerbang "demo jalan offline" (dev plan §Fase 7, `heatwalk-dev-plan.md` tabel ringkasan gerbang) **gugur** untuk basemap — peta sekarang butuh internet saat runtime. Sisa aplikasi (data `data/out/`, graph, routing, klasifikasi) tetap 100% offline setelah load pertama.
+- Gerbang verifikasi basemap `206 Partial Content` tidak berlaku lagi — tidak ada lagi file range-request lokal untuk diverifikasi.
+- Aturan `CLAUDE.md` "tidak ada tile server pihak ketiga" dicabut dan diganti "tidak ada tile server yang butuh API key" — batas yang tetap dipertahankan adalah *tidak ada key yang bisa bocor atau habis*, bukan *tidak ada dependency remote*.
+- `web/public/heatwalk-aoi.pmtiles` dan `web/public/fonts/` dihapus dari repo; dependency `pmtiles` dan `protomaps-themes-base` dicabut dari `web/package.json`.
+
+**Yang tidak berubah:** satu instance MapLibre lintas mode, batas AOI putus-putus dan `OutOfAoiNotice` (keduanya dibaca dari `tiles.json`, bukan dari basemap), dan seluruh layer analisis (choropleth blok, radius, rute, pin sekolah nasional).
 
 ## Sumber data & sitasi (final, Fase 7)
 
@@ -603,4 +638,4 @@ Tombol refresh forecast (P1, dev plan urutan potong ke-5) sengaja tidak dibangun
 - TIGERweb (US Census Bureau) — `tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer/2`. Geometri dan `POP100` 2020 Census block (§1.5.5).
 - Census Bureau API — `api.census.gov`. 2020 DHC P12 (anak 5–17 per pita umur per blok) dan ACS 2022 5-year B19013 (pendapatan, block group) / B17001 (kemiskinan, tract) (§1.5.5).
 - OpenStreetMap / Overpass, lewat `osmnx` — `overpass-api.de`. Jaringan jalan pejalan kaki (§1.5.5).
-- Protomaps — basemap PMTiles self-hosted dan glyph font `Noto Sans` self-hosted (§Fase 7 di atas), sumber asal `cdn.protomaps.com`.
+- OpenFreeMap — basemap dan glyph font vector tiles remote, style `liberty` (§Fase 8 di atas), `tiles.openfreemap.org`, data asal OpenStreetMap.

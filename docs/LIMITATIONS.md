@@ -88,6 +88,10 @@ Kolom FR-15 ("estimasi penurunan suhu puncak jika diteduhi") memakai konstanta s
 
 `pipeline/verify_step3.py` (dijalankan manual saat verifikasi Fase 7 terhadap data gelombang 3, bukan bagian otomatis `run_all.py`) menemukan **18 dari 751 blok** di Maynard Evans High di mana dosis rute terpendek melonjak lalu turun kembali secara tajam antara jam 12:00 dan 13:00, melewati ambang toleransi wobble raster. Kelima sekolah lain nol pelanggaran. Belum diinvestigasi lebih lanjut atau diperbaiki — dicatat di sini dan di `docs/METHODOLOGY.md` (§Fase 7) sebagai temuan terbuka. **Tidak memengaruhi gerbang G1** (dihitung di jam kanonik 15:00, bukan 12:00) dan tidak memengaruhi kategori merah/kuning/hijau final.
 
+### 20. Basemap bergantung pada layanan pihak ketiga gratis tanpa SLA
+
+Sejak §Fase 8 (`docs/METHODOLOGY.md`), peta memuat basemap dari OpenFreeMap (`tiles.openfreemap.org`, style `liberty`) alih-alih file `.pmtiles` self-hosted. Ini menggantikan bug cakupan bbox yang salah (arsip lama hanya menutupi ~seperempat AOI terkunci) dengan trade-off yang berbeda: **peta tidak lagi berfungsi tanpa internet**, dan tidak ada API key untuk dikendalikan kalau layanan ini rate-limit atau tidak tersedia di tengah masa penjurian. Gerbang "demo jalan offline" pada dev plan Fase 7 tidak lagi berlaku untuk lapisan basemap — bagian lain aplikasi (data `data/out/`, graph, routing, klasifikasi) tetap sepenuhnya statis dan offline setelah load pertama.
+
 ---
 
 Dicatat di sini, bukan disamarkan: angka kecil, kategori kosong, dan faktor di luar rentang validasi di dokumen ini semuanya adalah **hasil pengukuran**, bukan kegagalan yang disembunyikan. Ini yang membedakan produk yang mengukur dari yang mengklaim.

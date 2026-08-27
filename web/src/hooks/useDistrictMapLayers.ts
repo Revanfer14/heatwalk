@@ -66,8 +66,8 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
     visible: layerVisibility.doseRadius && !hideHeatData,
     theme,
   })
-  useNationalSchoolsLayer({ map, nationalSchools, theme })
-  useNationalSchoolsClicks({ map, schools, onSelectAnalyzed, onSelectUnanalyzed })
   useRouteLayers({ map, solvedRoutes, hideHeatData, routeFailed, theme })
   useSegmentHighlightLayer({ map, segments: hideHeatData ? [] : highlightedSegments, theme })
+  useNationalSchoolsLayer({ map, nationalSchools, theme })
+  useNationalSchoolsClicks({ map, schools, onSelectAnalyzed, onSelectUnanalyzed })
 }

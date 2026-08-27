@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
-import { getRouteColors } from '@/lib/mapPaint'
+import { createRoot, type Root } from 'react-dom/client'
+import YourLocationMarker from '@/components/YourLocationMarker'
 import type { PinPosition } from '@/lib/appStateContext'
 
 interface UsePinMarkerInput {
@@ -21,7 +22,11 @@ export function usePinMarker(input: UsePinMarkerInput): void {
   useEffect(() => {
     if (map === null) return
 
-    const marker = new maplibregl.Marker({ draggable: true, color: getRouteColors().ink })
+    const element = document.createElement('div')
+    const root: Root = createRoot(element)
+    root.render(<YourLocationMarker />)
+
+    const marker = new maplibregl.Marker({ draggable: true, element, anchor: 'bottom' })
       .setLngLat([pin.lon, pin.lat])
       .addTo(map)
 
@@ -35,6 +40,7 @@ export function usePinMarker(input: UsePinMarkerInput): void {
     return () => {
       marker.remove()
       markerRef.current = null
+      root.unmount()
     }
   }, [map])
 

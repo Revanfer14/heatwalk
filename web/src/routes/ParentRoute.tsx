@@ -19,6 +19,7 @@ import { useFlyToSchool } from '@/hooks/useFlyToSchool'
 import { useAoiBoundaryLayer } from '@/hooks/useAoiBoundaryLayer'
 import { useOfficialZoneLayer } from '@/hooks/useOfficialZoneLayer'
 import { usePinMarker } from '@/hooks/usePinMarker'
+import { useDestinationSchoolPin } from '@/hooks/useDestinationSchoolPin'
 import { useIsSidePanelViewport } from '@/hooks/useIsSidePanelViewport'
 import { useMapPanelPadding } from '@/hooks/useMapPanelPadding'
 import { SAMPLE_LOCATIONS } from '@/lib/sampleLocations'
@@ -66,6 +67,7 @@ export default function ParentRoute() {
     theme,
   })
   usePinMarker({ map, pin, onPinChange: setPin })
+  useDestinationSchoolPin({ map, school: selectedSchool, theme })
   useFlyToSchool(map, selectedSchool, SCHOOL_FLY_TO_ZOOM)
   useMapPanelPadding(map, { isSidePanel, collapsed: panelCollapsed, panelRef })
 

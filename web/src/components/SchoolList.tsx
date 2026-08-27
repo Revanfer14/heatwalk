@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
+import FieldLabel from '@/components/FieldLabel'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import type { School } from '@/lib/types'
 import type { SchoolNational } from '@/lib/districtTypes'
 
 const UNANALYZED_RESULT_CAP = 50
+const SCHOOL_SEARCH_INPUT_ID = 'heatwalk-school-search'
 
 interface SchoolListProps {
   analyzedSchools: School[]
@@ -48,13 +50,16 @@ export default function SchoolList({
 
   return (
     <div className="flex h-full flex-col gap-3 p-4">
-      <input
-        value={searchText}
-        onChange={(event) => onSearchTextChange(event.target.value)}
-        placeholder="Search schools"
-        aria-label="Search schools"
-        className="w-full rounded-md border border-border-strong bg-bg px-3 py-2 text-sm text-ink outline-none focus-visible:border-ink"
-      />
+      <div className="flex flex-col gap-1.5">
+        <FieldLabel htmlFor={SCHOOL_SEARCH_INPUT_ID}>Search schools</FieldLabel>
+        <input
+          id={SCHOOL_SEARCH_INPUT_ID}
+          value={searchText}
+          onChange={(event) => onSearchTextChange(event.target.value)}
+          placeholder="Search schools"
+          className="w-full rounded-md border border-border-strong bg-bg px-3 py-2 text-sm text-ink outline-none focus-visible:border-ink"
+        />
+      </div>
       <label className="flex items-center gap-2 text-xs text-ink-muted">
         <Switch
           checked={includeUnanalyzed}

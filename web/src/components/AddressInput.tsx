@@ -1,8 +1,11 @@
+import FieldLabel from '@/components/FieldLabel'
 import SchoolSelect from '@/components/SchoolSelect'
 import { SAMPLE_LOCATIONS } from '@/lib/sampleLocations'
 import type { PinPosition } from '@/lib/appStateContext'
 import type { School } from '@/lib/types'
 import { cn } from '@/lib/utils'
+
+const ADDRESS_INPUT_ID = 'heatwalk-address-input'
 
 interface AddressInputProps {
   schools: School[]
@@ -32,13 +35,16 @@ export default function AddressInput({
 
   return (
     <div className="flex flex-col gap-3">
-      <input
-        value={addressText}
-        onChange={(event) => onAddressTextChange(event.target.value)}
-        placeholder="Enter an address"
-        aria-label="Address"
-        className="w-full rounded-md border border-border-strong bg-bg px-3 py-2 text-sm text-ink outline-none focus-visible:border-ink"
-      />
+      <div className="flex flex-col gap-1.5">
+        <FieldLabel htmlFor={ADDRESS_INPUT_ID}>Your location</FieldLabel>
+        <input
+          id={ADDRESS_INPUT_ID}
+          value={addressText}
+          onChange={(event) => onAddressTextChange(event.target.value)}
+          placeholder="Enter an address"
+          className="w-full rounded-md border border-border-strong bg-bg px-3 py-2 text-sm text-ink outline-none focus-visible:border-ink"
+        />
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {SAMPLE_LOCATIONS.map((location) => (
           <button
@@ -57,8 +63,8 @@ export default function AddressInput({
         ))}
       </div>
       <p className="text-xs text-ink-subtle">Demo addresses — no live geocoding, works offline.</p>
-      <SchoolSelect schools={schools} selectedSchoolId={selectedSchoolId} onSelect={onSelectSchool} />
       <p className="text-xs text-ink-subtle">Or drag the pin on the map.</p>
+      <SchoolSelect schools={schools} selectedSchoolId={selectedSchoolId} onSelect={onSelectSchool} />
     </div>
   )
 }

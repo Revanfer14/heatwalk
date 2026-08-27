@@ -4,6 +4,7 @@ import { resolveAnalyzedSchoolId } from '@/lib/resolveAnalyzedSchool'
 import {
   NATIONAL_SCHOOLS_ANALYZED_LAYER_ID,
   NATIONAL_SCHOOLS_UNANALYZED_LAYER_ID,
+  NATIONAL_SCHOOLS_PIN_LAYER_ID,
 } from '@/hooks/useNationalSchoolsLayer'
 import type { School } from '@/lib/types'
 import type { SchoolNational } from '@/lib/districtTypes'
@@ -31,6 +32,15 @@ export function useNationalSchoolsClicks(input: UseNationalSchoolsClicksInput): 
       const properties = event.features?.[0]?.properties
       if (properties !== undefined) onSelectUnanalyzed(properties as SchoolNational)
     }
+    const handlePinClick = (event: maplibregl.MapLayerMouseEvent): void => {
+      const properties = event.features?.[0]?.properties
+      if (properties === undefined) return
+      if (properties.analyzed === true) {
+        handleAnalyzedClick(event)
+      } else {
+        handleUnanalyzedClick(event)
+      }
+    }
     const setPointerCursor = (): void => {
       map.getCanvas().style.cursor = 'pointer'
     }
@@ -38,9 +48,14 @@ export function useNationalSchoolsClicks(input: UseNationalSchoolsClicksInput): 
       map.getCanvas().style.cursor = ''
     }
 
-    const interactiveLayerIds = [NATIONAL_SCHOOLS_ANALYZED_LAYER_ID, NATIONAL_SCHOOLS_UNANALYZED_LAYER_ID]
+    const interactiveLayerIds = [
+      NATIONAL_SCHOOLS_ANALYZED_LAYER_ID,
+      NATIONAL_SCHOOLS_UNANALYZED_LAYER_ID,
+      NATIONAL_SCHOOLS_PIN_LAYER_ID,
+    ]
     map.on('click', NATIONAL_SCHOOLS_ANALYZED_LAYER_ID, handleAnalyzedClick)
     map.on('click', NATIONAL_SCHOOLS_UNANALYZED_LAYER_ID, handleUnanalyzedClick)
+    map.on('click', NATIONAL_SCHOOLS_PIN_LAYER_ID, handlePinClick)
     for (const layerId of interactiveLayerIds) {
       map.on('mouseenter', layerId, setPointerCursor)
       map.on('mouseleave', layerId, clearCursor)
@@ -49,6 +64,7 @@ export function useNationalSchoolsClicks(input: UseNationalSchoolsClicksInput): 
     return () => {
       map.off('click', NATIONAL_SCHOOLS_ANALYZED_LAYER_ID, handleAnalyzedClick)
       map.off('click', NATIONAL_SCHOOLS_UNANALYZED_LAYER_ID, handleUnanalyzedClick)
+      map.off('click', NATIONAL_SCHOOLS_PIN_LAYER_ID, handlePinClick)
       for (const layerId of interactiveLayerIds) {
         map.off('mouseenter', layerId, setPointerCursor)
         map.off('mouseleave', layerId, clearCursor)

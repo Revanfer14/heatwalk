@@ -22,13 +22,6 @@ export default function RouteOptionList({ routes, isLive = false, selectedRouteI
         selected={selectedRouteId === 'coolest'}
         onSelect={() => onSelectRoute('coolest')}
       />
-      <RouteOptionCard
-        label="Shortest route"
-        route={routes.shortest}
-        isLive={isLive}
-        selected={selectedRouteId === 'shortest'}
-        onSelect={() => onSelectRoute('shortest')}
-      />
       {routes.alternates.map((alternate, index) => {
         const routeId: SelectedRouteId = `alternate-${index}`
         return (

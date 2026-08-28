@@ -1,6 +1,5 @@
 import type maplibregl from 'maplibre-gl'
 import { useRouteLayers } from '@/hooks/useRouteLayers'
-import { useShortestRouteLayer } from '@/hooks/useShortestRouteLayer'
 import { useAlternateRoutesLayer } from '@/hooks/useAlternateRoutesLayer'
 import { useRouteLayerOrder } from '@/hooks/useRouteLayerOrder'
 import { useAoiBoundaryLayer } from '@/hooks/useAoiBoundaryLayer'
@@ -50,13 +49,6 @@ export function useParentMapLayers(input: UseParentMapLayersInput): void {
     selectedIndex: alternateIndex,
     hideHeatData,
     theme,
-  })
-  useShortestRouteLayer({
-    map,
-    shortest: solvedRoutes?.shortest ?? null,
-    hideHeatData,
-    theme,
-    selected: selectedRouteId === 'shortest',
   })
   useRouteLayers({
     map,

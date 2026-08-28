@@ -563,6 +563,8 @@ Keputusan produk 2026-08-28 (Revan): selain rute teradem dan rute terpendek (FR-
 - **Memilih kartu rute mana pun** (teradem, terpendek, atau alternatif) menebalkan garisnya di peta **dan** membingkai ulang tampilan peta ke batas geometri rute itu (`hooks/useRouteFocus.ts`, `map.fitBounds`) — satu-satunya cara membedakan antar-rute yang kebetulan berbagi jalur identik, sebelum legend FR-27 mencakup Mode 2 sepenuhnya.
 - Alternatif ikut hilang saat FR-16 aktif, sama seperti rute teradem.
 
+**Amendemen 2026-08-28 (Revan, lanjutan): rute terpendek dihapus dari kartu dan dari peta; alternatif naik dari satu jadi dua.** Revan melaporkan rute terpendek kebanyakan redundan secara visual dengan rute teradem (G8 di atas). Kartu "Shortest route" dan garisnya di peta dihapus dari Mode 2; `ALTERNATE_ROUTE_COUNT` di `web/src/lib/routeAlternatives.ts` naik dari 1 ke 2, jadi panel tetap tiga kartu total — teradem + hingga dua alternatif, bisa kurang kalau mesin pencari kehabisan jalur berbeda (aturan "boleh nol" di atas kini berlaku untuk dua slot). FR-3 (rute terpendek) tidak dihapus dari produk — `routeSolver.ts` tetap menghitungnya, dan tetap satu-satunya pembanding di tabel FR-4 (`RouteComparisonPanel`), cuma berhenti punya representasi visual dan berhenti bisa dipilih sebagai kartu. Peran "garis netral putus-putus" FR-16 berpindah dari rute terpendek ke rute teradem sendiri — lihat amendemen §Rute di `DESIGN.md`.
+
 ---
 
 ## 5. Data requirements

@@ -71,9 +71,8 @@ Tanpa API key. **Keputusan produk 2026-08-27 malam (Revan):** rencana basemap se
 
 | Elemen | Gaya |
 |---|---|
-| Rute terpendek (Mode 2, data panas tampil) | 2,5px `--ink-subtle` saat kartunya tidak terpilih; 3,5px `--route-coolest` saat terpilih |
-| Rute terpendek (FR-16 aktif) | 2px `--ink-subtle`, dashed `4 4` — balik ke netral; 3px saat terpilih |
-| Rute teradem | 5px solid `--route-coolest`, dengan casing 8px `--bg` di bawahnya — 6,5px (casing 9,5px) saat terpilih; 2,5px `--ink-subtle` tanpa casing saat kartunya tidak terpilih |
+| Rute teradem (data panas tampil) | 5px solid `--route-coolest`, dengan casing 8px `--bg` di bawahnya — 6,5px (casing 9,5px) saat terpilih; 2,5px `--ink-subtle` tanpa casing saat kartunya tidak terpilih |
+| Rute teradem (FR-16 aktif) | 2px `--ink-subtle`, dashed `4 4` — balik ke netral; 3px saat terpilih, tanpa casing. Satu-satunya garis yang tersisa di peta saat FR-16 aktif |
 | Rute alternatif (FR-30, Mode 2) | 2px solid `--ink-subtle`, tanpa dasharray — 3px saat kartunya terpilih di panel |
 | Segmen prioritas top-5 (FR-24) | 7px `--zone-bus`, opacity 100%, di atas choropleth blok, + label rank |
 | Lingkaran walk zone resmi | 1,5px `--ink-muted`, dashed `6 6`, tanpa fill |
@@ -89,6 +88,8 @@ Tanpa API key. **Keputusan produk 2026-08-27 malam (Revan):** rencana basemap se
 **Amendemen 2026-08-28 (Revan, lanjutan): di Mode 2, biru hanya milik rute yang kartunya terpilih.** Dengan tiga kartu, dua garis biru sekaligus (rute teradem selalu biru + ramp rute terpendek yang berujung biru) membuat seleksi tidak terbaca. Aturan baru: rute yang tidak terpilih — teradem, terpendek, alternatif — semuanya 2–2,5px `--ink-subtle` polos (rute teradem tanpa casing); rute terpilih `--route-coolest` dengan lebar + casing terpilih, dan layer-nya dipindah ke atas tumpukan (`hooks/useRouteLayerOrder.ts`, `moveLayer` tepat di bawah layer batas AOI) supaya geometri bersama G8 tidak menutupi garis biru. Ramp biru→oren kini eksklusif Mode 1, yang tidak punya seleksi kartu; token `--route-heat-*` tetap dipakai di sana. FR-16 tidak berubah: rute terpendek kembali netral abu putus-putus, rute teradem dan alternatif hilang total.
 
 **Amendemen 2026-08-28 (Revan, penutup): rute dihapus dari Mode 1; ramp dipensiunkan dari seluruh produk.** Mode 1 kini murni zona — lingkaran kebijakan, choropleth dosis, lingkaran setara-dosis (amendemen FR-10 di PRD); seluruh baris tabel di atas hanya berlaku untuk Mode 2, dan baris "rute teradem gagal" dihapus. Konsekuensi bergandengan dengan amendemen sebelumnya: ramp biru→oren tidak lagi punya tempat tampil di mode mana pun. Token `--route-heat-cool`/`--route-heat-hot` dihapus dari `theme.css` dan kode ramp klien (`routeRampFeatures`) dihapus; teks ramp pada keputusan 2026-08-27 di atas berlaku sebagai catatan sejarah. Satu-satunya warna rute yang tersisa adalah `--route-coolest` untuk rute terpilih di Mode 2.
+
+**Amendemen 2026-08-28 (Revan, lanjutan): rute terpendek dihapus dari kartu dan dari peta; rute alternatif naik dari satu jadi dua.** Revan melaporkan rute terpendek kebanyakan redundan dengan rute teradem (G8, ~90% pasangan blok–sekolah punya jalur identik) — kartu dan garisnya dihapus dari Mode 2. `hooks/useShortestRouteLayer.ts` dihapus; `web/src/lib/routeAlternatives.ts` `ALTERNATE_ROUTE_COUNT` naik dari 1 ke 2, sehingga panel tetap menampilkan tiga kartu (teradem + dua alternatif) alih-alih dua. Rute terpendek **tetap dihitung** oleh `routeSolver.ts` untuk tabel perbandingan FR-4 (`RouteComparisonPanel`) — hanya berhenti punya representasi visual di peta dan berhenti bisa dipilih. Konsekuensinya, peran "garis netral putus-putus saat FR-16 aktif" yang sebelumnya dipegang rute terpendek sekarang dipegang rute teradem sendiri (`hooks/useRouteLayers.ts`, lewat `lib/coolestRoutePaint.ts`): saat FR-16 aktif, garis rute teradem berubah jadi `--ink-subtle` 2px dashed `4 4` (3px saat terpilih), tanpa casing, dan warna `--zone-bus` (rute gagal) diabaikan total selama FR-16 aktif — merah adalah sinyal panas dan FR-16 mematikan seluruh sinyal panas.
 
 ### Label di atas choropleth
 
@@ -260,8 +261,8 @@ Kalimat status (FR-2) ← "Rumah kamu 1,1 mil dari SD Lincoln — di dalam walk 
 Kondisi langsung      ← "Now · 7:00 AM" + suhu live kalau tersedia, lihat amendemen di bawah
 ──────
 Kartu rute: Coolest   ← waktu · jarak · suhu rata-rata
-Kartu rute: Shortest
 Kartu rute: Alternate 1 (FR-30, kalau ada)
+Kartu rute: Alternate 2 (FR-30, kalau ada)
 ──────
 Kalimat "Safe until"  ← baris sendiri, lihat aturan di bawah
 ──────
@@ -338,13 +339,13 @@ Bukan tambahan — produknya soal keselamatan anak dan akan dipresentasikan ke l
 - [ ] Tidak ada komentar tersisa di `components/ui/`.
 - [ ] Basemap memakai style `liberty` dari OpenFreeMap, dan atribusi OpenStreetMap terlihat.
 - [ ] Semua layer symbol memakai `Noto Sans Regular`/`Bold`/`Italic` (fontstack lain 404 di glyph server).
-- [ ] FR-16 mematikan **semua** layer data panas: zona, label suhu, top-5 segmen, tooltip radius dosis, rute teradem, rute alternatif (FR-30) — tersisa lingkaran kebijakan + rute terpendek netral saja (Mode 2; Mode 1 tidak punya rute).
+- [ ] FR-16 mematikan **semua** sinyal panas: zona, label suhu, top-5 segmen, tooltip radius dosis, rute alternatif (FR-30) — tersisa lingkaran kebijakan + rute teradem netral putus-putus saja, warna `--zone-bus`-nya ikut mati (Mode 2; Mode 1 tidak punya rute).
 - [ ] Overlay dosis panas, legend, dan badge klasifikasi tetap kontras jelas terhadap basemap berwarna (cek merah/kuning zona vs warna jalan/bangunan basemap).
 - [ ] Slider jam (Mode 1) monokrom, diskrit, dan jumlah tick-nya sama dengan panjang `meta.hours`.
 - [ ] Angka berganti tanpa tween saat jam digeser (Mode 1) atau saat suhu live tiba (Mode 2); hanya geometri rute yang fade (Mode 2).
 - [ ] Slider (Mode 1) dapat digeser penuh dengan keyboard, dan `aria-valuetext` berisi jam.
 - [ ] Mode 2 tidak punya slider jam — kondisi langsung ("Now · 7:00 AM", format 12 jam) selalu tampil di panel, dan hilang bersama field origin/destination saja, bukan lewat FR-16.
-- [ ] Kartu rute alternatif (FR-30) monokrom, jumlahnya bisa 0 atau 1 (total 2–3 kartu) tanpa merusak layout panel.
+- [ ] Kartu rute alternatif (FR-30) monokrom, jumlahnya bisa 0, 1, atau 2 (total 1–3 kartu) tanpa merusak layout panel.
 - [ ] Memilih kartu rute mana pun menebalkan garisnya **dan** membuat peta `fitBounds` ke rute itu (`hooks/useRouteFocus.ts`) — verifikasi khususnya saat rute yang dipilih berbagi jalur identik dengan rute lain (kasus paling umum, G8), karena di situ lebar garis saja tidak akan terlihat.
 - [ ] Origin tidak lagi punya chip alamat contoh atau teks "Or drag the pin" — hanya input pencarian dengan saran langsung.
 - [ ] Destination adalah input pencarian, bukan `<select>`; mengetik nama yang tidak cocok apa pun tidak pernah mengganti sekolah terpilih, dan field kembali ke nama sekolah terakhir saat kehilangan fokus.

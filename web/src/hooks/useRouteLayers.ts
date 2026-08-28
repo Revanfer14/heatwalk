@@ -2,15 +2,16 @@ import { useEffect, useRef } from 'react'
 import type maplibregl from 'maplibre-gl'
 import type { SolvedRouteLeg } from '@/lib/types'
 import { getRouteColors } from '@/lib/mapPaint'
+import {
+  coolestRoutePaint,
+  CASING_LINE_WIDTH,
+  CASING_LINE_WIDTH_SELECTED,
+  NEUTRAL_LINE_WIDTH,
+} from '@/lib/coolestRoutePaint'
 
 export const CASING_LAYER_ID = 'heatwalk-coolest-route-casing'
 export const COOLEST_LAYER_ID = 'heatwalk-coolest-route'
 const FADE_DURATION_MS = 120
-const CASING_LINE_WIDTH = 8
-const CASING_LINE_WIDTH_SELECTED = 9.5
-const COOLEST_LINE_WIDTH = 5
-const COOLEST_LINE_WIDTH_SELECTED = 6.5
-const NEUTRAL_LINE_WIDTH = 2.5
 
 function emptyFeatureCollection() {
   return { type: 'FeatureCollection' as const, features: [] }
@@ -36,7 +37,6 @@ interface UseRouteLayersInput {
 
 export function useRouteLayers(input: UseRouteLayersInput): void {
   const { map, coolest, hideHeatData, routeFailed, theme, selected = false } = input
-  const isNeutralUnselected = !selected
   const hasRenderedCoolestRef = useRef(false)
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function useRouteLayers(input: UseRouteLayersInput): void {
         type: 'line',
         source: COOLEST_LAYER_ID,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-width': COOLEST_LINE_WIDTH, 'line-opacity-transition': { duration: FADE_DURATION_MS } },
+        paint: { 'line-width': NEUTRAL_LINE_WIDTH, 'line-opacity-transition': { duration: FADE_DURATION_MS } },
       })
     }
 
@@ -76,19 +76,15 @@ export function useRouteLayers(input: UseRouteLayersInput): void {
   useEffect(() => {
     if (map === null || map.getLayer(COOLEST_LAYER_ID) === undefined) return
     const colors = getRouteColors()
+    const paint = coolestRoutePaint({ colors, hideHeatData, routeFailed, selected })
+
     map.setPaintProperty(CASING_LAYER_ID, 'line-color', colors.bg)
-    map.setPaintProperty(
-      COOLEST_LAYER_ID,
-      'line-color',
-      routeFailed ? colors.zoneBus : isNeutralUnselected ? colors.inkSubtle : colors.routeCoolest,
-    )
-    map.setLayoutProperty(CASING_LAYER_ID, 'visibility', hideHeatData || isNeutralUnselected ? 'none' : 'visible')
     map.setPaintProperty(CASING_LAYER_ID, 'line-width', selected ? CASING_LINE_WIDTH_SELECTED : CASING_LINE_WIDTH)
-    map.setPaintProperty(
-      COOLEST_LAYER_ID,
-      'line-width',
-      isNeutralUnselected ? NEUTRAL_LINE_WIDTH : selected ? COOLEST_LINE_WIDTH_SELECTED : COOLEST_LINE_WIDTH,
-    )
+    map.setLayoutProperty(CASING_LAYER_ID, 'visibility', paint.casingVisible ? 'visible' : 'none')
+
+    map.setPaintProperty(COOLEST_LAYER_ID, 'line-color', paint.lineColor)
+    map.setPaintProperty(COOLEST_LAYER_ID, 'line-width', paint.lineWidth)
+    map.setPaintProperty(COOLEST_LAYER_ID, 'line-dasharray', paint.dashArray)
   }, [map, routeFailed, theme, selected, hideHeatData])
 
   useEffect(() => {
@@ -97,10 +93,7 @@ export function useRouteLayers(input: UseRouteLayersInput): void {
     const coolestSource = map.getSource(COOLEST_LAYER_ID) as maplibregl.GeoJSONSource | undefined
     if (casingSource === undefined || coolestSource === undefined) return
 
-    const visibility = hideHeatData ? 'none' : 'visible'
-    map.setLayoutProperty(CASING_LAYER_ID, 'visibility', isNeutralUnselected ? 'none' : visibility)
-    map.setLayoutProperty(COOLEST_LAYER_ID, 'visibility', visibility)
-    if (hideHeatData) return
+    map.setLayoutProperty(COOLEST_LAYER_ID, 'visibility', 'visible')
 
     const geometry = coolest !== null ? coolest.geometry : []
     const applyGeometry = (): void => {
@@ -124,5 +117,5 @@ export function useRouteLayers(input: UseRouteLayersInput): void {
     }, FADE_DURATION_MS)
 
     return () => clearTimeout(timeoutId)
-  }, [map, coolest, hideHeatData])
+  }, [map, coolest])
 }

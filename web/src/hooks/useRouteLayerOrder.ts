@@ -3,7 +3,6 @@ import type maplibregl from 'maplibre-gl'
 import { ALTERNATE_LAYER_ID } from '@/hooks/useAlternateRoutesLayer'
 import { AOI_BOUNDARY_LAYER_ID } from '@/hooks/useAoiBoundaryLayer'
 import { CASING_LAYER_ID, COOLEST_LAYER_ID } from '@/hooks/useRouteLayers'
-import { SHORTEST_LAYER_ID } from '@/hooks/useShortestRouteLayer'
 import { selectedAlternateIndex, type SelectedRouteId } from '@/lib/selectedRouteId'
 
 export function useRouteLayerOrder(map: maplibregl.Map | null, selectedRouteId: SelectedRouteId): void {
@@ -13,7 +12,6 @@ export function useRouteLayerOrder(map: maplibregl.Map | null, selectedRouteId: 
     const isAlternateSelected = selectedAlternateIndex(selectedRouteId) !== null
     const layersBottomToTop = [
       { layerId: ALTERNATE_LAYER_ID, selected: isAlternateSelected },
-      { layerId: SHORTEST_LAYER_ID, selected: selectedRouteId === 'shortest' },
       { layerId: CASING_LAYER_ID, selected: selectedRouteId === 'coolest' },
       { layerId: COOLEST_LAYER_ID, selected: selectedRouteId === 'coolest' },
     ]

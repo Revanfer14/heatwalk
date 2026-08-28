@@ -1,6 +1,6 @@
 import { dijkstra, reconstructPath, type EdgeWeightPenalties, type RoutingAdjacency } from '@/lib/dijkstra'
 
-export const ALTERNATE_ROUTE_COUNT = 1
+export const ALTERNATE_ROUTE_COUNT = 2
 const ALTERNATE_PENALTY_FACTOR = 2.5
 const MAX_SHARED_LENGTH_RATIO = 0.7
 const MAX_ALTERNATE_ATTEMPTS = 6

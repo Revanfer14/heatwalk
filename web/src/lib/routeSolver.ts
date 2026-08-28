@@ -46,7 +46,7 @@ export function solveRoutes(
 
   const shortest = buildLeg(graph, adjacency, shortestPath)
   const coolest = buildLeg(graph, adjacency, coolestPath)
-  const alternatePaths = findAlternateRoutes(adjacency, schoolNode, originNode, [shortestPath, coolestPath])
+  const alternatePaths = findAlternateRoutes(adjacency, schoolNode, originNode, [coolestPath])
   const alternates = alternatePaths.map((path) => buildLeg(graph, adjacency, path))
 
   return { originNode, schoolNode, shortest, coolest, alternates }

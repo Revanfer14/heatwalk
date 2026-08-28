@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { SchoolGraph, SchoolTemps, SolvedRoutes } from '@/lib/types'
 import { solveRoutes } from '@/lib/routeSolver'
 import type { LonLat } from '@/lib/geoDistance'
+import type { LiveEdgeTemperatures } from '@/lib/edgeLiveTemperatures'
 
 export function useSolvedRoutes(
   graph: SchoolGraph | null,
@@ -9,11 +10,13 @@ export function useSolvedRoutes(
   schoolPoint: LonLat | null,
   originPoint: LonLat | null,
   hour: string | null,
+  temperatureOffsetC: number = 0,
+  liveEdgeTemps?: LiveEdgeTemperatures,
 ): SolvedRoutes | null {
   return useMemo(() => {
     if (graph === null || temps === null || schoolPoint === null || originPoint === null || hour === null) {
       return null
     }
-    return solveRoutes(graph, temps, schoolPoint, originPoint, hour)
-  }, [graph, temps, schoolPoint, originPoint, hour])
+    return solveRoutes(graph, temps, schoolPoint, originPoint, hour, temperatureOffsetC, liveEdgeTemps)
+  }, [graph, temps, schoolPoint, originPoint, hour, temperatureOffsetC, liveEdgeTemps])
 }

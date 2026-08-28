@@ -1,10 +1,20 @@
 import type { SchoolGraph, SchoolTemps, SolvedRouteLeg, SolvedRoutes } from '@/lib/types'
 import { buildRoutingGraph } from '@/lib/routeGraph'
-import { dijkstra, reconstructPath } from '@/lib/dijkstra'
+import { dijkstra, reconstructPath, type RoutingAdjacency } from '@/lib/dijkstra'
 import { summarizeRoute } from '@/lib/routeStats'
-import { buildRouteGeometry } from '@/lib/routeGeometry'
+import { buildRouteSegments, flattenRouteGeometry } from '@/lib/routeGeometry'
 import { nearestNode } from '@/lib/nearestNode'
+import { findAlternateRoutes } from '@/lib/routeAlternatives'
+import type { LiveEdgeTemperatures } from '@/lib/edgeLiveTemperatures'
 import type { LonLat } from '@/lib/geoDistance'
+
+function buildLeg(graph: SchoolGraph, adjacency: RoutingAdjacency, schoolToOriginPath: string[]): SolvedRouteLeg {
+  const originToSchoolPath = [...schoolToOriginPath].reverse()
+  const stats = summarizeRoute(adjacency, originToSchoolPath)
+  const segments = buildRouteSegments(graph.nodes, graph.edges, adjacency, originToSchoolPath)
+  const geometry = flattenRouteGeometry(segments)
+  return { ...stats, geometry, segments }
+}
 
 export function solveRoutes(
   graph: SchoolGraph,
@@ -12,8 +22,18 @@ export function solveRoutes(
   schoolPoint: LonLat,
   originPoint: LonLat,
   hour: string,
+  temperatureOffsetC: number = 0,
+  liveEdgeTemps?: LiveEdgeTemperatures,
 ): SolvedRoutes | null {
-  const adjacency = buildRoutingGraph(graph.edges, temps.edges, hour, temps.meta.lambda_detour)
+  const adjacency = buildRoutingGraph(
+    graph.edges,
+    temps.edges,
+    hour,
+    temps.meta.lambda_detour,
+    temps.meta.baseline_c,
+    temperatureOffsetC,
+    liveEdgeTemps,
+  )
   const schoolNode = nearestNode(graph.nodes, schoolPoint, adjacency.keys())
   const originNode = nearestNode(graph.nodes, originPoint, adjacency.keys())
   if (schoolNode === null || originNode === null) return null
@@ -24,19 +44,12 @@ export function solveRoutes(
   const coolestPath = reconstructPath(coolestResult, schoolNode, originNode)
   if (shortestPath === null || coolestPath === null) return null
 
-  const toLeg = (schoolToOriginPath: string[]): SolvedRouteLeg => {
-    const originToSchoolPath = [...schoolToOriginPath].reverse()
-    const stats = summarizeRoute(adjacency, originToSchoolPath)
-    const geometry = buildRouteGeometry(graph.nodes, graph.edges, adjacency, originToSchoolPath)
-    return { ...stats, geometry }
-  }
+  const shortest = buildLeg(graph, adjacency, shortestPath)
+  const coolest = buildLeg(graph, adjacency, coolestPath)
+  const alternatePaths = findAlternateRoutes(adjacency, schoolNode, originNode, [shortestPath, coolestPath])
+  const alternates = alternatePaths.map((path) => buildLeg(graph, adjacency, path))
 
-  return {
-    originNode,
-    schoolNode,
-    shortest: toLeg(shortestPath),
-    coolest: toLeg(coolestPath),
-  }
+  return { originNode, schoolNode, shortest, coolest, alternates }
 }
 
 export interface RouteSegment {
@@ -52,8 +65,16 @@ export function solveCoolestPathSegments(
   schoolPoint: LonLat,
   originPoint: LonLat,
   hour: string,
+  temperatureOffsetC: number = 0,
 ): RouteSegment[] | null {
-  const adjacency = buildRoutingGraph(graph.edges, temps.edges, hour, temps.meta.lambda_detour)
+  const adjacency = buildRoutingGraph(
+    graph.edges,
+    temps.edges,
+    hour,
+    temps.meta.lambda_detour,
+    temps.meta.baseline_c,
+    temperatureOffsetC,
+  )
   const schoolNode = nearestNode(graph.nodes, schoolPoint, adjacency.keys())
   const originNode = nearestNode(graph.nodes, originPoint, adjacency.keys())
   if (schoolNode === null || originNode === null) return null
@@ -88,7 +109,13 @@ export function coolestDoseAcrossHours(
   const doseByHour: Record<string, number> = {}
 
   for (const hour of temps.meta.hours) {
-    const adjacency = buildRoutingGraph(graph.edges, temps.edges, hour, temps.meta.lambda_detour)
+    const adjacency = buildRoutingGraph(
+      graph.edges,
+      temps.edges,
+      hour,
+      temps.meta.lambda_detour,
+      temps.meta.baseline_c,
+    )
     const schoolNode = nearestNode(graph.nodes, schoolPoint, adjacency.keys())
     const originNode = nearestNode(graph.nodes, originPoint, adjacency.keys())
     if (schoolNode === null || originNode === null) continue

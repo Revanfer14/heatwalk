@@ -5,6 +5,7 @@ import { useBlockTempLabelsLayer } from '@/hooks/useBlockTempLabelsLayer'
 import { useDoseRadiusLayer } from '@/hooks/useDoseRadiusLayer'
 import { useNationalSchoolsLayer } from '@/hooks/useNationalSchoolsLayer'
 import { useNationalSchoolsClicks } from '@/hooks/useNationalSchoolsClicks'
+import { useShortestRouteLayer } from '@/hooks/useShortestRouteLayer'
 import { useRouteLayers } from '@/hooks/useRouteLayers'
 import { useSegmentHighlightLayer } from '@/hooks/useSegmentHighlightLayer'
 import type { LayerVisibility } from '@/lib/districtStateContext'
@@ -28,6 +29,7 @@ interface UseDistrictMapLayersInput {
   onSelectAnalyzed: (schoolId: string) => void
   onSelectUnanalyzed: (school: SchoolNational) => void
   solvedRoutes: SolvedRoutes | null
+  baselineC: number
   routeFailed: boolean
   highlightedSegments: RouteSegment[]
 }
@@ -48,6 +50,7 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
     onSelectAnalyzed,
     onSelectUnanalyzed,
     solvedRoutes,
+    baselineC,
     routeFailed,
     highlightedSegments,
   } = input
@@ -73,7 +76,8 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
     visible: layerVisibility.doseRadius && !hideHeatData,
     theme,
   })
-  useRouteLayers({ map, solvedRoutes, hideHeatData, routeFailed, theme })
+  useShortestRouteLayer({ map, shortest: solvedRoutes?.shortest ?? null, baselineC, hideHeatData, theme })
+  useRouteLayers({ map, coolest: solvedRoutes?.coolest ?? null, hideHeatData, routeFailed, theme })
   useSegmentHighlightLayer({ map, segments: hideHeatData ? [] : highlightedSegments, theme })
   useNationalSchoolsLayer({ map, nationalSchools, theme })
   useNationalSchoolsClicks({ map, schools, onSelectAnalyzed, onSelectUnanalyzed })

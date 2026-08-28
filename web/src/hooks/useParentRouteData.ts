@@ -2,9 +2,15 @@ import { useMemo } from 'react'
 import { useAppState } from '@/hooks/useAppState'
 import { useSchoolData } from '@/hooks/useSchoolData'
 import { useSolvedRoutes } from '@/hooks/useSolvedRoutes'
-import { useDefaultHour } from '@/hooks/useDefaultHour'
+import { useLiveTemperature } from '@/hooks/useLiveTemperature'
+import { buildLiveEdgeTemperatures } from '@/lib/edgeLiveTemperatures'
 import { findBlockAt } from '@/lib/pointInPolygon'
 import { distanceMiles, type LonLat } from '@/lib/geoDistance'
+import {
+  clampToSchoolHour,
+  currentOrlandoHour,
+  temperatureOffsetC as computeTemperatureOffsetC,
+} from '@/lib/liveTemperature'
 import type { BlockFeature, Tile } from '@/lib/types'
 
 function isPinInBbox(pin: LonLat, bbox: Tile['bbox'] | undefined): boolean {
@@ -15,11 +21,26 @@ function isPinInBbox(pin: LonLat, bbox: Tile['bbox'] | undefined): boolean {
 
 export function useParentRouteData() {
   const appState = useAppState()
-  const { schools, tile, selectedSchoolId, pin, hour, setHour } = appState
+  const { schools, tile, selectedSchoolId, pin, hideHeatData } = appState
   const selectedSchool = schools.find((school) => school.id === selectedSchoolId) ?? null
-  const { data: schoolData, loading: schoolDataLoading, error: schoolDataError } = useSchoolData(selectedSchoolId)
+  const { data: schoolData, error: schoolDataError } = useSchoolData(selectedSchoolId)
 
-  useDefaultHour(schoolData, hour, setHour)
+  const hour = clampToSchoolHour(currentOrlandoHour())
+  const {
+    status: liveTemperatureStatus,
+    liveMedianC,
+    grid: liveGrid,
+  } = useLiveTemperature(hideHeatData ? null : selectedSchoolId, hour)
+  const modeledMedianC = tile?.modeled_median_c_by_hour[hour] ?? null
+  const liveOffsetC =
+    liveMedianC !== null && modeledMedianC !== null ? computeTemperatureOffsetC(liveMedianC, modeledMedianC) : 0
+  const temperatureOffsetC = hideHeatData ? 0 : liveOffsetC
+  const isLiveTemperatureActive = !hideHeatData && liveMedianC !== null
+
+  const liveEdgeTemps = useMemo(() => {
+    if (hideHeatData || liveGrid === null || schoolData === null) return undefined
+    return buildLiveEdgeTemperatures(schoolData.graph.edges, liveGrid)
+  }, [hideHeatData, liveGrid, schoolData])
 
   const originPoint: LonLat = [pin.lon, pin.lat]
   const isPinInAoi = isPinInBbox(originPoint, tile?.bbox)
@@ -31,6 +52,8 @@ export function useParentRouteData() {
     schoolPoint,
     originPoint,
     hour,
+    temperatureOffsetC,
+    liveEdgeTemps,
   )
 
   const distanceToSchoolMiles = schoolPoint !== null ? distanceMiles(schoolPoint, originPoint) : 0
@@ -44,14 +67,18 @@ export function useParentRouteData() {
 
   return {
     ...appState,
+    hour,
     selectedSchool,
     schoolData,
-    schoolDataLoading,
     schoolDataError,
     isPinInAoi,
     solvedRoutes,
     distanceToSchoolMiles,
     matchedBlock,
     routeFailed,
+    liveTemperatureStatus,
+    liveMedianC,
+    liveOffsetC,
+    isLiveTemperatureActive,
   }
 }

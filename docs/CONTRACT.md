@@ -22,7 +22,8 @@ Manifest mosaik tile. Dihasilkan `pipeline/step1_fetch_data.py` — real sejak F
     "id": "orl_ocps_core",
     "bbox": [-81.4763, 28.5277, -81.3719, 28.6612],
     "status": "done",
-    "hours_fetched": ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"]
+    "hours_fetched": ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"],
+    "modeled_median_c_by_hour": { "07:00": 28.41, "15:00": 37.35 }
   }
 ]
 ```
@@ -33,6 +34,7 @@ Manifest mosaik tile. Dihasilkan `pipeline/step1_fetch_data.py` — real sejak F
 | `bbox` | `[number,number,number,number]` | derajat (west, south, east, north) | tidak | `pipeline/config.py:TILES` |
 | `status` | `"pending" \| "done"` | — | tidak | status fetch tile ini |
 | `hours_fetched` | `string[]` (`HH:MM`) | — | tidak, boleh `[]` | jam yang **benar-benar** mengembalikan data — jam kosong-senyap tidak dihitung (§5.1) |
+| `modeled_median_c_by_hour` | `Record<HH:MM, number>` | °C | tidak, boleh `{}` | median suhu AOI hari model (`FETCH_DATE`) per jam — `pipeline/heatmap_stats.py:describe()` atas `tile_values()`, satu entri per jam di `hours_fetched`. Dipakai FR-29 sebagai referensi offset suhu live; **bukan** `temps.json:meta.baseline_c` (itu ambang dosis, bukan suhu terukur) |
 
 ---
 
@@ -58,7 +60,7 @@ Geometri + topologi jalan untuk satu sekolah, **sekali saja**, tanpa suhu. Dihas
 | `nodes.<id>` | `[lon, lat]` | derajat | tidak | node graph OSM/fixture |
 | `edges.<edge_id>.u`, `.v` | `string` | id node | tidak | topologi graph |
 | `edges.<edge_id>.len_m` | `number` | meter | tidak, `> 0` | panjang geometri edge |
-| `edges.<edge_id>.geom` | `[[lon,lat], ...]` | derajat | tidak | geometri disederhanakan (Douglas-Peucker ~5m) |
+| `edges.<edge_id>.geom` | `[[lon,lat], ...]` | derajat, 5 desimal (~1,1 m) | tidak | geometri disederhanakan (Douglas-Peucker ~5m) |
 
 **`edge_id` wajib cocok satu-satu dengan key `edges` di `temps.json` yang sekolah sama.** Yatim di salah satu sisi adalah bug yang dilaporkan, bukan di-skip diam-diam — dicek programatik, bukan dengan mata.
 
@@ -92,7 +94,7 @@ Suhu dan dosis per edge per jam. Angka saja — tanpa koordinat, tanpa nama jala
 | `meta.threshold` | `number` | °C·menit | tidak | `THRESHOLD_DOSE_C_MIN` — indikatif, lihat `docs/METHODOLOGY.md` bagian `[Fase 4] THRESHOLD` |
 | `meta.lambda_detour` | `number` | — | tidak | hasil kalibrasi Fase 2.3 (cap detour 1,4×) |
 | `meta.fetched_at` | `string` (`YYYY-MM-DD`) | — | tidak | tanggal snapshot heatmap (`FETCH_DATE`) |
-| `edges.<edge_id>.<HH:MM>` | `[temp_c, peak_c, dose]` | [°C, °C, °C·menit] | tidak | `temp_c`/`peak_c` = rata-rata/maksimum sampel raster sepanjang edge; `dose = max(temp_c - baseline_c, 0) * (len_m / walk_speed_mps) / 60` |
+| `edges.<edge_id>.<HH:MM>` | `[temp_c, peak_c, dose]` | [°C, °C, °C·menit], 1 desimal | tidak | `temp_c`/`peak_c` = rata-rata/maksimum sampel raster sepanjang edge; `dose = max(temp_c - baseline_c, 0) * (len_m / walk_speed_mps) / 60` |
 
 ---
 
@@ -215,7 +217,7 @@ Top-`SEGMENT_PRIORITY_TOP_N` (20) segmen jalan yang paling banyak dilewati rute 
 
 ## `schools.json`
 
-Array objek, satu per sekolah dalam AOI. **Real sejak Fase 1.5.5** — `pipeline/nces_schools.py` menarik NCES CCD (`EDGE_ADMINDATA_PUBLICSCH_2324`, cache `data/raw/nces_ccd_<tile_id>.json`), `pipeline/fixture_geometry.py:SCHOOLS_FIXTURE` mengimpornya, `pipeline/make_fixtures.py` menulisnya apa adanya ke `data/fixtures/schools.json` (nol entri fixture — sekolahnya sama persis dengan `data/out/schools.json`, hanya `by_school/` yang datanya sintetis).
+Array objek, satu per sekolah dalam AOI, terurut A–Z berdasarkan `name`. **Real sejak Fase 1.5.5, dihasilkan pipeline sejak Fase 9** — `pipeline/nces_schools.py` menarik NCES CCD (`EDGE_ADMINDATA_PUBLICSCH_2324`, cache `data/raw/nces_ccd_<tile_id>.json`) dan menyaring sekolah `enrollment = 0`. `pipeline/step1b_schools.py` memanggilnya dan menulis `data/out/schools.json` langsung — bukan lagi artefak buatan tangan. `pipeline/fixture_geometry.py:SCHOOLS_FIXTURE` mengimpor fungsi yang sama, `pipeline/make_fixtures.py` menulisnya apa adanya ke `data/fixtures/schools.json` (nol entri fixture — sekolahnya sama persis dengan `data/out/schools.json`, hanya `by_school/` yang datanya sintetis).
 
 ```json
 [
@@ -291,12 +293,12 @@ Objek keyed by `school_id`. **Real sejak Fase 4** — `pipeline/summary_build.py
 | `reroute_enough` | `integer` | anak | tidak | jumlah `kids_est` blok kuning |
 | `no_safe_route` | `integer` | anak | tidak | jumlah `kids_est` blok merah |
 | `lowest_income_quartile` | `integer` | anak | tidak | ACS B19013 kuartil terbawah, dalam blok merah |
-| `misclassified.bus_not_needed` | `integer` | anak | tidak | definisi G4 di `docs/METHODOLOGY.md`, ambang `BUS_NOT_NEEDED_MAX_EXCESS_MI`. **Nol di keenam sekolah gelombang 1** — struktural, bukan kalibrasi: `walk_radius_mi = 2,0` di seluruh AOI melebihi ukuran tile (±5 km), jadi nol blok berstatus `bus`. Lihat `docs/METHODOLOGY.md` §Fase 4 |
+| `misclassified.bus_not_needed` | `integer` | anak | tidak | definisi G4 di `docs/METHODOLOGY.md`, ambang `BUS_NOT_NEEDED_MAX_EXCESS_MI`. **Nol di seluruh 42 sekolah teranalisis** (juga nol di enam sekolah gelombang 1/Fase 10) — bukan lagi karena tidak ada blok berstatus `bus` (itu hanya berlaku di bbox kecil gelombang 1), tapi karena nol dari blok berstatus `bus` yang berklasifikasi hijau. Lihat `docs/METHODOLOGY.md` §Fase 4 dan §Fase 10 Temuan 2 |
 | `misclassified.walk_should_bus` | `integer` | anak | tidak | = jumlah anak blok merah di dalam walk zone resmi |
 | `dose_eliminated_per_child_per_day` | `number` | °C·menit | tidak | `shortest.dose - coolest.dose` rata-rata blok merah |
 | `dose_eliminated_per_child_per_year` | `number` | °C·menit | tidak | `× SCHOOL_DAYS_PER_YEAR` |
 | `equivalent_minutes_at_42c` | `number` | menit | tidak | `dose_eliminated_per_day / (42.0 - baseline_c)` |
-| `correction_factor` | `number` | — | tidak | `enrollment_CCD / estimasi_dasymetric`, rentang **diharapkan** `0.3–3.0` — 2 dari 6 sekolah AOI ini melenceng dengan sebab terdiagnosis (bukan bug), lihat `docs/METHODOLOGY.md` §1.5.6 |
+| `correction_factor` | `number` | — | tidak | `enrollment_CCD / estimasi_dasymetric`, rentang **diharapkan** `0.3–3.0` — 12 dari 42 sekolah melenceng dengan sebab terdiagnosis (proxy nearest-school, bukan bug), lihat `docs/METHODOLOGY.md` §1.5.6 dan §Fase 9 |
 | `radius_setara_dosis_mi` | `number` | mil | tidak, `> 0` | **Real sejak Fase 3**, `pipeline/dose_radius.py` + `pipeline/step3b_outcomes.py`. Jarak lurus terjauh dari sekolah ke centroid blok yang rute teradem-nya masih ≤ `THRESHOLD_DOSE_C_MIN`, pada `canonical_hour`. Wajib `≤ radius_kebijakan_mi` (G2 fail branch) |
 | `radius_kebijakan_mi` | `number` | mil | tidak | **Real sejak Fase 3**. Salinan `schools.json.walk_radius_mi` untuk sekolah yang sama, ditulis berdampingan supaya panel FR-12 tidak perlu join dua file |
 | `days_exceedance_per_year` | `number` | hari/tahun ajaran | tidak, `>= 0` | **Real sejak Fase 3**, `pipeline/exceedance.py`. Rata-rata, atas blok merah pada `canonical_hour`, dari jumlah hari sekolah (Agustus–Mei, 2019–2025) di mana `dose(suhu_stasiun_ASOS_MCO + offset_spasial_blok) > THRESHOLD_DOSE_C_MIN`, dibagi jumlah tahun ajaran dalam rentang. `offset_spasial_blok = coolest.mean_c blok pada canonical_hour − suhu stasiun MCO pada canonical_hour tanggal `FETCH_DATE``, diasumsikan stabil antar-hari (PRD §8 poin 14, tidak diuji) |
@@ -325,6 +327,57 @@ sch_ridgewood_park_elementary,120950123052001,15:00,3083.2,3342.6,37.97,37.22,-0
 | `shortest_dose`, `coolest_dose` | `number` | °C·menit | dosis total rute |
 | `delta_dose_pct` | `number` | % | `(coolest_dose - shortest_dose) / shortest_dose * 100` |
 | `detour_ratio` | `number` | — | `coolest_len_m / shortest_len_m` |
+
+---
+
+## `web/api/` — respons endpoint runtime (bukan `data/out/`, tapi kontrak yang sama-sama dibaca frontend)
+
+Dua fungsi serverless read-only (FR-29, amendemen 2026-08-28 §Fase 14 `docs/METHODOLOGY.md`) — tidak menulis apa pun ke `data/out/`, tapi bentuk responsnya adalah kontrak yang diandalkan `web/src/hooks/useLiveTemperature.ts` sama persis seperti file statis di atas diandalkan hook lain.
+
+### `GET /api/live-temperature-start?schoolId=<id>&hour=<HH:MM>`
+
+```json
+{ "activityId": "abc123..." }
+```
+
+| Field | Tipe | Null? | Catatan |
+|---|---|---|---|
+| `activityId` | `string` | tidak (200) | id job FortyGuard, dipoll lewat endpoint di bawah |
+| `error` | `string` | hanya saat non-200 | `400` (`schoolId`/`hour` tidak valid), `500` (kunci API tidak ada), `502` (FortyGuard gagal) |
+
+`schoolId` **wajib** cocok satu entri di `data/schools.json` — divalidasi di server sebelum bbox tile dihitung; ini pagar kredit (§Fase 14), bukan sekadar validasi input.
+
+### `GET /api/live-temperature-result?activityId=<id>`
+
+```json
+{
+  "state": "ready",
+  "medianC": 34.82,
+  "grid": {
+    "west": -81.4901,
+    "north": 28.5812,
+    "pixelDx": 0.00054,
+    "pixelDy": 0.00054,
+    "cols": 84,
+    "rows": 84,
+    "values": [34.1, 34.3, null, 35.0]
+  }
+}
+```
+
+| Field | Tipe | Satuan | Null? | Catatan |
+|---|---|---|---|---|
+| `state` | `"pending" \| "ready" \| "failed"` | — | tidak | `pending`/`failed` tidak menyertakan `medianC`/`grid` |
+| `medianC` | `number` | °C | hanya saat `state="ready"` | median sel valid dalam tile, sentinel `-999` sudah dibuang |
+| `grid.west`, `grid.north` | `number` | derajat | hanya saat `state="ready"` | sudut kiri-atas grid (WGS84) |
+| `grid.pixelDx`, `grid.pixelDy` | `number` | derajat | hanya saat `state="ready"` | lebar/tinggi sel, dari median ukuran sel `map_data.features` (`web/api/_lib/heatmapGrid.ts:buildTemperatureGrid`, port `pipeline/heatmap_raster.py:build_grid`) |
+| `grid.cols`, `grid.rows` | `integer` | — | hanya saat `state="ready"` | dimensi array `values` (row-major: index `row*cols+col`) |
+| `grid.values` | `(number \| null)[]` | °C | elemen individual boleh `null` (sel kosong/sentinel) | dibaca client-side oleh `lib/liveTemperatureGrid.ts:sampleGridAt`, disampel ke tiap edge oleh `lib/edgeLiveTemperatures.ts` |
+| `grid` (keseluruhan) | — | — | `null` kalau grid gagal dibangun (mis. `map_data` kosong) | `medianC` tetap bisa tersedia sendirian; klien jatuh ke fallback offset seragam per edge |
+
+Ukuran tipikal grid pada tile 5×5 km / granularity 60 m: ~84×84 sel, ~35 KB per respons.
+
+**Gagal senyap tetap berlaku (FR-29):** klien tidak pernah menampilkan state error yang menghalangi jalur demo utama — kegagalan endpoint mana pun (network, timeout, `state: "failed"`) membuat `useLiveTemperature` jatuh ke status `unavailable`, dan routing tetap memakai `temps.json` + fallback offset seragam.
 
 ---
 

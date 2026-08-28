@@ -12,6 +12,7 @@ NCES_ADMIN_QUERY_URL = (
 )
 
 INCLUDED_SCHOOL_LEVELS = {"Elementary", "Middle", "High"}
+MIN_ENROLLMENT = 1
 
 POLICY_SOURCE_CITATION = (
     "OCPS Transportation FAQs (ocps.net/transportation-faqs), radius 2 mi per FS 1006.23"
@@ -28,7 +29,7 @@ def _slug(name: str) -> str:
     return f"sch_{lowered}"
 
 
-KNOWN_ACRONYMS = {"ucp"}
+KNOWN_ACRONYMS = {"ucp", "ocps"}
 
 
 def _title_case_preserving_acronyms(name: str) -> str:
@@ -65,13 +66,20 @@ def query_ccd_schools_cached(tile_id: str, bbox: tuple[float, float, float, floa
     return raw_schools
 
 
+def _is_analyzable_school(row: dict) -> bool:
+    level = row.get("SCHOOL_LEVEL")
+    if level not in INCLUDED_SCHOOL_LEVELS:
+        return False
+    return int(row["TOTAL"]) >= MIN_ENROLLMENT
+
+
 def build_schools_payload(tile_id: str, bbox: tuple[float, float, float, float]) -> list[dict]:
     raw_schools = query_ccd_schools_cached(tile_id, bbox)
     schools = []
     for row in raw_schools:
-        level = row.get("SCHOOL_LEVEL")
-        if level not in INCLUDED_SCHOOL_LEVELS:
+        if not _is_analyzable_school(row):
             continue
+        level = row["SCHOOL_LEVEL"]
         schools.append(
             {
                 "id": _slug(row["SCH_NAME"]),
@@ -85,4 +93,5 @@ def build_schools_payload(tile_id: str, bbox: tuple[float, float, float, float])
                 "nces_id": row["NCESSCH"],
             }
         )
+    schools.sort(key=lambda school: school["name"])
     return schools

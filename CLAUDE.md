@@ -95,7 +95,7 @@ Jangan menyentuh `.env`. Jangan mencetak isi API key ke terminal, log, atau file
 
 Detail lengkap di PRD §6 dan dev plan bagian "Prinsip arsitektur".
 
-- **Tidak ada backend server.** Pipeline Python offline → file statis di `data/out/` → React membaca file. Satu-satunya panggilan API saat runtime adalah tombol refresh (FR-17), dan itu terisolasi total.
+- **Tidak ada backend server, kecuali satu fungsi serverless read-only untuk FR-29** (suhu live Mode 2, `web/api/`) yang menahan kunci API FortyGuard — tanpa database, tanpa state, di luar jalur render rute. Pipeline Python offline → file statis di `data/out/` → React membaca file, tetap prinsip utama. Selain FR-29, satu-satunya panggilan API saat runtime adalah tombol refresh (FR-17, tidak dibangun), dan itu terisolasi total.
 - **Engine graph, bukan raster.** Raster cost-distance (`skimage.graph.MCP_Geometric`) hanya fallback darurat, hanya untuk Mode 1.
 - **GeoJSON di-`fetch()`, bukan di-`import`.**
 - **Tidak ada autentikasi, tidak ada database.** Live demo wajib terbuka di incognito tanpa login (submission form field 12). Dua mode dipisah lewat route `/` dan `/district`, bukan lewat akun.

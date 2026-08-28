@@ -81,6 +81,7 @@ export interface Tile {
   bbox: [number, number, number, number]
   status: 'pending' | 'done'
   hours_fetched: string[]
+  modeled_median_c_by_hour: Record<string, number>
 }
 
 export type GraphNode = [number, number]
@@ -120,9 +121,16 @@ export interface SchoolTemps {
   edges: Record<string, Record<string, EdgeHourTriple>>
 }
 
+export interface RouteHeatSegment {
+  edgeId: string
+  temp_c: number
+  geometry: number[][]
+}
+
 export interface SolvedRouteLeg extends RouteLeg {
   minutes: number
   geometry: number[][]
+  segments: RouteHeatSegment[]
 }
 
 export interface SolvedRoutes {
@@ -130,4 +138,5 @@ export interface SolvedRoutes {
   schoolNode: string
   shortest: SolvedRouteLeg
   coolest: SolvedRouteLeg
+  alternates: SolvedRouteLeg[]
 }

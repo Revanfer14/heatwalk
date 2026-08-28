@@ -1,4 +1,4 @@
-# CURRENT_STATE — 27 Agustus 2026
+# CURRENT_STATE — 28 Agustus 2026
 
 Snapshot progres HeatWalk (FortyGuard Hackathon '26, **deadline 30 Agu 2026 23:59 GST**).
 Dipakai untuk re-orientasi cepat sesi berikutnya. Sumber lengkap: `heatwalk-prd.md`, `heatwalk-dev-plan.md`, plan feedback round 2 (`~/.claude/plans/majestic-knitting-shore.md`).
@@ -13,7 +13,7 @@ Dipakai untuk re-orientasi cepat sesi berikutnya. Sumber lengkap: `heatwalk-prd.
 | 11 | Distrik: render blok gabungan + label suhu blok + perbaikan font pin | ✅ selesai, **belum di-commit** | `phase-11: render blok distrik gabungan + label suhu blok + perbaikan font pin` |
 | 12 | Distrik: hover lingkaran (FR-26) + highlight top-5 segmen (FR-24) | 🔄 **SEDANG BERJALAN** — desain final terkunci, belum ada kode ditulis | `phase-12: tooltip deskripsi lingkaran + highlight top-5 segmen prioritas di peta` |
 | 13 | Legend peta sisi kanan (FR-27) + tombol info metodologi (FR-25) | ⏳ belum mulai | `phase-13: legend peta sisi kanan + tombol info metodologi` |
-| 14 | Parent: rute teradem biru + ramp suhu biru→oren rute terpendek (FR-28) | ⏳ belum mulai (urutkan setelah 13 — butuh slot legend) | `phase-14: rute teradem biru + ramp suhu biru-oren rute terpendest` |
+| 14 | Parent: rute teradem biru + ramp FR-28, suhu live per-sel FR-29, opsi rute majemuk FR-30, slider dihapus FR-13 | ✅ selesai, **belum di-commit** | `phase-14: rute biru/ramp FR-28, suhu live per-sel FR-29, opsi rute majemuk FR-30, slider dihapus dari mode orang tua` |
 
 ## Yang ada di working tree (uncommitted, 125 file)
 
@@ -59,6 +59,25 @@ Semua perubahan Fase 9 + 10 + 11 menumpuk di working tree:
 - Zona penuh di dalam lingkaran 4 sekolah timur (celah barat sesuai LIMITATIONS #21)
 - Klik blok milik sekolah lain → sekolah terpilih ikut berganti
 - FR-16 ON → zona + label hilang; halo label terbaca di dark mode
+
+## Fase 14 — selesai, dikerjakan di luar urutan (lompat sebelum Fase 13)
+
+Dikerjakan atas permintaan eksplisit Revan 2026-08-28 sebelum Fase 13 (legend) selesai — dicatat di sini karena itu pengecualian atas "kerjakan fase berurutan" `CLAUDE.md`. Tanpa legend FR-27, kartu rute terpilih di panel (border + garis menebal di peta) adalah satu-satunya penghubung visual kartu↔garis di Mode 2.
+
+**Yang dibangun** (detail penuh di `docs/METHODOLOGY.md` §Fase 14):
+
+- FR-28: token warna `--route-coolest`/`--route-heat-cool`/`--route-heat-hot` ditambah ke `theme.css` + `mapPaint.ts`; rute teradem jadi biru solid, rute terpendek jadi ramp biru→oren per segmen (`lib/routeRampFeatures.ts`, `hooks/useShortestRouteLayer.ts`, dipakai kedua mode).
+- FR-29 diamendemen: suhu live FortyGuard sekarang **per-sel** dalam satu tile 5×5 km per sekolah (bukan satu offset se-AOI) — `web/api/live-temperature-start.ts` (bbox per-sekolah + validasi `schoolId`), `web/api/_lib/heatmapGrid.ts` + `live-temperature-result.ts` (grid raster ~84×84 sel), `lib/liveTemperatureGrid.ts` + `lib/edgeLiveTemperatures.ts` (sampling client-side ke tiap edge).
+- FR-30 baru: hingga satu rute alternatif — total tiga kartu (`lib/routeAlternatives.ts`, metode penalti), Dijkstra client-side diganti binary heap (`lib/dijkstra.ts`) supaya tiga pencarian tetap <1 detik. Kartu panel bisa dipilih (`RouteOptionCard`/`RouteOptionList`).
+- FR-13 diamendemen: slider jam dihapus dari Mode 2 — selalu `clampToSchoolHour(currentOrlandoHour())`, ditampilkan format 12 jam. `LiveConditionsRow` jadi affordance waktu ("Now · 7:00 AM"). Slider + `useDefaultHour` tetap dipakai penuh di Mode 1 (24 jam).
+
+**Revisi same-day, dari review tangkapan layar Revan:** panel dipangkas jadi Origin/Destination/Routes/Details murni — chip alamat contoh dan teks "Or drag the pin" dihapus dari Origin, digantikan saran pencarian langsung (`hooks/useGeocodeSuggestions.ts`, ganti `useGeocode.ts` lama); Destination diganti dari `<select>` native jadi input pencarian yang dibatasi ke daftar sekolah — mengetik menyaring, hanya klik hasil yang mengganti sekolah, teks tak cocok kembali ke sekolah terakhir saat blur. Jumlah alternatif dipangkas dari rencana awal dua ke satu. **Bug diperbaiki:** memilih kartu rute selain "Coolest" tidak mengubah apa pun di peta — diperbaiki dengan lebar-garis reaktif-seleksi di `useRouteLayers`/`useShortestRouteLayer` (prop `selected?` baru) ditambah `hooks/useRouteFocus.ts` baru yang `fitBounds` ke rute terpilih setiap klik kartu, penting karena ~90% rute teradem/terpendek berbagi geometri identik (G8) sehingga lebar garis saja tidak selalu terlihat.
+
+**Dokumen diamendemen dalam commit yang sama:** `heatwalk-prd.md` (FR-1, FR-13, FR-29, FR-30 baru + revisi jumlah alternatif), `DESIGN.md` (§Rute, §Mode 2, §Slider jam, checklist), `docs/METHODOLOGY.md` (§Fase 14 baru + §Revisi Fase 14 lanjutan), `docs/LIMITATIONS.md` (#23 ditulis ulang, #24 baru + revisi jumlah), `docs/CONTRACT.md` (kontrak respons `web/api/live-temperature-*`).
+
+**Verifikasi yang lulus:** `npx tsc --noEmit` bersih, `npm run build` bersih, `wc -l` semua file baru/tersentuh ≤150 baris, grep `#` di `src/` bersih kecuali `theme.css`. Diverifikasi manual lewat `npm run dev` + browser dua putaran: (1) FR-28/29/30/13 awal — 2–4 kartu rute merender, toggle "Hide heat data" mematikan rute teradem+alternatif dan mengembalikan rute terpendek ke abu putus-putus (momen "lampu dimatikan" utuh), kegagalan `/api/live-temperature-*` (lingkungan dev tidak punya `vercel dev`/kunci API) terbukti gagal senyap — status `unavailable`, nol error console; (2) revisi panel — saran Origin muncul saat mengetik dan memindahkan pin saat diklik, Destination menolak nama sekolah yang tidak cocok dan kembali ke sekolah semula saat blur, tepat tiga kartu rute tampil, dan mengklik kartu mana pun (termasuk yang geometrinya identik dengan kartu lain) membingkai ulang peta ke rute itu.
+
+**Belum diverifikasi** (butuh `vercel dev` + `FORTYGUARD_API_KEY` asli): jalur live sungguhan — apakah grid benar-benar datang, apakah dosis rute ter-upgrade setelah grid tiba, dan biaya kredit riil per sekolah dibuka. Jangan anggap ini lolos sampai dicoba dengan kunci asli.
 
 ## Catatan operasional
 

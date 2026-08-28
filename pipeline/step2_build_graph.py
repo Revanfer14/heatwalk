@@ -5,8 +5,10 @@ from pipeline.config import (
     BASELINE_C,
     DATA_INTERIM_DIR,
     DATA_OUT_DIR,
+    DOSE_DECIMALS,
     FETCH_DATE,
     FETCH_HOURS,
+    TEMP_DECIMALS,
     THRESHOLD_DOSE_C_MIN,
     TILES,
     utm_epsg_for_lon,
@@ -45,7 +47,11 @@ def build_tile_dataset(tile: dict) -> dict:
             peak_c = sampled["peak_c"][hour][edge_id]
             dose_value = dose_c_min(temp_c, edge["len_m"])
             raw_dose_by_hour.setdefault(hour, {})[edge_id] = dose_value
-            temps_edges[edge_id][hour] = [round(temp_c, 2), round(peak_c, 2), round(dose_value, 2)]
+            temps_edges[edge_id][hour] = [
+                round(temp_c, TEMP_DECIMALS),
+                round(peak_c, TEMP_DECIMALS),
+                round(dose_value, DOSE_DECIMALS),
+            ]
 
     dropped_edges_total = (
         topology["dropped_self_loop"] + topology["dropped_zero_length"] + len(dropped_edge_ids)
@@ -126,10 +132,6 @@ def main() -> None:
             f"  {school['id']:32s} lambda_detour={temps_payload['meta']['lambda_detour']:<6} "
             f"graph.json={graph_bytes / 1024:.0f}KB temps.json={temps_bytes / 1024:.0f}KB"
         )
-
-    copied = write_out.mirror_to_web()
-    print(f"\nfiles copied to web/public/data: {len(copied)}")
-
 
 if __name__ == "__main__":
     main()

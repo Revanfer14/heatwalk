@@ -4,14 +4,16 @@ interface HourSliderProps {
   hours: string[]
   hour: string
   onHourChange: (hour: string) => void
+  label?: string
 }
 
-export default function HourSlider({ hours, hour, onHourChange }: HourSliderProps) {
+export default function HourSlider({ hours, hour, onHourChange, label }: HourSliderProps) {
   const activeIndex = Math.max(hours.indexOf(hour), 0)
   const lastIndex = hours.length - 1
 
   return (
     <div className="w-full">
+      {label !== undefined && <p className="mb-1 text-xs font-medium text-ink-muted">{label}</p>}
       <p className="mb-2 text-center text-lg font-semibold tabular-nums text-ink">{hour}</p>
       <Slider
         min={0}

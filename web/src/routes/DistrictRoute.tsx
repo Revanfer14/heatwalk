@@ -89,6 +89,7 @@ function DistrictRouteInner() {
     onSelectAnalyzed: handleSelectAnalyzed,
     onSelectUnanalyzed: handleSelectUnanalyzed,
     solvedRoutes,
+    baselineC: schoolData?.temps.meta.baseline_c ?? 0,
     routeFailed,
     highlightedSegments,
   })

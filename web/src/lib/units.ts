@@ -7,6 +7,8 @@ const DEFAULT_DOSE_FRACTION_DIGITS = 0
 const DEFAULT_MILES_FRACTION_DIGITS = 1
 const DEFAULT_KILOMETERS_FRACTION_DIGITS = 2
 const DEFAULT_PERCENT_FRACTION_DIGITS = 0
+const HOUR_MINUTE_PATTERN = /^(\d{2}):(\d{2})$/
+const HOURS_PER_HALF_DAY = 12
 
 export function celsiusToFahrenheit(celsius: number): number {
   return celsius * FAHRENHEIT_MULTIPLIER + FAHRENHEIT_OFFSET
@@ -106,5 +108,16 @@ export function percentOf(part: number, total: number): number {
 
 export function percentChange(current: number, baseline: number): number {
   return baseline > 0 ? ((current - baseline) / baseline) * 100 : 0
+}
+
+export function formatHourAmPm(hour: string): string {
+  const match = HOUR_MINUTE_PATTERN.exec(hour)
+  if (match === null) return hour
+
+  const hour24 = Number.parseInt(match[1], 10)
+  const minute = match[2]
+  const period = hour24 >= HOURS_PER_HALF_DAY ? 'PM' : 'AM'
+  const hour12 = hour24 % HOURS_PER_HALF_DAY === 0 ? HOURS_PER_HALF_DAY : hour24 % HOURS_PER_HALF_DAY
+  return `${hour12}:${minute} ${period}`
 }
 

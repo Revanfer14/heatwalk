@@ -8,12 +8,18 @@ def build_tiles_manifest(fetch_results_by_tile: dict[str, list[dict]]) -> list[d
         results = fetch_results_by_tile[tile["id"]]
         hours_fetched = [row["hour"] for row in results if row["status"] == "ok"]
         status = "done" if hours_fetched else "failed_no_coverage"
+        modeled_median_c_by_hour = {
+            row["hour"]: row["modeled_median_c"]
+            for row in results
+            if row["status"] == "ok" and row["modeled_median_c"] is not None
+        }
         manifest.append(
             {
                 "id": tile["id"],
                 "bbox": list(tile["bbox"]),
                 "status": status,
                 "hours_fetched": hours_fetched,
+                "modeled_median_c_by_hour": modeled_median_c_by_hour,
             }
         )
     return manifest

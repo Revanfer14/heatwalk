@@ -7,6 +7,7 @@ import type { School, Tile } from '@/lib/types'
 
 const DEFAULT_PIN: PinPosition = { lon: SAMPLE_LOCATIONS[0].lon, lat: SAMPLE_LOCATIONS[0].lat }
 const MAP_READY_FALLBACK_MS = 3000
+const DEFAULT_SCHOOL_ID = 'sch_maynard_evans_high'
 
 export default function AppStateProvider({ children }: { children: ReactNode }) {
   const { map } = useMapInstance()
@@ -48,17 +49,21 @@ export default function AppStateProvider({ children }: { children: ReactNode }) 
   useEffect(() => {
     if (schools.length === 0) return
 
-    const selectFirstSchool = (): void => {
-      setSelectedSchoolIdState((current) => current ?? schools[0]?.id ?? null)
+    const selectDefaultSchool = (): void => {
+      setSelectedSchoolIdState((current) => {
+        if (current !== null) return current
+        const defaultSchool = schools.find((school) => school.id === DEFAULT_SCHOOL_ID)
+        return defaultSchool?.id ?? schools[0]?.id ?? null
+      })
       setBootLoading(false)
     }
 
     if (map !== null) {
-      selectFirstSchool()
+      selectDefaultSchool()
       return
     }
 
-    const fallbackTimeoutId = window.setTimeout(selectFirstSchool, MAP_READY_FALLBACK_MS)
+    const fallbackTimeoutId = window.setTimeout(selectDefaultSchool, MAP_READY_FALLBACK_MS)
     return () => window.clearTimeout(fallbackTimeoutId)
   }, [map, schools])
 

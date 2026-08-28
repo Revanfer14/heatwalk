@@ -4,7 +4,7 @@ from shapely.geometry import LineString
 from shapely.ops import transform as shapely_transform
 
 from pipeline import osm_network
-from pipeline.config import utm_epsg_for_lon
+from pipeline.config import EDGE_GEOM_COORD_DECIMALS, utm_epsg_for_lon
 
 SIMPLIFY_TOLERANCE_M = 5.0
 
@@ -32,7 +32,10 @@ def _street_name(edge_data: dict) -> str | None:
 def _simplified_geom(geometry_utm, to_wgs84: Transformer) -> list[list[float]]:
     simplified_utm = geometry_utm.simplify(SIMPLIFY_TOLERANCE_M, preserve_topology=False)
     simplified_wgs84 = shapely_transform(to_wgs84.transform, simplified_utm)
-    return [[round(lon, 6), round(lat, 6)] for lon, lat in simplified_wgs84.coords]
+    return [
+        [round(lon, EDGE_GEOM_COORD_DECIMALS), round(lat, EDGE_GEOM_COORD_DECIMALS)]
+        for lon, lat in simplified_wgs84.coords
+    ]
 
 
 def build_topology(tile_id: str, bbox: tuple[float, float, float, float]) -> dict:
@@ -76,7 +79,7 @@ def build_topology(tile_id: str, bbox: tuple[float, float, float, float]) -> dic
                 node_compact_ids[original_id] = compact_id
                 lon = float(undirected.nodes[original_id]["x"])
                 lat = float(undirected.nodes[original_id]["y"])
-                nodes[compact_id] = [round(lon, 6), round(lat, 6)]
+                nodes[compact_id] = [round(lon, EDGE_GEOM_COORD_DECIMALS), round(lat, EDGE_GEOM_COORD_DECIMALS)]
 
         geometry_wgs84 = _edge_geometry_wgs84(undirected, u, v, data)
         geometry_utm = shapely_transform(to_utm.transform, geometry_wgs84)

@@ -27,8 +27,9 @@ def _coolest_physical_length_m(graph: nx.Graph, source: str, hour: str, lambda_v
     return lengths
 
 
-def max_detour_ratio(graph: nx.Graph, source: str, hour: str, lambda_value: float) -> float:
-    shortest = nx.single_source_dijkstra_path_length(graph, source, weight="len_m")
+def max_detour_ratio(
+    graph: nx.Graph, source: str, hour: str, lambda_value: float, shortest: dict[str, float]
+) -> float:
     coolest = _coolest_physical_length_m(graph, source, hour, lambda_value)
 
     ratios = [
@@ -39,8 +40,15 @@ def max_detour_ratio(graph: nx.Graph, source: str, hour: str, lambda_value: floa
     return max(ratios) if ratios else 1.0
 
 
-def worst_detour_ratio_across_hours(graph: nx.Graph, source: str, hours: list[str], lambda_value: float) -> float:
-    return max(max_detour_ratio(graph, source, hour, lambda_value) for hour in hours)
+def worst_detour_ratio_across_hours(
+    graph: nx.Graph, source: str, hours: list[str], lambda_value: float, shortest: dict[str, float], cap_ratio: float
+) -> float:
+    worst_ratio = 1.0
+    for hour in hours:
+        worst_ratio = max(worst_ratio, max_detour_ratio(graph, source, hour, lambda_value, shortest))
+        if worst_ratio > cap_ratio:
+            break
+    return worst_ratio
 
 
 def calibrate_lambda(
@@ -50,7 +58,8 @@ def calibrate_lambda(
     candidates: list[float] = LAMBDA_DETOUR_CANDIDATES,
     cap_ratio: float = DETOUR_CAP_RATIO,
 ) -> float:
+    shortest = nx.single_source_dijkstra_path_length(graph, source, weight="len_m")
     for lambda_value in candidates:
-        if worst_detour_ratio_across_hours(graph, source, hours, lambda_value) <= cap_ratio:
+        if worst_detour_ratio_across_hours(graph, source, hours, lambda_value, shortest, cap_ratio) <= cap_ratio:
             return lambda_value
     return candidates[-1]

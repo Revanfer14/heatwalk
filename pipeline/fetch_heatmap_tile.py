@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pipeline import fg_client, heatmap_raster, heatmap_fetch
+from pipeline import fg_client, heatmap_raster, heatmap_fetch, heatmap_stats
 from pipeline.config import DATA_INTERIM_DIR, FETCH_DATE, GRANULARITY_M
 
 NAN_FRACTION_DROP_THRESHOLD = 0.10
@@ -15,12 +15,15 @@ def fetch_hour(tile_id: str, bbox: tuple[float, float, float, float], hour_local
     map_data = result["data"]["result"]["map_data"]
     n_cells = len(map_data.get("features", []))
     if n_cells == 0:
-        return {"hour": hour_local, "status": "empty", "n_cells": 0, "nan_pct": None}
+        return {"hour": hour_local, "status": "empty", "n_cells": 0, "nan_pct": None, "modeled_median_c": None}
 
     grid, transform = heatmap_raster.build_grid(map_data)
     nan_pct = round(heatmap_raster.nan_fraction(grid) * 100, 2)
     path = geotiff_path(tile_id, hour_local)
     heatmap_raster.write_geotiff(path, grid, transform)
+
+    values, _null_count, _sentinel_count = heatmap_stats.tile_values(map_data)
+    modeled_median_c = heatmap_stats.describe(values)["median"]
 
     kept = nan_pct <= NAN_FRACTION_DROP_THRESHOLD * 100
     return {
@@ -29,6 +32,7 @@ def fetch_hour(tile_id: str, bbox: tuple[float, float, float, float], hour_local
         "n_cells": n_cells,
         "nan_pct": nan_pct,
         "path": str(path),
+        "modeled_median_c": round(modeled_median_c, 2),
     }
 
 

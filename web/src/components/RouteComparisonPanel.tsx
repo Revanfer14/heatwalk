@@ -4,6 +4,7 @@ import Metric from '@/components/Metric'
 import TemperaturePair from '@/components/TemperaturePair'
 import {
   formatDose,
+  formatHourAmPm,
   formatKilometers,
   formatMinutes,
   formatSignedMeters,
@@ -18,16 +19,22 @@ import type { SolvedRoutes } from '@/lib/types'
 interface RouteComparisonPanelProps {
   routes: SolvedRoutes
   hour: string
+  isLive?: boolean
 }
 
-export default function RouteComparisonPanel({ routes, hour }: RouteComparisonPanelProps) {
+export default function RouteComparisonPanel({ routes, hour, isLive = false }: RouteComparisonPanelProps) {
   const { shortest, coolest } = routes
   const dosePercent = deltaDosePercent(shortest.dose, coolest.dose)
+  const hourLabel = formatHourAmPm(hour)
 
   return (
     <section className="flex flex-col gap-4">
       <Metric
-        label={`Coolest route, mean temperature at ${hour}`}
+        label={
+          isLive
+            ? `Coolest route, mean temperature today at ${hourLabel}`
+            : `Coolest route, mean temperature at ${hourLabel}`
+        }
         value={
           <HeatValue>
             <TemperaturePair celsius={coolest.mean_c} />

@@ -8,15 +8,18 @@ interface UsePinMarkerInput {
   map: maplibregl.Map | null
   pin: PinPosition
   onPinChange: (pin: PinPosition) => void
+  onPinDragEnd?: (pin: PinPosition) => void
 }
 
 export function usePinMarker(input: UsePinMarkerInput): void {
-  const { map, pin, onPinChange } = input
+  const { map, pin, onPinChange, onPinDragEnd } = input
   const markerRef = useRef<maplibregl.Marker | null>(null)
   const onPinChangeRef = useRef(onPinChange)
+  const onPinDragEndRef = useRef(onPinDragEnd)
 
   useEffect(() => {
     onPinChangeRef.current = onPinChange
+    onPinDragEndRef.current = onPinDragEnd
   })
 
   useEffect(() => {
@@ -32,7 +35,9 @@ export function usePinMarker(input: UsePinMarkerInput): void {
 
     marker.on('dragend', () => {
       const lngLat = marker.getLngLat()
-      onPinChangeRef.current({ lon: lngLat.lng, lat: lngLat.lat })
+      const newPin = { lon: lngLat.lng, lat: lngLat.lat }
+      onPinChangeRef.current(newPin)
+      onPinDragEndRef.current?.(newPin)
     })
 
     markerRef.current = marker

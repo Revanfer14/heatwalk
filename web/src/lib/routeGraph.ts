@@ -1,6 +1,7 @@
 import type { GraphEdge, SchoolTemps } from '@/lib/types'
-import { weightCool } from '@/lib/dose'
+import { doseCMin, weightCool } from '@/lib/dose'
 import type { RoutingAdjacency, RoutingEdge } from '@/lib/dijkstra'
+import type { LiveEdgeTemperatures } from '@/lib/edgeLiveTemperatures'
 
 interface WinningEdge {
   u: string
@@ -16,10 +17,46 @@ function undirectedPairKey(u: string, v: string): string {
   return u < v ? `${u}::${v}` : `${v}::${u}`
 }
 
+function applyTemperatureOffset(
+  storedTempC: number,
+  storedPeakC: number,
+  storedDose: number,
+  lenM: number,
+  baselineC: number,
+  temperatureOffsetC: number,
+): { temp_c: number; peak_c: number; dose: number } {
+  if (temperatureOffsetC === 0) {
+    return { temp_c: storedTempC, peak_c: storedPeakC, dose: storedDose }
+  }
+  const temp_c = storedTempC + temperatureOffsetC
+  const peak_c = storedPeakC + temperatureOffsetC
+  return { temp_c, peak_c, dose: doseCMin(temp_c, lenM, baselineC) }
+}
+
+function resolveEdgeTemperature(
+  edgeId: string,
+  storedTempC: number,
+  storedPeakC: number,
+  storedDose: number,
+  lenM: number,
+  baselineC: number,
+  temperatureOffsetC: number,
+  liveEdgeTemps: LiveEdgeTemperatures | undefined,
+): { temp_c: number; peak_c: number; dose: number } {
+  const live = liveEdgeTemps?.[edgeId]
+  if (live !== undefined) {
+    return { temp_c: live.temp_c, peak_c: live.peak_c, dose: doseCMin(live.temp_c, lenM, baselineC) }
+  }
+  return applyTemperatureOffset(storedTempC, storedPeakC, storedDose, lenM, baselineC, temperatureOffsetC)
+}
+
 function selectWinningEdges(
   edges: Record<string, GraphEdge>,
   tempsEdges: SchoolTemps['edges'],
   hour: string,
+  baselineC: number,
+  temperatureOffsetC: number,
+  liveEdgeTemps: LiveEdgeTemperatures | undefined,
 ): Map<string, WinningEdge> {
   const winners = new Map<string, WinningEdge>()
 
@@ -30,7 +67,17 @@ function selectWinningEdges(
 
     const hourTriple = tempsEdges[edgeId]?.[hour]
     if (hourTriple === undefined) continue
-    const [temp_c, peak_c, dose] = hourTriple
+    const [storedTempC, storedPeakC, storedDose] = hourTriple
+    const { temp_c, peak_c, dose } = resolveEdgeTemperature(
+      edgeId,
+      storedTempC,
+      storedPeakC,
+      storedDose,
+      edge.len_m,
+      baselineC,
+      temperatureOffsetC,
+      liveEdgeTemps,
+    )
 
     winners.set(key, { u: edge.u, v: edge.v, edgeId, len_m: edge.len_m, temp_c, peak_c, dose })
   }
@@ -67,8 +114,11 @@ export function buildRoutingGraph(
   tempsEdges: SchoolTemps['edges'],
   hour: string,
   lambdaDetour: number,
+  baselineC: number,
+  temperatureOffsetC: number = 0,
+  liveEdgeTemps?: LiveEdgeTemperatures,
 ): RoutingAdjacency {
-  const winners = selectWinningEdges(edges, tempsEdges, hour)
+  const winners = selectWinningEdges(edges, tempsEdges, hour, baselineC, temperatureOffsetC, liveEdgeTemps)
   const adjacency: RoutingAdjacency = new Map()
 
   for (const winner of winners.values()) {

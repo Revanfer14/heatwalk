@@ -41,11 +41,27 @@ def submit(endpoint: str, payload: dict[str, Any]) -> str:
     return activity_id
 
 
-def poll(activity_id: str, timeout: float = 600.0, interval: float = 5.0) -> dict[str, Any]:
+RETRIABLE_STATUS_CODES = {502, 503, 504}
+
+
+def poll(activity_id: str, timeout: float = 900.0, interval: float = 5.0) -> dict[str, Any]:
     url = f"{FG_BASE_URL}/status/{activity_id}"
     deadline = time.monotonic() + timeout
     while True:
-        response = httpx.get(url, headers=_headers(), timeout=30.0)
+        try:
+            response = httpx.get(url, headers=_headers(), timeout=60.0)
+        except httpx.TimeoutException:
+            if time.monotonic() > deadline:
+                raise FortyGuardError(f"activity {activity_id} timeout setelah {timeout}s (request timeout)")
+            time.sleep(interval)
+            continue
+        if response.status_code in RETRIABLE_STATUS_CODES:
+            if time.monotonic() > deadline:
+                raise FortyGuardError(
+                    f"activity {activity_id} timeout setelah {timeout}s (terakhir {response.status_code})"
+                )
+            time.sleep(interval)
+            continue
         if response.status_code != 200:
             raise FortyGuardError(
                 f"poll {activity_id} gagal: {response.status_code} {response.text}"

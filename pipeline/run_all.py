@@ -3,6 +3,7 @@ import sys
 
 from pipeline import (
     step1_fetch_data,
+    step1b_schools,
     step2_build_graph,
     step3_routes,
     step3b_outcomes,
@@ -12,6 +13,7 @@ from pipeline import (
 
 PIPELINE_STEPS = [
     ("step1_fetch_data", step1_fetch_data.main),
+    ("step1b_schools", step1b_schools.main),
     ("step2_build_graph", step2_build_graph.main),
     ("step3_routes", step3_routes.main),
     ("step3b_outcomes", step3b_outcomes.main),

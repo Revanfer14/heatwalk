@@ -43,6 +43,10 @@ SHADE_COOLING_C = 1.5
 SEGMENT_PRIORITY_TOP_N = 20
 SUBGRAPH_CATCHMENT_BUFFER_KM = 0.5
 
+TEMP_DECIMALS = 1
+DOSE_DECIMALS = 1
+EDGE_GEOM_COORD_DECIMALS = 5
+
 EXCEEDANCE_STATION_ICAO = "MCO"
 EXCEEDANCE_STATION_START_DATE = "2019-01-01"
 EXCEEDANCE_STATION_END_DATE = "2025-12-31"
@@ -55,10 +59,13 @@ DISMISSAL_HHMM = "15:00"
 FETCH_DATE = "2023-08-08"
 FETCH_HOURS = [f"{hour:02d}:00" for hour in range(7, 17)]
 
+SCHOOL_SELECTION_TILE_ID = "orl_ocps_core"
+SCHOOL_SELECTION_BBOX = (-81.4763, 28.5277, -81.3719, 28.6612)
+
 TILES = [
     {
-        "id": "orl_ocps_core",
-        "bbox": (-81.4763, 28.5277, -81.3719, 28.6612),
+        "id": "orl_ocps_core_wide",
+        "bbox": (-81.510, 28.496, -81.342, 28.692),
         "timezone": "America/New_York",
         "utc_offset_hours": -4,
         "status": "pending",

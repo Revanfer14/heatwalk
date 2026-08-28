@@ -1,7 +1,7 @@
 import hashlib
 import math
 
-from pipeline.config import TILES
+from pipeline.config import SCHOOL_SELECTION_BBOX, SCHOOL_SELECTION_TILE_ID, TILES
 from pipeline.nces_schools import build_schools_payload
 
 AOI_BBOX = TILES[0]["bbox"]
@@ -11,7 +11,7 @@ N_EDGE_ROWS = 18
 N_BLOCK_COLS = 12
 N_BLOCK_ROWS = 10
 
-SCHOOLS_FIXTURE = build_schools_payload(TILES[0]["id"], AOI_BBOX)
+SCHOOLS_FIXTURE = build_schools_payload(SCHOOL_SELECTION_TILE_ID, SCHOOL_SELECTION_BBOX)
 
 
 def _seeded_unit(*parts: object) -> float:

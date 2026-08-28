@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode } from '@/lib/types'
+import type { GraphEdge, GraphNode, RouteHeatSegment } from '@/lib/types'
 import type { RoutingAdjacency } from '@/lib/dijkstra'
 
 function squaredDistance(node: GraphNode, point: number[]): number {
@@ -7,7 +7,7 @@ function squaredDistance(node: GraphNode, point: number[]): number {
   return dx * dx + dy * dy
 }
 
-function orientGeometryFromNode(geom: number[][], fromNode: GraphNode): number[][] {
+export function orientGeometryFromNode(geom: number[][], fromNode: GraphNode): number[][] {
   const start = geom[0]
   const end = geom[geom.length - 1]
   const distanceToStart = squaredDistance(fromNode, start)
@@ -15,13 +15,13 @@ function orientGeometryFromNode(geom: number[][], fromNode: GraphNode): number[]
   return distanceToStart <= distanceToEnd ? geom : [...geom].reverse()
 }
 
-export function buildRouteGeometry(
+export function buildRouteSegments(
   nodes: Record<string, GraphNode>,
   edges: Record<string, GraphEdge>,
   adjacency: RoutingAdjacency,
   path: string[],
-): number[][] {
-  const coordinates: number[][] = []
+): RouteHeatSegment[] {
+  const segments: RouteHeatSegment[] = []
 
   for (let index = 0; index < path.length - 1; index += 1) {
     const fromId = path[index]
@@ -31,9 +31,16 @@ export function buildRouteGeometry(
 
     const edge = edges[routingEdge.edgeId]
     const orientedGeometry = orientGeometryFromNode(edge.geom, nodes[fromId])
-    const segment = index === 0 ? orientedGeometry : orientedGeometry.slice(1)
-    coordinates.push(...segment)
+    segments.push({ edgeId: routingEdge.edgeId, temp_c: routingEdge.temp_c, geometry: orientedGeometry })
   }
 
+  return segments
+}
+
+export function flattenRouteGeometry(segments: RouteHeatSegment[]): number[][] {
+  const coordinates: number[][] = []
+  segments.forEach((segment, index) => {
+    coordinates.push(...(index === 0 ? segment.geometry : segment.geometry.slice(1)))
+  })
   return coordinates
 }

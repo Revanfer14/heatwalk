@@ -28,7 +28,7 @@ Gerbang lain yang berlaku bersifat operasional, bukan magnitudo: `tcm` terverifi
 
 ### Prinsip arsitektur yang tidak boleh dilanggar
 
-- **Tidak ada backend server.** Pipeline Python offline → file statis → React baca file. Satu-satunya panggilan API saat runtime adalah tombol refresh (FR-17), dan itu terisolasi total.
+- **Tidak ada backend server, kecuali satu fungsi serverless read-only untuk FR-29** (suhu live Mode 2) yang menahan kunci API FortyGuard — tanpa database, tanpa state, di luar jalur render rute. Pipeline Python offline → file statis → React baca file, tetap prinsip utama. Selain FR-29, satu-satunya panggilan API saat runtime adalah tombol refresh (FR-17, tidak dibangun), dan itu terisolasi total.
 - **Engine graph, bukan raster.** PRD §6.2. Raster cost-distance (`skimage.graph.MCP_Geometric`) hanya fallback darurat dan hanya untuk Mode 1.
 - **GeoJSON di-`fetch()`, bukan di-`import`.**
 - **Tidak ada autentikasi, tidak ada database.** Live demo wajib terbuka di incognito tanpa login (submission form field 12). Mode dipisah lewat route `/` dan `/district`, bukan lewat akun.

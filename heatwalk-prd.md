@@ -267,6 +267,7 @@ Godaan terbesar: mendesain untuk semua persona sekaligus. **Desain untuk 2.1 dan
 | US-12 | Orang tua | menggeser slider ke jam pulang anak saya yang sebenarnya | angkanya sesuai kondisi anak saya, bukan jam rata-rata |
 | US-13 | Facilities Planner | melihat tabel segmen jalan berperingkat | tahu di mana menanam pohon lebih dulu |
 | US-14 | Sistem | menjalankan refresh forecast | membuktikan pipeline hidup |
+| US-15 | Orang tua | melihat rute berdasarkan suhu hari ini, bukan hari model | tahu rutenya relevan sekarang |
 
 ---
 
@@ -276,7 +277,9 @@ Godaan terbesar: mendesain untuk semua persona sekaligus. **Desain untuk 2.1 dan
 
 #### FR-1 — Input alamat + sekolah *(P0)*
 
-- Satu input alamat (geocoding sederhana) + dropdown sekolah dalam AOI
+- Satu input alamat (geocoding) + input sekolah, keduanya bergaya pencarian dengan saran langsung — meniru pola "usual map" (amendemen 2026-08-28, Revan)
+- **Origin:** mengetik memicu saran Nominatim langsung (debounced, sampai 5 hasil); klik saran atau Enter memindahkan pin. Chip alamat contoh dihapus dari panel produksi — sudah tidak dibutuhkan begitu saran langsung ada
+- **Destination:** input pencarian yang **membatasi pilihan ke daftar sekolah dalam AOI saja** — mengetik menyaring nama sekolah yang cocok secara live; hanya mengklik satu hasil yang mengganti sekolah terpilih. Teks yang tidak cocok apa pun kembali (revert) ke sekolah terpilih terakhir saat field kehilangan fokus — pengguna tidak bisa "nyangkut" di sekolah yang tidak valid
 - Pin dapat digeser di peta sebagai alternatif input teks
 - Batas AOI ditampilkan sebagai boundary halus; klik di luar → "Area ini belum dipetakan"
 - ⚠️ **Jangan pakai `navigator.geolocation` untuk demo** — lokasi developer bukan di AS. Pakai pin yang bisa digeser, default di tengah AOI
@@ -409,10 +412,10 @@ Salah klasifikasi:
 
 Kontrol jam berangkat sepanjang hari sekolah, satu langkah per jam dari 07:00 sampai 16:00.
 
-- Mode 2: kontrol utama panel FR-4. Ganti jam → suhu, dosis, dan jalur rute teradem ikut berubah
 - Mode 1: kontrol layer zona. Ganti jam → choropleth ter-render ulang
 - Perubahan slider me-render ulang dari file pre-computed, **bukan panggilan API**
-- Default Mode 2: jam terpanas dalam hari sekolah, supaya orang tua melihat kasus terburuk lebih dulu dan bisa menggeser turun dari situ
+
+**Amendemen 2026-08-28 (Revan): slider dihapus dari Mode 2.** Sejak FR-29, mode orang tua selalu memakai jam Orlando saat ini (`clampToSchoolHour(currentOrlandoHour())`) — meniru Google/Apple Maps yang tidak meminta pengguna memilih "jam berangkat" secara manual. Panel FR-4 tidak lagi punya kontrol jam; jam yang sedang berlaku ditampilkan sebagai teks ("Now · 15:00") di baris kondisi langsung (`LiveConditionsRow`), bukan sebagai slider. FR-13 selanjutnya hanya berlaku untuk Mode 1.
 
 Jam yang tersedia dibaca dari `meta.hours` di data, bukan dikonstantakan di frontend. Tile yang cuma punya sebagian jam menampilkan langkah yang tersedia saja — jangan interpolasi jam yang tidak ditarik.
 
@@ -518,6 +521,37 @@ Legend mengambang di sisi kanan peta, bisa dilipat, sadar-mode: kelas zona + mak
 #### FR-28 — Warna suhu di rute Mode 2 *(P1)*
 
 Rute terpendest diberi warna per segmen mengikuti suhu jalannya pada jam terpilih: ramp **biru → oren** (biru = di baseline, makin oren = makin panas), jangkar domain dari `meta.baseline_c` sampai segmen terpanas di jalur. Rute teradem berubah dari tinta hitam menjadi **biru solid** — keputusan produk 2026-08-27: biru = "jawaban", ramp di rute terpendest = paparan status quo. Saat FR-16, rute terpendest kembali netral abu putus-putus dan seluruh warna hilang — momen "lampu dimatikan" tetap utuh.
+
+#### FR-29 — Suhu live di Mode 2 *(P1)*
+
+Keputusan produk 2026-08-28 (Revan): mode orang tua memanggil FortyGuard secara live untuk suhu **hari ini**, alih-alih murni memakai hari model 2023-08-08, supaya rute terasa seperti Google/Apple Maps — relevan hari ini, bukan riset historis.
+
+Ini **bukan** FR-17 dibangun ulang. FR-17 (di atas) tetap tidak dibangun untuk alasan yang sama seperti sebelumnya (kunci API tidak boleh dibundel ke browser). FR-29 mengatasi persis masalah itu lewat satu fungsi serverless read-only yang menahan kunci API — lihat amendemen §6.1 di bawah — bukan lewat memanggil FortyGuard langsung dari browser.
+
+Batasan yang mengikat implementasi:
+
+- **Terpisah dari render rute.** Rute selalu ter-render dari `temps.json` dalam <1 detik seperti sekarang (FR-3); panggilan live berjalan di latar belakang dan meng-upgrade rute yang sudah tampil begitu datang. Rute tidak pernah menunggu jawaban FortyGuard.
+- **Klasifikasi blok tidak ikut live.** Kategori merah/kuning/hijau, `safe_until_hour`, dan seluruh `summary.json` tetap dari hari model — gerbang G1 (2.955 blok merah) dihitung dari data itu dan harus tetap bisa direproduksi. Panel wajib menyatakan eksplisit "modeled day 2023-08-08" untuk angka-angka ini saat suhu live aktif, supaya tidak diam-diam kontradiktif dengan rute yang sudah live.
+- **Jam mengikuti jam Orlando saat ini**, dipotong ke rentang 07:00–16:00 yang datanya tersedia (lihat amendemen FR-13 — tidak ada lagi kontrol slider di Mode 2, jam ini otomatis).
+- **Gagal senyap.** Timeout, error, atau limit kredit membuat produk tetap di hari model — tidak ada state error yang menghalangi jalur demo utama.
+
+**Amendemen 2026-08-28 (Revan): per-sel dalam satu tile per sekolah, bukan satu offset seragam per AOI.** Rilis awal FR-29 memakai "satu offset seragam per AOI, bukan per sel" karena AOI penuh (±58 mi²) jauh melebihi batas 10 mi² per panggilan `heatmap`. Keputusan baru mempersempit cakupan panggilan live, bukan mempersempit resolusinya:
+
+- Satu panggilan `heatmap` per sekolah per jam, di-scope ke tile 5,0 × 5,0 km (±9,65 mi², di bawah batas 10 mi²) berpusat di titik sekolah — bukan bbox AOI penuh. `schoolId` divalidasi di server terhadap `schools.json`; ini pagar kredit, bukan cuma kenyamanan API, karena bbox sembarang dari klien bisa membakar 4.220 kredit per permintaan.
+- Respons `heatmap` (grid sel `map_data.features`) digrid di server (`web/api/_lib/heatmapGrid.ts`, port dari `pipeline/heatmap_raster.py:build_grid`) dan dikirim ke klien sebagai raster ringan (~35 KB, ~84×84 sel) alih-alih hanya median skalar.
+- Klien menyampel grid itu ke sepanjang geometri tiap edge jalan (`web/src/lib/edgeLiveTemperatures.ts`, spasi sampel 20 m — mencerminkan `pipeline/edge_sampling.py`) menghasilkan `temp_c`/`peak_c` **per edge**, bukan satu offset yang diratakan ke seluruh graph. Dosis dihitung ulang dari nilai live itu lewat `doseCMin()` yang sama, satu-satunya rumus dosis di kode.
+- Edge di luar tile 5×5 km (fringe walk zone sekolah besar) tidak punya sampel live dan jatuh kembali ke suhu model + offset seragam sebagai fallback — didokumentasikan di `docs/LIMITATIONS.md`.
+- Karena slider jam sudah dihapus dari Mode 2 (amendemen FR-13), hanya ada **satu** jam live yang pernah diminta per sekolah per hari — konsumsi kredit tidak bertambah dari perubahan ini dibanding rencana rilis awal FR-29.
+
+#### FR-30 — Opsi rute majemuk *(P1)*
+
+Keputusan produk 2026-08-28 (Revan): selain rute teradem dan rute terpendek (FR-3), Mode 2 menampilkan **hingga tiga rute terbaik secara total** — satu rute alternatif tambahan di atas keduanya. Amendemen 2026-08-28 lanjutan (same-day): rilis pertama FR-30 menampilkan hingga dua alternatif (empat kartu total); Revan memangkas ke satu alternatif (tiga kartu total) supaya panel tetap ringkas, meniru pengalaman "beberapa opsi rute" pada Google/Apple Maps tanpa terasa penuh.
+
+- Alternatif dicari dengan metode penalti: jalankan ulang Dijkstra pada bobot `weight_cool` dengan bobot edge yang sudah dipakai rute lain dikalikan `ALTERNATE_PENALTY_FACTOR`, tolak kandidat yang berbagi lebih dari `MAX_SHARED_LENGTH_RATIO` panjangnya dengan rute yang sudah diterima (`web/src/lib/routeAlternatives.ts`).
+- **Jumlahnya boleh nol.** FR-8/G8 sudah menunjukkan ~90% blok punya rute teradem yang identik dengan rute terpendek di jaringan grid Orlando — pada blok begitu, mesin pencari alternatif genuinely kehabisan jalur yang cukup berbeda. Panel harus tetap benar dirender dengan 2 atau 3 kartu total; jangan memaksakan jumlah tetap dengan melonggarkan ambang kemiripan.
+- Rute alternatif dirender abu netral (`--ink-subtle`, 2px solid) — lihat amendemen §Rute di `DESIGN.md`. Ini bukan penambahan warna baru; keduanya konsisten dengan aturan "warna hanya di peta/legend/badge" karena abu bukan warna kategori.
+- **Memilih kartu rute mana pun** (teradem, terpendek, atau alternatif) menebalkan garisnya di peta **dan** membingkai ulang tampilan peta ke batas geometri rute itu (`hooks/useRouteFocus.ts`, `map.fitBounds`) — satu-satunya cara membedakan antar-rute yang kebetulan berbagi jalur identik, sebelum legend FR-27 mencakup Mode 2 sepenuhnya.
+- Alternatif ikut hilang saat FR-16 aktif, sama seperti rute teradem.
 
 ---
 
@@ -707,7 +741,7 @@ Gelombang 1 wajib lolos seluruh checklist sebelum gelombang 2 dijalankan. Bukan 
    jalan sekali/terjadwal        di-commit ke repo             routing client-side
 ```
 
-**Tidak ada backend server. Tidak ada panggilan API saat runtime**, kecuali tombol refresh (FR-17). Ini yang membuat timeline realistis dan demo tidak bisa gagal karena job async yang menggantung.
+**Tidak ada backend server, kecuali satu fungsi serverless read-only yang menahan kunci API FortyGuard untuk FR-29** — tanpa database, tanpa state, dan di luar jalur render rute (rute selalu ter-render dari `data/out/` dalam <1 detik; panggilan live meng-upgrade angkanya belakangan, tidak pernah menghalanginya). Di luar itu, **tidak ada panggilan API saat runtime** kecuali tombol refresh (FR-17, tidak dibangun) dan FR-29. Ini yang membuat timeline realistis dan demo tidak bisa gagal karena job async yang menggantung.
 
 ### 6.2 Engine: graph routing
 

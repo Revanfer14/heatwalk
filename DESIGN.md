@@ -73,16 +73,21 @@ Tanpa API key. **Keputusan produk 2026-08-27 malam (Revan):** rencana basemap se
 
 | Elemen | Gaya |
 |---|---|
-| Rute terpendek (data panas tampil, FR-28) | 2,5px solid, warna per segmen: ramp `--route-heat-cool` → `--route-heat-hot` sesuai `temp_c`, tanpa dasharray |
-| Rute terpendek (FR-16 aktif) | 2px `--ink-subtle`, dashed `4 4` — balik ke netral |
-| Rute teradem | 5px solid `--route-coolest`, dengan casing 8px `--bg` di bawahnya |
+| Rute terpendek (data panas tampil, FR-28) | 2,5px solid, warna per segmen: ramp `--route-heat-cool` → `--route-heat-hot` sesuai `temp_c`, tanpa dasharray — 3,5px saat kartunya terpilih di panel |
+| Rute terpendek (FR-16 aktif) | 2px `--ink-subtle`, dashed `4 4` — balik ke netral; 3px saat terpilih |
+| Rute teradem | 5px solid `--route-coolest`, dengan casing 8px `--bg` di bawahnya — 6,5px (casing 9,5px) saat terpilih |
 | Rute teradem yang **gagal** (FR-10) | 5px solid `--zone-bus`, casing sama |
+| Rute alternatif (FR-30, Mode 2) | 2px solid `--ink-subtle`, tanpa dasharray — 3px saat kartunya terpilih di panel |
 | Segmen prioritas top-5 (FR-24) | 7px `--zone-bus`, opacity 100%, di atas layer rute, + label rank |
 | Lingkaran walk zone resmi | 1,5px `--ink-muted`, dashed `6 6`, tanpa fill |
 | Lingkaran radius setara-dosis (FR-18) | 1,5px solid `--ink`, tanpa fill |
 | Hover pada salah satu lingkaran (FR-26) | garis menebal ke 3px + tooltip deskripsi |
 
 **Keputusan produk 2026-08-27 (Revan):** rute teradem memakai **biru** (`--route-coolest`), bukan tinta — biru adalah jawaban; ramp biru→oren pada rute terpendek menunjukkan paparan panas status quo. Dua rute tetap terbedakan tanpa warna lewat lebar (2,5px vs 5px + casing) dan legend berlabel. Saat FR-16 aktif, ramp dan rute teradem hilang total — rute terpendek kembali netral abu putus-putus, momen "lampu dimatikan" tetap utuh.
+
+**Amendemen 2026-08-28 (Revan, FR-30):** rute alternatif memakai abu `--ink-subtle` polos, bukan hitam/merah seperti sempat diusulkan — merah tetap eksklusif milik `--zone-bus` (rute teradem gagal, segmen prioritas), dan menambah warna baru untuk alternatif akan melanggar aturan "warna hanya di peta/legend/badge". Alternatif juga hilang saat FR-16 aktif, sama seperti rute teradem — hanya rute terpendek netral yang bertahan. **Jumlahnya dipangkas dari dua menjadi satu** (amendemen lanjutan hari yang sama) — total tiga kartu rute (teradem, terpendek, satu alternatif), bukan empat.
+
+**Amendemen 2026-08-28 (Revan): memilih kartu rute membingkai ulang peta ke rute itu.** Bug yang ditemukan Revan — peta tidak berubah saat kartu selain "Coolest" diklik — diperbaiki dengan dua mekanisme sekaligus: (1) rute yang kartunya terpilih menebalkan garisnya (lihat lebar per baris di tabel atas), dan (2) peta `fitBounds` ke kotak pembatas geometri rute itu (`hooks/useRouteFocus.ts`, padding 64px, `maxZoom` 17, durasi 600ms). Mekanisme kedua ini wajib ada karena ~90% pasangan blok–sekolah punya rute teradem yang identik dengan rute terpendek (G8, `docs/LIMITATIONS.md`) — kalau geometrinya sama persis, menebalkan garis saja tidak terlihat karena satu rute akan selalu digambar tepat di atas rute lain; `fitBounds` tetap memberi umpan balik nyata di kasus itu.
 
 ### Label di atas choropleth
 
@@ -159,7 +164,7 @@ Anggaran gerak sangat kecil, dan ini yang pertama dipotong kalau waktu mepet (de
 - Tidak ada animasi masuk saat scroll. Tidak ada stagger.
 - `@media (prefers-reduced-motion: reduce)` wajib ada dan mematikan semuanya.
 
-Dua pengecualian yang boleh dipoles: transisi FR-16 (fade 180ms saat layer panas hilang) dan pergantian geometri rute saat slider jam digeser (fade 120ms, lihat bagian berikutnya). Keduanya cukup untuk terbaca sebagai perubahan, cukup cepat untuk tidak terasa seperti efek.
+Dua pengecualian yang boleh dipoles: transisi FR-16 (fade 180ms saat layer panas hilang) dan pergantian geometri rute teradem (fade 120ms, lihat bagian berikutnya) — dipicu slider jam di Mode 1, atau di Mode 2 oleh suhu live FortyGuard yang datang belakangan dan meng-upgrade jalur (FR-29). Keduanya cukup untuk terbaca sebagai perubahan, cukup cepat untuk tidak terasa seperti efek.
 
 Angka **tidak pernah** di-tween. Lihat bagian Slider jam.
 
@@ -167,7 +172,9 @@ Angka **tidak pernah** di-tween. Lihat bagian Slider jam.
 
 ## Slider jam
 
-Kontrol paling sering disentuh di seluruh produk. Dia hadir di kedua mode dan mengubah hampir semua angka di layar, jadi dia harus terasa langsung dan tidak boleh terlihat dekoratif.
+**Amendemen 2026-08-28 (Revan, FR-13): kontrol ini sekarang eksklusif Mode 1.** Mode 2 menghapus slider — lihat amendemen §Mode 2 di atas — dan selalu memakai jam Orlando saat ini. Spesifikasi di bawah tetap berlaku penuh untuk `HourSlider` di panel distrik.
+
+Kontrol paling sering disentuh di Mode 1 dan mengubah hampir semua angka di layar, jadi dia harus terasa langsung dan tidak boleh terlihat dekoratif.
 
 ### Bentuk
 
@@ -182,7 +189,7 @@ Jam aktif ditulis penuh di atas track, ukuran H2 panel, `--ink`. Ini satu-satuny
 1. **Langkahnya dibaca dari `meta.hours`, bukan dari konstanta.** Tile dengan tiga jam menampilkan tiga tick, bukan sepuluh dengan tujuh yang mati.
 2. **Diskrit, bukan kontinu.** Thumb mengunci ke tick. Tidak ada posisi antara dua jam, karena tidak ada datanya.
 3. **Nol warna**, sesuai aturan tunggal di atas. Slider bukan peta, bukan legend, bukan badge status.
-4. Target sentuh thumb minimum 44px di Mode 2 — perbesar area sentuhnya, bukan lingkarannya.
+4. Target sentuh thumb minimum 44px — perbesar area sentuhnya, bukan lingkarannya.
 5. Dapat dioperasikan penuh dengan keyboard: panah kiri/kanan geser satu jam, `Home`/`End` ke ujung. Focus ring 2px `--ink` seperti elemen lain.
 6. `aria-valuetext` berisi jamnya dalam kata (`"15:00"`), bukan indeks langkahnya.
 
@@ -241,17 +248,40 @@ Satu aplikasi, dua route: `/` untuk mode orang tua (pintu masuk default) dan `/d
 
 ### Mode 2 — orang tua (mobile-first, 390px naik)
 
-Pada viewport ≥768px, panel peta di atas dipakai sebagai **panel samping**: satu tampilan berisi input alamat → kalimat status → slider jam → kalimat "aman sampai jam X" → panel perbandingan rute → tombol permohonan, berurutan ke bawah, scroll di dalam panel. Tidak ada detent — semuanya kelihatan sekaligus kalau muat, sisanya di-scroll.
+**Keputusan produk 2026-08-28 (Revan): panel disusun ulang bergaya Google/Apple Maps.** Urutan lama (input alamat → kalimat status → slider jam → kalimat "aman sampai jam X" → panel perbandingan rute → tombol permohonan, semuanya kelihatan sekaligus) diganti urutan baru di bawah. Tidak ada FR yang dihapus — FR-2 (kalimat status), FR-4 (tabel perbandingan penuh), FR-5 (permohonan), dan kalimat `safe_until_hour` semuanya tetap ada, hanya dipindah posisi:
 
-Di bawah 768px, panel yang sama dirender sebagai **bottom sheet** dua detent: peek (kalimat status + slider jam) dan expanded (panel perbandingan penuh). Input alamat mengambang di atas sheet, chip alamat contoh tepat di bawahnya. Target sentuh minimum 44px.
+```
+Origin field          ← input pencarian + saran alamat langsung (Nominatim, debounced)
+Destination field     ← input pencarian dibatasi ke daftar sekolah dalam AOI, gaya field sama dengan Origin
+Kalimat status (FR-2) ← "Rumah kamu 1,1 mil dari SD Lincoln — di dalam walk zone."
+Kondisi langsung      ← "Now · 7:00 AM" + suhu live kalau tersedia, lihat amendemen di bawah
+──────
+Kartu rute: Coolest   ← waktu · jarak · suhu rata-rata
+Kartu rute: Shortest
+Kartu rute: Alternate 1 (FR-30, kalau ada)
+──────
+Kalimat "Safe until"  ← baris sendiri, lihat aturan di bawah
+──────
+▸ Details             ← tabel perbandingan FR-4 penuh + tombol permohonan FR-5, di balik disclosure
+```
 
-**Slider jam ikut di detent peek** (mobile) atau selalu terlihat tanpa scroll berlebihan (panel samping). Dia kontrol utama mode ini; menyembunyikannya berarti orang tua tidak pernah tahu jam bisa diganti.
+**Amendemen 2026-08-28 (Revan): panel dipangkas ke Origin, Destination, Routes, Details.** Chip alamat contoh dan teks bantuan "Or drag the pin on the map." dihapus dari Origin — saran pencarian langsung menggantikan kebutuhan chip, dan drag-pin tidak butuh keterangan lagi di produk sekelas "usual map". Destination berhenti jadi `<select>` native dan jadi input pencarian yang menyaring daftar sekolah secara live saat diketik; mengklik salah satu hasil adalah **satu-satunya** cara mengganti sekolah — teks yang tidak cocok apa pun kembali ke sekolah terpilih terakhir saat field kehilangan fokus, sehingga pengguna tidak bisa memilih sekolah di luar daftar. Kalimat status dan kondisi langsung tetap ada (FR-2 P0, tidak boleh dihapus) tapi dibaca sebagai bagian dari alur Destination→Routes, bukan sebagai section kelima yang berdiri sendiri.
 
-Hierarki di layar pertama: kalimat status → slider jam → dua rute di peta → suhu rute teradem.
+FR-2 minta kalimat status ini sebagai **"output pertama"** begitu asal dan tujuan terisi — makanya dia duduk tepat di bawah dua field, sebelum kondisi langsung, dan tidak menunggu rute selesai dihitung (dia dari jarak lurus rumah↔sekolah, bukan dari graph routing).
 
-Angka terbesar di panel adalah **suhu rata-rata rute teradem pada jam yang sedang dipilih** — `41,2°C (106,2°F)` — bukan selisih antar rute. Selisih antar rute kecil dan hadir sebagai baris tabel biasa, tidak dibesarkan (PRD FR-4). °C·menit hadir tapi lebih kecil dan selalu di sebelah °C-nya (NFR §7).
+**Amendemen 2026-08-28 (Revan, FR-13/FR-29): slider jam dihapus dari Mode 2.** Baris "Departure time" yang sebelumnya di sini dibingkai "Leave at" digantikan `LiveConditionsRow`, yang selalu menampilkan jam Orlando saat ini dalam format 12 jam ("Now · 7:00 AM", `formatHourAmPm` di `lib/units.ts`) — jam ini dihitung otomatis dari `clampToSchoolHour(currentOrlandoHour())`, bukan dipilih pengguna. Kalau suhu live FortyGuard berhasil didapat untuk sekolah dan jam itu, baris yang sama menambahkan suhu live dan selisihnya terhadap hari model. FR-13 (slider) selanjutnya murni kontrol Mode 1, dan tetap memakai format 24 jam di sana (tick jam mengikuti granularitas data `meta.hours`, bukan gaya "usual map").
 
-Kalimat `Aman kalau pulang sebelum 13:00` (`safe_until_hour`) tampil tepat di bawah slider bila blok belum merah sepanjang hari. Ini kalimat paling berguna di seluruh Mode 2 — beri dia baris sendiri, jangan diselipkan ke dalam tabel.
+Pada viewport ≥768px, panel peta dipakai sebagai **panel samping**: field, kalimat status, baris kondisi langsung, dan kartu-kartu rute selalu terlihat tanpa scroll berlebihan; `Details` dibuka di tempat (bukan overlay), scroll ikut panel.
+
+Di bawah 768px, panel yang sama dirender sebagai **bottom sheet** dua detent: peek (field + kalimat status + kondisi langsung) dan expanded (kartu-kartu rute + `Details`). Target sentuh minimum 44px.
+
+`Details` adalah `<button>` polos yang men-toggle satu section — **bukan** komponen `accordion` (itu jatah khusus halaman Metodologi & Limitations, lihat §Component library). Monokrom seperti seluruh kontrol lain — kartu rute tidak boleh memakai warna, karena warna hanya untuk peta, legend peta, dan badge status klasifikasi. Kartu terpilih dibedakan lewat border/latar netral (`border-ink` + `bg-surface`), bukan warna.
+
+Hierarki di layar pertama: field Origin/Destination → kondisi langsung → kartu-kartu rute di panel + rute-rute di peta.
+
+Angka terbesar di kartu Coolest adalah **suhu rata-rata rute teradem pada jam yang sedang dipilih** — `41,2°C (106,2°F)` — bukan selisih antar rute. Selisih antar rute kecil dan hadir sebagai baris tabel biasa di dalam `Details`, tidak dibesarkan (PRD FR-4). °C·menit hadir tapi lebih kecil dan selalu di sebelah °C-nya (NFR §7).
+
+Kalimat `Aman kalau pulang sebelum 13:00` (`safe_until_hour`) tampil di baris sendiri antara kartu rute dan `Details`, bila blok belum merah sepanjang hari. Ini kalimat paling berguna di seluruh Mode 2 — jangan diselipkan ke dalam tabel.
 
 ### Mode 1 — distrik (desktop, 1280px naik)
 
@@ -271,7 +301,7 @@ Slider jam ada di tampilan 2, di dalam panel. Di mode ini dia mengontrol layer z
 
 Nada: kalimat pendek, deklaratif, tanpa tanda seru. Angka dulu, penjelasan belakangan.
 
-Format angka konsisten di seluruh produk: suhu satu desimal dengan °C dan °F berdampingan, dosis bilangan bulat, jarak dua desimal untuk km dan satu desimal untuk mil, persentase bilangan bulat dengan tanda. Semuanya lewat util tunggal `web/src/lib/format.ts`.
+Format angka konsisten di seluruh produk: suhu satu desimal dengan °C dan °F berdampingan, dosis bilangan bulat, jarak dua desimal untuk km dan satu desimal untuk mil, persentase bilangan bulat dengan tanda. Semuanya lewat util tunggal `web/src/lib/units.ts`.
 
 ---
 
@@ -301,11 +331,16 @@ Bukan tambahan — produknya soal keselamatan anak dan akan dipresentasikan ke l
 - [ ] Tidak ada komentar tersisa di `components/ui/`.
 - [ ] Basemap memakai style `liberty` dari OpenFreeMap, dan atribusi OpenStreetMap terlihat.
 - [ ] Semua layer symbol memakai `Noto Sans Regular`/`Bold`/`Italic` (fontstack lain 404 di glyph server).
-- [ ] FR-16 mematikan **semua** layer data panas: zona, label suhu, top-5 segmen, tooltip radius dosis, ramp rute — tersisa lingkaran kebijakan + rute terpendek netral saja.
+- [ ] FR-16 mematikan **semua** layer data panas: zona, label suhu, top-5 segmen, tooltip radius dosis, ramp rute, rute alternatif (FR-30) — tersisa lingkaran kebijakan + rute terpendek netral saja.
 - [ ] Overlay dosis panas, legend, dan badge klasifikasi tetap kontras jelas terhadap basemap berwarna (cek merah/kuning zona vs warna jalan/bangunan basemap).
-- [ ] Slider jam monokrom, diskrit, dan jumlah tick-nya sama dengan panjang `meta.hours`.
-- [ ] Angka berganti tanpa tween saat jam digeser; hanya geometri rute yang fade.
-- [ ] Slider dapat digeser penuh dengan keyboard, dan `aria-valuetext` berisi jam.
+- [ ] Slider jam (Mode 1) monokrom, diskrit, dan jumlah tick-nya sama dengan panjang `meta.hours`.
+- [ ] Angka berganti tanpa tween saat jam digeser (Mode 1) atau saat suhu live tiba (Mode 2); hanya geometri rute yang fade.
+- [ ] Slider (Mode 1) dapat digeser penuh dengan keyboard, dan `aria-valuetext` berisi jam.
+- [ ] Mode 2 tidak punya slider jam — kondisi langsung ("Now · 7:00 AM", format 12 jam) selalu tampil di panel, dan hilang bersama field origin/destination saja, bukan lewat FR-16.
+- [ ] Kartu rute alternatif (FR-30) monokrom, jumlahnya bisa 0 atau 1 (total 2–3 kartu) tanpa merusak layout panel.
+- [ ] Memilih kartu rute mana pun menebalkan garisnya **dan** membuat peta `fitBounds` ke rute itu (`hooks/useRouteFocus.ts`) — verifikasi khususnya saat rute yang dipilih berbagi jalur identik dengan rute lain (kasus paling umum, G8), karena di situ lebar garis saja tidak akan terlihat.
+- [ ] Origin tidak lagi punya chip alamat contoh atau teks "Or drag the pin" — hanya input pencarian dengan saran langsung.
+- [ ] Destination adalah input pencarian, bukan `<select>`; mengetik nama yang tidak cocok apa pun tidak pernah mengganti sekolah terpilih, dan field kembali ke nama sekolah terakhir saat kehilangan fokus.
 - [ ] Berpindah `/` ↔ `/district` tidak me-remount peta: basemap tidak berkedip, tile tidak dimuat ulang.
 - [ ] Peta terlihat di keempat sisi panel (atas, bawah, kanan, dan celah kiri) — tidak ada bar opaque penuh-lebar tersisa.
 - [ ] Collapse panel mengembalikan peta ke tampilan penuh, dan cluster kontrol tetap dapat diakses saat panel collapsed.

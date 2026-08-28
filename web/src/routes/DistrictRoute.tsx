@@ -7,7 +7,6 @@ import { useDistrictRouteData } from '@/hooks/useDistrictRouteData'
 import { useDistrictMapLayers } from '@/hooks/useDistrictMapLayers'
 import { useFlyToSchool } from '@/hooks/useFlyToSchool'
 import { useAoiBoundaryLayer } from '@/hooks/useAoiBoundaryLayer'
-import { useSegmentPriority } from '@/hooks/useSegmentPriority'
 import { useDistrictSelectionHandlers } from '@/hooks/useDistrictSelectionHandlers'
 import { useIsSidePanelViewport } from '@/hooks/useIsSidePanelViewport'
 import { useMapPanelPadding } from '@/hooks/useMapPanelPadding'
@@ -53,7 +52,6 @@ function DistrictRouteInner() {
   } = useDistrictRouteData()
 
   const schoolPoint: LonLat | null = selectedSchool !== null ? [selectedSchool.lon, selectedSchool.lat] : null
-  const { segments } = useSegmentPriority(focusedSchoolId)
   const { handleSelectAnalyzed, handleSelectUnanalyzed, handleBlockClick, handleBackToSchools, handleBackToSchool } =
     useDistrictSelectionHandlers({
       districtBlocks,
@@ -114,7 +112,6 @@ function DistrictRouteInner() {
       layerVisibility={layerVisibility}
       onToggleLayer={toggleLayer}
       hideHeatData={hideHeatData}
-      segments={segments}
       schoolSearchText={schoolSearchText}
       onSearchTextChange={setSchoolSearchText}
       includeUnanalyzed={includeUnanalyzed}

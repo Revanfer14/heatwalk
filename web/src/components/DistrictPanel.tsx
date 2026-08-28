@@ -8,7 +8,7 @@ import BlockDetailPanel from '@/components/BlockDetailPanel'
 import UnanalyzedSchoolNotice from '@/components/UnanalyzedSchoolNotice'
 import TileCoverageInfo from '@/components/TileCoverageInfo'
 import type { DistrictPanelView, LayerVisibility } from '@/lib/districtStateContext'
-import type { SchoolNational, SegmentPriorityRow } from '@/lib/districtTypes'
+import type { SchoolNational } from '@/lib/districtTypes'
 import type { SchoolData } from '@/lib/schoolDataCache'
 import type { BlockFeature, School, SchoolSummary, Tile } from '@/lib/types'
 
@@ -29,7 +29,6 @@ interface DistrictPanelProps {
   layerVisibility: LayerVisibility
   onToggleLayer: (layer: keyof LayerVisibility) => void
   hideHeatData: boolean
-  segments: SegmentPriorityRow[] | null
   schoolSearchText: string
   onSearchTextChange: (text: string) => void
   includeUnanalyzed: boolean
@@ -57,7 +56,6 @@ export default function DistrictPanel({
   layerVisibility,
   onToggleLayer,
   hideHeatData,
-  segments,
   schoolSearchText,
   onSearchTextChange,
   includeUnanalyzed,
@@ -116,7 +114,6 @@ export default function DistrictPanel({
           layerVisibility={layerVisibility}
           onToggleLayer={onToggleLayer}
           hideHeatData={hideHeatData}
-          segments={segments}
         />
       )}
       {panelView === 'block' &&

@@ -291,7 +291,11 @@ Kalimat `Aman kalau pulang sebelum 13:00` (`safe_until_hour`) tampil di baris se
 Satu panel peta yang sama, dipakai sebagai **tumpukan tiga tampilan** yang saling menggantikan (bukan menumpuk), dinavigasi dengan tombol kembali di baris atas panel:
 
 1. **Daftar sekolah** — pencarian + daftar sekolah teranalisis dan (opsional) sekolah nasional belum teranalisis.
-2. **Sekolah terpilih** — ringkasan sekolah (FR-12) sebagai grid metrik dua kolom (bukan baris horizontal — lebar panel 380px tidak cukup untuk baris), toggle layer (A/B/C), slider jam, lalu (kalau ada) export CSV dan tabel prioritas segmen. Kembali → daftar sekolah. Legend zona tidak lagi di panel — pindah ke legend peta sisi kanan (FR-27).
+2. **Sekolah terpilih** — ringkasan sekolah (FR-12) sebagai grid metrik dua kolom (bukan baris horizontal — lebar panel 380px tidak cukup untuk baris), legend zona, toggle layer (A/B/C), slider jam, lalu (kalau ada) export CSV. Kembali → daftar sekolah.
+
+**Amendemen (Revan): FR-15 tabel prioritas segmen dicabut dari panel.** Terlalu banyak diagnostik di satu layar untuk keputusan yang seharusnya sederhana ("blok ini hijau/merah, kenapa"); FR-15 memang yang pertama di daftar korban dev plan setelah animasi. `SegmentPriorityTable.tsx` dan `useSegmentPriority.ts` dihapus dari `web/src/`, bukan disembunyikan.
+
+**Catatan ketidaksesuaian ditemukan saat pembersihan ini:** baris di atas sebelumnya menyatakan "legend zona tidak lagi di panel — pindah ke legend peta sisi kanan (FR-27)", tapi tidak ada komponen legend mengambang di `web/src/` — `ZoneLegend` hanya pernah dirender di panel sekolah. FR-27 (legend peta sisi kanan) belum pernah dibangun untuk Mode 1; legend tetap di panel karena ini satu-satunya tempat kategori zona dijelaskan lewat teks (wajib per aturan redundansi warna di atas). Belum diperbaiki — lapor ke Revan, jangan dianggap selesai.
 3. **Blok terpilih** — panel detail blok (FR-9), termasuk "lihat kenapa" (FR-10) dan panel outcome (FR-11) saat kategori merah. Kembali → sekolah terpilih.
 
 Slider jam ada di tampilan 2, di dalam panel. Di mode ini dia mengontrol layer zona: menggesernya mengganti warna choropleth, bukan angka panel.

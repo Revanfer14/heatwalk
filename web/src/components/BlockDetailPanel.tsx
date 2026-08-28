@@ -30,13 +30,12 @@ export default function BlockDetailPanel({
   const deltaVsGreen = deltaVsNearestGreenBlock(block, allBlocks)
 
   return (
-    <div className="flex flex-col gap-5 p-4">
-      <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-6 p-4">
+      <div className="flex flex-col gap-2">
         <span className="text-xs font-medium uppercase tracking-[0.08em] text-ink-subtle">Block {properties.block_id}</span>
         <ClassificationBadge blockClass={properties.class} />
+        <Metric label="Estimated school-age children" value={properties.kids_est} />
       </div>
-
-      <Metric label="Estimated school-age children" value={properties.kids_est} />
 
       <Metric
         label="Coolest route, mean / peak temperature"

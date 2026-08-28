@@ -1,30 +1,3 @@
-[
-  {
-    "B19013_001E": "94730",
-    "state": "12",
-    "county": "095",
-    "tract": "018800",
-    "block group": "1"
-  },
-  {
-    "B19013_001E": "79549",
-    "state": "12",
-    "county": "095",
-    "tract": "018800",
-    "block group": "2"
-  },
-  {
-    "B19013_001E": "-666666666",
-    "state": "12",
-    "county": "095",
-    "tract": "018800",
-    "block group": "3"
-  },
-  {
-    "B19013_001E": "59688",
-    "state": "12",
-    "county": "095",
-    "tract": "018800",
-    "block group": "4"
-  }
-]
+version https://git-lfs.github.com/spec/v1
+oid sha256:361a3a2b17a6417e40a8faafaf59ff8af4153128d6d17155084d655ce3788762
+size 528

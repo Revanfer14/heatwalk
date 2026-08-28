@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { useOfficialZoneLayer } from '@/hooks/useOfficialZoneLayer'
 import { useDoseZoneLayer } from '@/hooks/useDoseZoneLayer'
@@ -5,13 +6,10 @@ import { useBlockTempLabelsLayer } from '@/hooks/useBlockTempLabelsLayer'
 import { useDoseRadiusLayer } from '@/hooks/useDoseRadiusLayer'
 import { useNationalSchoolsLayer } from '@/hooks/useNationalSchoolsLayer'
 import { useNationalSchoolsClicks } from '@/hooks/useNationalSchoolsClicks'
-import { useShortestRouteLayer } from '@/hooks/useShortestRouteLayer'
-import { useRouteLayers } from '@/hooks/useRouteLayers'
-import { useSegmentHighlightLayer } from '@/hooks/useSegmentHighlightLayer'
+import { resolveAnalyzedSchoolId } from '@/lib/resolveAnalyzedSchool'
 import type { LayerVisibility } from '@/lib/districtStateContext'
-import type { BlocksGeoJson, School, SolvedRoutes } from '@/lib/types'
+import type { BlocksGeoJson, School } from '@/lib/types'
 import type { SchoolNational } from '@/lib/districtTypes'
-import type { RouteSegment } from '@/lib/routeSolver'
 import type { LonLat } from '@/lib/geoDistance'
 
 interface UseDistrictMapLayersInput {
@@ -25,13 +23,10 @@ interface UseDistrictMapLayersInput {
   theme: string
   schools: School[]
   nationalSchools: SchoolNational[] | null
+  focusedSchoolId: string | null
   onBlockClick: (blockId: string) => void
   onSelectAnalyzed: (schoolId: string) => void
   onSelectUnanalyzed: (school: SchoolNational) => void
-  solvedRoutes: SolvedRoutes | null
-  baselineC: number
-  routeFailed: boolean
-  highlightedSegments: RouteSegment[]
 }
 
 export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
@@ -46,14 +41,16 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
     theme,
     schools,
     nationalSchools,
+    focusedSchoolId,
     onBlockClick,
     onSelectAnalyzed,
     onSelectUnanalyzed,
-    solvedRoutes,
-    baselineC,
-    routeFailed,
-    highlightedSegments,
   } = input
+
+  const visibleNationalSchools = useMemo(() => {
+    if (focusedSchoolId === null || nationalSchools === null) return nationalSchools
+    return nationalSchools.filter((school) => resolveAnalyzedSchoolId(school, schools) === focusedSchoolId)
+  }, [nationalSchools, schools, focusedSchoolId])
 
   useOfficialZoneLayer({ map, schoolPoint, walkRadiusMi, visible: layerVisibility.officialZone, theme })
   useDoseZoneLayer({
@@ -76,9 +73,6 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
     visible: layerVisibility.doseRadius && !hideHeatData,
     theme,
   })
-  useShortestRouteLayer({ map, shortest: solvedRoutes?.shortest ?? null, baselineC, hideHeatData, theme })
-  useRouteLayers({ map, coolest: solvedRoutes?.coolest ?? null, hideHeatData, routeFailed, theme })
-  useSegmentHighlightLayer({ map, segments: hideHeatData ? [] : highlightedSegments, theme })
-  useNationalSchoolsLayer({ map, nationalSchools, theme })
+  useNationalSchoolsLayer({ map, nationalSchools: visibleNationalSchools, theme })
   useNationalSchoolsClicks({ map, schools, onSelectAnalyzed, onSelectUnanalyzed })
 }

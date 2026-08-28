@@ -3,7 +3,7 @@ import type maplibregl from 'maplibre-gl'
 import type { SolvedRouteLeg } from '@/lib/types'
 import { getRouteColors } from '@/lib/mapPaint'
 
-const ALTERNATE_LAYER_ID = 'heatwalk-alternate-routes'
+export const ALTERNATE_LAYER_ID = 'heatwalk-alternate-routes'
 const ALTERNATE_LINE_WIDTH = 2
 const ALTERNATE_LINE_WIDTH_SELECTED = 3
 

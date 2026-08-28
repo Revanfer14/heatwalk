@@ -4,7 +4,6 @@ import DistrictPanel from '@/components/DistrictPanel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMapInstance } from '@/hooks/useMapInstance'
 import { useDistrictRouteData } from '@/hooks/useDistrictRouteData'
-import { useDistrictSelectedRoute } from '@/hooks/useDistrictSelectedRoute'
 import { useDistrictMapLayers } from '@/hooks/useDistrictMapLayers'
 import { useFlyToSchool } from '@/hooks/useFlyToSchool'
 import { useAoiBoundaryLayer } from '@/hooks/useAoiBoundaryLayer'
@@ -23,14 +22,14 @@ function DistrictRouteInner() {
   const {
     schools,
     tile,
-    selectedSchoolId,
-    setSelectedSchoolId,
     hour,
     setHour,
     hideHeatData,
     theme,
     bootLoading,
     bootError,
+    focusedSchoolId,
+    setFocusedSchoolId,
     setSelectedBlockId,
     layerVisibility,
     toggleLayer,
@@ -54,24 +53,16 @@ function DistrictRouteInner() {
   } = useDistrictRouteData()
 
   const schoolPoint: LonLat | null = selectedSchool !== null ? [selectedSchool.lon, selectedSchool.lat] : null
-
-  const { solvedRoutes, highlightedSegments } = useDistrictSelectedRoute(
-    schoolData?.graph ?? null,
-    schoolData?.temps ?? null,
-    schoolPoint,
-    selectedBlock,
-    hour,
-  )
-  const routeFailed = selectedBlock?.properties.class === 'red'
-  const { segments } = useSegmentPriority(selectedSchoolId)
+  const { segments } = useSegmentPriority(focusedSchoolId)
   const { handleSelectAnalyzed, handleSelectUnanalyzed, handleBlockClick, handleBackToSchools, handleBackToSchool } =
     useDistrictSelectionHandlers({
       districtBlocks,
-      selectedSchoolId,
-      setSelectedSchoolId,
+      focusedSchoolId,
+      setFocusedSchoolId,
       setSelectedBlockId,
       setUnanalyzedNotice,
       setPanelView,
+      setHour,
     })
 
   useDistrictMapLayers({
@@ -85,13 +76,10 @@ function DistrictRouteInner() {
     theme,
     schools,
     nationalSchools,
+    focusedSchoolId,
     onBlockClick: handleBlockClick,
     onSelectAnalyzed: handleSelectAnalyzed,
     onSelectUnanalyzed: handleSelectUnanalyzed,
-    solvedRoutes,
-    baselineC: schoolData?.temps.meta.baseline_c ?? 0,
-    routeFailed,
-    highlightedSegments,
   })
 
   useFlyToSchool(map, selectedSchool, SCHOOL_FLY_TO_ZOOM)
@@ -100,7 +88,7 @@ function DistrictRouteInner() {
 
   if (bootLoading) return <Skeleton className="fixed inset-x-4 top-16 h-24 rounded-lg" />
 
-  if (bootError !== null || districtBlocksError !== null || selectedSchool === null) {
+  if (bootError !== null || districtBlocksError !== null) {
     return (
       <div className="fixed inset-x-4 top-16 rounded-lg border border-border bg-surface-raised p-4 text-sm text-ink-muted">
         Could not load HeatWalk data. Reload to try again.
@@ -115,7 +103,6 @@ function DistrictRouteInner() {
       panelView={panelView}
       schools={schools}
       nationalSchools={nationalSchools}
-      selectedSchoolId={selectedSchoolId}
       selectedSchool={selectedSchool}
       schoolData={schoolData}
       schoolSummary={schoolSummary}

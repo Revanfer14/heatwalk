@@ -3,7 +3,7 @@ import type maplibregl from 'maplibre-gl'
 import { getRouteColors } from '@/lib/mapPaint'
 import type { Tile } from '@/lib/types'
 
-const AOI_BOUNDARY_LAYER_ID = 'heatwalk-aoi-boundary'
+export const AOI_BOUNDARY_LAYER_ID = 'heatwalk-aoi-boundary'
 
 function bboxToPolygon(bbox: Tile['bbox']) {
   const [west, south, east, north] = bbox

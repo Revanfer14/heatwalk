@@ -12,6 +12,8 @@ export type DistrictPanelView = 'schools' | 'school' | 'block'
 export interface DistrictStateContextValue {
   panelView: DistrictPanelView
   setPanelView: (view: DistrictPanelView) => void
+  focusedSchoolId: string | null
+  setFocusedSchoolId: (schoolId: string | null) => void
   selectedBlockId: string | null
   setSelectedBlockId: (blockId: string | null) => void
   layerVisibility: LayerVisibility

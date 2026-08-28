@@ -19,6 +19,7 @@ const ICON_SIZE_MAX = 1
 const LABEL_TEXT_SIZE_MIN = 10
 const LABEL_TEXT_SIZE_MAX = 12
 const LABEL_HALO_WIDTH_PX = 1.5
+const UNANALYZED_PIN_OPACITY = 0.55
 
 interface UseSchoolPinsLayerInput {
   map: maplibregl.Map | null
@@ -59,7 +60,7 @@ export function useSchoolPinsLayer(input: UseSchoolPinsLayerInput): void {
             ICON_SIZE_MAX,
           ],
           'icon-anchor': 'center',
-          'text-field': ['get', 'name'],
+          'text-field': ['case', ['get', 'analyzed'], ['get', 'name'], ''],
           'text-font': ['Noto Sans Bold'],
           'text-size': [
             'interpolate',
@@ -75,7 +76,10 @@ export function useSchoolPinsLayer(input: UseSchoolPinsLayerInput): void {
           'text-optional': true,
           'symbol-sort-key': ['case', ['get', 'analyzed'], 0, 1],
         },
-        paint: { 'text-halo-width': LABEL_HALO_WIDTH_PX },
+        paint: {
+          'text-halo-width': LABEL_HALO_WIDTH_PX,
+          'icon-opacity': ['case', ['get', 'analyzed'], 1, UNANALYZED_PIN_OPACITY],
+        },
       })
     }
 

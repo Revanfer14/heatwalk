@@ -2,9 +2,8 @@ import { useEffect } from 'react'
 import type maplibregl from 'maplibre-gl'
 import type { SolvedRouteLeg } from '@/lib/types'
 import { getRouteColors } from '@/lib/mapPaint'
-import { rampColorExpression, rampSegmentFeatureCollection } from '@/lib/routeRampFeatures'
 
-const SHORTEST_LAYER_ID = 'heatwalk-shortest-route'
+export const SHORTEST_LAYER_ID = 'heatwalk-shortest-route'
 const FR16_LINE_WIDTH = 2
 const FR16_LINE_WIDTH_SELECTED = 3
 const FR16_DASH = [4, 4]
@@ -15,17 +14,25 @@ function emptyFeatureCollection() {
   return { type: 'FeatureCollection' as const, features: [] }
 }
 
+function lineFeatureCollection(coordinates: number[][]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: [
+      { type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates } },
+    ],
+  }
+}
+
 interface UseShortestRouteLayerInput {
   map: maplibregl.Map | null
   shortest: SolvedRouteLeg | null
-  baselineC: number
   hideHeatData: boolean
   theme: string
   selected?: boolean
 }
 
 export function useShortestRouteLayer(input: UseShortestRouteLayerInput): void {
-  const { map, shortest, baselineC, hideHeatData, theme, selected = false } = input
+  const { map, shortest, hideHeatData, theme, selected = false } = input
 
   useEffect(() => {
     if (map === null) return
@@ -50,7 +57,7 @@ export function useShortestRouteLayer(input: UseShortestRouteLayerInput): void {
   useEffect(() => {
     if (map === null) return
     const source = map.getSource(SHORTEST_LAYER_ID) as maplibregl.GeoJSONSource | undefined
-    source?.setData(shortest !== null ? rampSegmentFeatureCollection(shortest.segments) : emptyFeatureCollection())
+    source?.setData(shortest !== null ? lineFeatureCollection(shortest.geometry) : emptyFeatureCollection())
   }, [map, shortest])
 
   useEffect(() => {
@@ -64,11 +71,8 @@ export function useShortestRouteLayer(input: UseShortestRouteLayerInput): void {
       return
     }
 
-    const colorExpression = selected
-      ? colors.routeCoolest
-      : rampColorExpression(baselineC, shortest?.segments ?? [], colors.routeHeatCool, colors.routeHeatHot)
-    map.setPaintProperty(SHORTEST_LAYER_ID, 'line-color', colorExpression)
+    map.setPaintProperty(SHORTEST_LAYER_ID, 'line-color', selected ? colors.routeCoolest : colors.inkSubtle)
     map.setPaintProperty(SHORTEST_LAYER_ID, 'line-width', selected ? HEAT_LINE_WIDTH_SELECTED : HEAT_LINE_WIDTH)
     map.setPaintProperty(SHORTEST_LAYER_ID, 'line-dasharray', null)
-  }, [map, hideHeatData, baselineC, shortest, theme, selected])
+  }, [map, hideHeatData, theme, selected])
 }

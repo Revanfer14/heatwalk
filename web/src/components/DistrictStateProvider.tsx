@@ -15,6 +15,7 @@ const DEFAULT_LAYER_VISIBILITY: LayerVisibility = {
 
 export default function DistrictStateProvider({ children }: { children: ReactNode }) {
   const [panelView, setPanelView] = useState<DistrictPanelView>('schools')
+  const [focusedSchoolId, setFocusedSchoolId] = useState<string | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [layerVisibility, setLayerVisibility] = useState<LayerVisibility>(DEFAULT_LAYER_VISIBILITY)
   const [schoolSearchText, setSchoolSearchText] = useState('')
@@ -29,6 +30,8 @@ export default function DistrictStateProvider({ children }: { children: ReactNod
     () => ({
       panelView,
       setPanelView,
+      focusedSchoolId,
+      setFocusedSchoolId,
       selectedBlockId,
       setSelectedBlockId,
       layerVisibility,
@@ -40,7 +43,16 @@ export default function DistrictStateProvider({ children }: { children: ReactNod
       unanalyzedNotice,
       setUnanalyzedNotice,
     }),
-    [panelView, selectedBlockId, layerVisibility, toggleLayer, schoolSearchText, includeUnanalyzed, unanalyzedNotice],
+    [
+      panelView,
+      focusedSchoolId,
+      selectedBlockId,
+      layerVisibility,
+      toggleLayer,
+      schoolSearchText,
+      includeUnanalyzed,
+      unanalyzedNotice,
+    ],
   )
 
   return <DistrictStateContext.Provider value={value}>{children}</DistrictStateContext.Provider>

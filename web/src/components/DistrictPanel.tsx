@@ -18,8 +18,7 @@ interface DistrictPanelProps {
   panelView: DistrictPanelView
   schools: School[]
   nationalSchools: SchoolNational[] | null
-  selectedSchoolId: string | null
-  selectedSchool: School
+  selectedSchool: School | null
   schoolData: SchoolData | null
   schoolSummary: SchoolSummary | null
   selectedBlock: BlockFeature | null
@@ -47,7 +46,6 @@ export default function DistrictPanel({
   panelView,
   schools,
   nationalSchools,
-  selectedSchoolId,
   selectedSchool,
   schoolData,
   schoolSummary,
@@ -77,11 +75,11 @@ export default function DistrictPanel({
         panelView === 'schools' ? (
           <MapPanelHeader title="HeatWalk" eyebrow="Orlando" />
         ) : panelView === 'school' ? (
-          <MapPanelHeader title={selectedSchool.name} onBack={onBackToSchools} />
+          <MapPanelHeader title={selectedSchool?.name ?? 'School'} onBack={onBackToSchools} />
         ) : (
           <MapPanelHeader
             title={unanalyzedNotice?.name ?? `Block ${selectedBlock?.properties.block_id ?? ''}`}
-            onBack={onBackToSchool}
+            onBack={unanalyzedNotice !== null ? onBackToSchools : onBackToSchool}
           />
         )
       }
@@ -99,7 +97,6 @@ export default function DistrictPanel({
         <SchoolList
           analyzedSchools={schools}
           nationalSchools={nationalSchools}
-          selectedSchoolId={selectedSchoolId}
           onSelectAnalyzed={onSelectAnalyzed}
           onSelectUnanalyzed={onSelectUnanalyzed}
           searchText={schoolSearchText}
@@ -108,7 +105,7 @@ export default function DistrictPanel({
           onIncludeUnanalyzedChange={onIncludeUnanalyzedChange}
         />
       )}
-      {panelView === 'school' && (
+      {panelView === 'school' && selectedSchool !== null && (
         <DistrictSchoolView
           schoolId={selectedSchool.id}
           schoolSummary={schoolSummary}
@@ -125,7 +122,7 @@ export default function DistrictPanel({
       {panelView === 'block' &&
         (unanalyzedNotice !== null ? (
           <UnanalyzedSchoolNotice school={unanalyzedNotice} />
-        ) : selectedBlock !== null ? (
+        ) : selectedBlock !== null && selectedSchool !== null ? (
           <BlockDetailPanel
             block={selectedBlock}
             allBlocks={schoolData?.blocks.features ?? []}

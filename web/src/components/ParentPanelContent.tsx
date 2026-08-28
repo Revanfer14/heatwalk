@@ -8,7 +8,7 @@ import type { School, Tile } from '@/lib/types'
 
 interface ParentPanelContentProps {
   tile: Tile | null
-  onPinChange: (pin: PinPosition) => void
+  onPickOrigin: (pin: PinPosition) => void
   addressText: string
   onAddressTextChange: (text: string) => void
   schools: School[]
@@ -26,7 +26,7 @@ interface ParentPanelContentProps {
 
 export default function ParentPanelContent({
   tile,
-  onPinChange,
+  onPickOrigin,
   addressText,
   onAddressTextChange,
   schools,
@@ -45,7 +45,7 @@ export default function ParentPanelContent({
     <div className="flex flex-col gap-4">
       <RouteEndpointFields
         tile={tile}
-        onPinChange={onPinChange}
+        onPickOrigin={onPickOrigin}
         addressText={addressText}
         onAddressTextChange={onAddressTextChange}
         schools={schools}

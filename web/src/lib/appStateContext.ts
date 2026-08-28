@@ -18,7 +18,7 @@ export interface AppStateContextValue {
   pin: PinPosition
   setPin: (pin: PinPosition) => void
   hour: string | null
-  setHour: (hour: string) => void
+  setHour: (hour: string | null) => void
   hideHeatData: boolean
   setHideHeatData: (hidden: boolean) => void
   theme: ThemeMode

@@ -7,8 +7,6 @@ export interface RouteColors {
   zoneReroute: string
   zoneBus: string
   routeCoolest: string
-  routeHeatCool: string
-  routeHeatHot: string
 }
 
 function readCssVariable(name: string): string {
@@ -25,7 +23,5 @@ export function getRouteColors(): RouteColors {
     zoneReroute: readCssVariable('--zone-reroute'),
     zoneBus: readCssVariable('--zone-bus'),
     routeCoolest: readCssVariable('--route-coolest'),
-    routeHeatCool: readCssVariable('--route-heat-cool'),
-    routeHeatHot: readCssVariable('--route-heat-hot'),
   }
 }

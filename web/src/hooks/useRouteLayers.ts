@@ -3,13 +3,14 @@ import type maplibregl from 'maplibre-gl'
 import type { SolvedRouteLeg } from '@/lib/types'
 import { getRouteColors } from '@/lib/mapPaint'
 
-const CASING_LAYER_ID = 'heatwalk-coolest-route-casing'
-const COOLEST_LAYER_ID = 'heatwalk-coolest-route'
+export const CASING_LAYER_ID = 'heatwalk-coolest-route-casing'
+export const COOLEST_LAYER_ID = 'heatwalk-coolest-route'
 const FADE_DURATION_MS = 120
 const CASING_LINE_WIDTH = 8
 const CASING_LINE_WIDTH_SELECTED = 9.5
 const COOLEST_LINE_WIDTH = 5
 const COOLEST_LINE_WIDTH_SELECTED = 6.5
+const NEUTRAL_LINE_WIDTH = 2.5
 
 function emptyFeatureCollection() {
   return { type: 'FeatureCollection' as const, features: [] }
@@ -35,6 +36,7 @@ interface UseRouteLayersInput {
 
 export function useRouteLayers(input: UseRouteLayersInput): void {
   const { map, coolest, hideHeatData, routeFailed, theme, selected = false } = input
+  const isNeutralUnselected = !selected
   const hasRenderedCoolestRef = useRef(false)
 
   useEffect(() => {
@@ -75,10 +77,19 @@ export function useRouteLayers(input: UseRouteLayersInput): void {
     if (map === null || map.getLayer(COOLEST_LAYER_ID) === undefined) return
     const colors = getRouteColors()
     map.setPaintProperty(CASING_LAYER_ID, 'line-color', colors.bg)
-    map.setPaintProperty(COOLEST_LAYER_ID, 'line-color', routeFailed ? colors.zoneBus : colors.routeCoolest)
+    map.setPaintProperty(
+      COOLEST_LAYER_ID,
+      'line-color',
+      routeFailed ? colors.zoneBus : isNeutralUnselected ? colors.inkSubtle : colors.routeCoolest,
+    )
+    map.setLayoutProperty(CASING_LAYER_ID, 'visibility', hideHeatData || isNeutralUnselected ? 'none' : 'visible')
     map.setPaintProperty(CASING_LAYER_ID, 'line-width', selected ? CASING_LINE_WIDTH_SELECTED : CASING_LINE_WIDTH)
-    map.setPaintProperty(COOLEST_LAYER_ID, 'line-width', selected ? COOLEST_LINE_WIDTH_SELECTED : COOLEST_LINE_WIDTH)
-  }, [map, routeFailed, theme, selected])
+    map.setPaintProperty(
+      COOLEST_LAYER_ID,
+      'line-width',
+      isNeutralUnselected ? NEUTRAL_LINE_WIDTH : selected ? COOLEST_LINE_WIDTH_SELECTED : COOLEST_LINE_WIDTH,
+    )
+  }, [map, routeFailed, theme, selected, hideHeatData])
 
   useEffect(() => {
     if (map === null) return
@@ -87,7 +98,7 @@ export function useRouteLayers(input: UseRouteLayersInput): void {
     if (casingSource === undefined || coolestSource === undefined) return
 
     const visibility = hideHeatData ? 'none' : 'visible'
-    map.setLayoutProperty(CASING_LAYER_ID, 'visibility', visibility)
+    map.setLayoutProperty(CASING_LAYER_ID, 'visibility', isNeutralUnselected ? 'none' : visibility)
     map.setLayoutProperty(COOLEST_LAYER_ID, 'visibility', visibility)
     if (hideHeatData) return
 

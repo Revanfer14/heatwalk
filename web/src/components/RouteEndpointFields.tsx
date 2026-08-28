@@ -5,7 +5,7 @@ import type { School, Tile } from '@/lib/types'
 
 interface RouteEndpointFieldsProps {
   tile: Tile | null
-  onPinChange: (pin: PinPosition) => void
+  onPickOrigin: (pin: PinPosition) => void
   addressText: string
   onAddressTextChange: (text: string) => void
   schools: School[]
@@ -15,7 +15,7 @@ interface RouteEndpointFieldsProps {
 
 export default function RouteEndpointFields({
   tile,
-  onPinChange,
+  onPickOrigin,
   addressText,
   onAddressTextChange,
   schools,
@@ -26,7 +26,7 @@ export default function RouteEndpointFields({
     <div className="flex flex-col gap-3">
       <OriginField
         tile={tile}
-        onPinChange={onPinChange}
+        onPickOrigin={onPickOrigin}
         addressText={addressText}
         onAddressTextChange={onAddressTextChange}
       />

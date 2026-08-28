@@ -90,8 +90,6 @@
   --zone-bus: #a33a28;
 
   --route-coolest: #1e5fa8;
-  --route-heat-cool: #1e5fa8;
-  --route-heat-hot: #c2410c;
 }
 
 .dark {
@@ -109,8 +107,6 @@
   --zone-bus: #e0705c;
 
   --route-coolest: #7fb3ea;
-  --route-heat-cool: #7fb3ea;
-  --route-heat-hot: #f59e0b;
 }
 
 @theme {
@@ -128,8 +124,6 @@
   --color-zone-bus: var(--zone-bus);
 
   --color-route-coolest: var(--route-coolest);
-  --color-route-heat-cool: var(--route-heat-cool);
-  --color-route-heat-hot: var(--route-heat-hot);
 
   --color-background: var(--bg);
   --color-foreground: var(--ink);

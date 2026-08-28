@@ -750,6 +750,32 @@ Mekanisme kedua ini yang benar-benar menyelesaikan laporan bug: karena ~90% pasa
 
 **Verifikasi:** `npx tsc --noEmit` dan `npm run build` bersih; semua file baru/tersentuh ≤150 baris; grep `#[0-9a-fA-F]` bersih kecuali `theme.css`; diverifikasi manual di dev server — saran Origin muncul saat mengetik dan memindahkan pin saat diklik, mengetik nama sekolah yang tidak ada menampilkan "No matching school" dan kembali ke sekolah semula saat blur, panel menampilkan tepat tiga kartu rute (Coolest/Shortest/Alternate route 1) untuk `sch_maynard_evans_high`, dan mengklik "Shortest route" maupun "Alternate route 1" masing-masing memindahkan kartu terpilih **dan** membingkai ulang peta ke rute itu — termasuk kasus rute teradem/terpendek yang geometrinya identik.
 
+### Revisi Fase 14 (sesi 28 Agustus, lanjutan kedua): biru hanya rute terpilih + pencarian Origin memindahkan pin dan kamera
+
+**Biru hanya untuk kartu terpilih (amendemen FR-28).** Sebelum revisi ini, rute teradem selalu biru dan rute terpendek yang tidak terpilih memakai ramp biru→oren — dua sumber biru sekaligus di peta, dan seleksi kartu hanya terbaca dari lebar garis. Kedua hook layer rute (`useRouteLayers`, `useShortestRouteLayer`) kini menerima prop `unselectedColor: 'data' | 'neutral'`: Mode 2 (`useParentMapLayers`) memakai `'neutral'` — rute tidak-terpilih digambar 2–2,5px `--ink-subtle` polos, casing rute teradem disembunyikan — sedangkan Mode 1 (`useDistrictMapLayers`) memakai `'data'` eksplisit sehingga tampilannya (biru teradem + ramp terpendek) tidak berubah. Konsekuensi produk: ramp FR-28 tidak lagi muncul di Mode 2 dan hanya hidup di Mode 1.
+
+**Rute terpilih dipindah ke atas tumpukan layer.** Tanpa ini, revisi warna di atas justru memperburuk bug lama: layer rute teradem (yang paling atas sejak awal) yang kini netral abu akan menutupi garis biru rute terpendek/alternatif yang baru saja terpilih, persis pada ~90% geometri bersama (G8). Hook baru `hooks/useRouteLayerOrder.ts` mengurutkan ulang keempat layer rute dengan `map.moveLayer(layerId, AOI_BOUNDARY_LAYER_ID)` — dipasang tepat di bawah batas AOI, bukan ke puncak mutlak, supaya lingkaran kebijakan dan batas AOI tetap di atas rute. Id layer rute diekspor dari masing-masing hook untuk keperluan ini.
+
+**Pencarian Origin memindahkan pin dan kamera.** Memilih saran pencarian kini juga memanggil `map.flyTo` ke titik baru (`hooks/usePickOrigin.ts`, zoom minimal 14,5 — tidak pernah mengecilkan zoom yang sudah lebih dekat). Sebelumnya pin berpindah tapi kamera diam, jadi alamat di luar layar terlihat seperti "tidak terjadi apa-apa".
+
+**Kotak Origin selalu sinkron dengan pin yang diseret.** Laporan Revan: setelah menyeret pin, teks Origin tetap menampilkan alamat lama. Akar masalah di `hooks/useOriginAddressSync.ts`: kegagalan `reverseGeocode` (Nominatim membatasi ±1 permintaan/detik; debounce pencarian 300ms + seret pin mudah melampauinya) ditelan `.catch(() => undefined)` sehingga teks diam di alamat basi — dan respons yang telat bisa saling menimpa. revisi: (1) teks langsung disetel ke koordinat pin (`lib/units.ts:formatPinCoordinates`, 4 desimal) sehingga kotak tidak pernah menampilkan lokasi lain daripada pin; (2) alamat hasil reverse-geocode menimpa koordinat hanya saat permintaan itu masih yang terbaru (penjaga `latestRequestRef` terhadap seret beruntun); (3) kegagalan eksplisit membiarkan koordinat bertahan.
+
+**Verifikasi:** `npx tsc --noEmit` bersih; semua file tersentuh ≤150 baris (terpanjang `ParentRoute.tsx` 148); tanpa komentar baru.
+
+### Revisi Fase 14 (sesi 28 Agustus, lanjutan ketiga): Mode 1 tanpa rute, siklus fokus sekolah, pin terkunci, ramp dipensiunkan
+
+Tiga permintaan Revan untuk `/district` yang mengubah bentuk Mode 1 dan menutup riwayat ramp FR-28.
+
+**Rute dihapus total dari Mode 1 (FR-10 dicabut).** Tampilan distrik kini murni zona: lingkaran kebijakan, choropleth dosis, lingkaran setara-dosis. Dihapus: `hooks/useDistrictSelectedRoute.ts` (menghitung rute blok→sekolah di klien), `hooks/useSegmentHighlightLayer.ts` + `lib/segmentHighlight.ts` (highlight segmen penyumbang dosis tertinggi), fungsi `solveCoolestPathSegments` + `coolestDoseAcrossHours` di `lib/routeSolver.ts` (terakhir sudah tanpa konsumen), dan seluruh input rute di `useDistrictMapLayers`/`DistrictRoute`. Angka rute per blok (`shortest`/`coolest` — mean/peak °C, dosis) tetap tampil di panel detail blok (FR-9) karena di-precompute pipeline; yang dihapus hanya garis di peta. Tabel prioritas segmen per sekolah (FR-15) tetap — itu data jalan per sekolah, bukan rute.
+
+**Siklus fokus sekolah.** Sebelumnya Mode 1 memakai `appState.selectedSchoolId` (terkunci ke Evans sejak boot) sehingga selalu ada sekolah terpilih dan penuh pin + zona sekaligus. Kini Mode 1 punya state sendiri `focusedSchoolId` (di `DistrictStateProvider`, mulai `null`): klik pin/baris teranalisis → fokus — `useDistrictMapLayers` memfilter `nationalSchools` ke sekolah terfokus saja (`resolveAnalyzedSchoolId`) sehingga semua pin lain hilang dari peta; klik pin yang sama lagi, atau tombol back di header panel, melepas fokus sepenuhnya (fokus, blok, notice, jam dibersihkan; panel kembali ke daftar sekolah; kamera tidak bergerak). Tanpa fokus, tidak ada zona yang dirender (`selectedSchool === null` → semua layer zona kosong secara alami). `appState.selectedSchoolId` tidak lagi disentuh Mode 1; Mode 2 tidak berubah.
+
+**Pin belum-teranalisis terkunci.** `useSchoolPinsLayer` menambah `icon-opacity` ±0,55 untuk pin belum-teranalisis dan menyembunyikan label namanya (`text-field` case) — hanya pin teranalisis yang berlabel. Klik pin redup tetap memunculkan notice "belum dianalisis" (FR-20 tidak berubah); di bawah zoom 10 titik `circle` kecil tetap.
+
+**Ramp FR-28 dipensiunkan.** Dua keputusan di atas + amendemen "biru hanya rute terpilih" menyisakan ramp tanpa satu pun tempat tampil: Mode 2 tidak memakainya, Mode 1 tidak punya rute. Dihapus: `lib/routeRampFeatures.ts`, cabang ramp di `useShortestRouteLayer` (kini geometri polos, warna `--route-coolest` terpilih / `--ink-subtle` tidak), prop `unselectedColor` dari kedua hook layer rute (netral-tak-terpilih jadi satu-satunya perilaku), token `--route-heat-cool`/`--route-heat-hot` dari `theme.css` + `mapPaint.ts`. `--route-coolest` tetap sebagai satu-satunya warna rute.
+
+**Verifikasi:** `npx tsc --noEmit` bersih; `npm run build` bersih; semua file tersentuh ≤150 baris; tanpa komentar baru.
+
 ## Sumber data & sitasi (final, Fase 7)
 
 ### Sitasi ilmiah

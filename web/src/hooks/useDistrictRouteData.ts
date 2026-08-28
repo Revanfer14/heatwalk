@@ -13,11 +13,11 @@ import { findDistrictBlock } from '@/lib/findDistrictBlock'
 export function useDistrictRouteData() {
   const appState = useAppState()
   const districtState = useDistrictState()
-  const { schools, selectedSchoolId, hour, setHour } = appState
-  const { selectedBlockId } = districtState
+  const { schools, hour, setHour } = appState
+  const { focusedSchoolId, selectedBlockId } = districtState
 
-  const selectedSchool = schools.find((school) => school.id === selectedSchoolId) ?? null
-  const { data: schoolData, loading: schoolDataLoading, error: schoolDataError } = useSchoolData(selectedSchoolId)
+  const selectedSchool = schools.find((school) => school.id === focusedSchoolId) ?? null
+  const { data: schoolData, loading: schoolDataLoading, error: schoolDataError } = useSchoolData(focusedSchoolId)
   const { districtBlocks, districtBlocksHours, error: districtBlocksError } = useDistrictBlocks()
   const { summary } = useSummary()
   const { schools: nationalSchools, loading: nationalSchoolsLoading } = useNationalSchools()
@@ -39,7 +39,7 @@ export function useDistrictRouteData() {
     return applyHourClass(circleBlocks, districtBlocksHours, hour)
   }, [districtBlocks, districtBlocksHours, hour, selectedSchool])
 
-  const schoolSummary = selectedSchoolId !== null ? (summary?.[selectedSchoolId] ?? null) : null
+  const schoolSummary = focusedSchoolId !== null ? (summary?.[focusedSchoolId] ?? null) : null
 
   return {
     ...appState,

@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import FieldLabel from '@/components/FieldLabel'
 import { Switch } from '@/components/ui/switch'
-import { cn } from '@/lib/utils'
 import type { School } from '@/lib/types'
 import type { SchoolNational } from '@/lib/districtTypes'
 
@@ -11,7 +10,6 @@ const SCHOOL_SEARCH_INPUT_ID = 'heatwalk-school-search'
 interface SchoolListProps {
   analyzedSchools: School[]
   nationalSchools: SchoolNational[] | null
-  selectedSchoolId: string | null
   onSelectAnalyzed: (schoolId: string) => void
   onSelectUnanalyzed: (school: SchoolNational) => void
   searchText: string
@@ -23,7 +21,6 @@ interface SchoolListProps {
 export default function SchoolList({
   analyzedSchools,
   nationalSchools,
-  selectedSchoolId,
   onSelectAnalyzed,
   onSelectUnanalyzed,
   searchText,
@@ -75,11 +72,7 @@ export default function SchoolList({
               <button
                 type="button"
                 onClick={() => onSelectAnalyzed(school.id)}
-                aria-current={school.id === selectedSchoolId ? 'true' : undefined}
-                className={cn(
-                  'w-full rounded-md px-2 py-1.5 text-left text-sm',
-                  school.id === selectedSchoolId ? 'bg-ink text-bg' : 'text-ink hover:bg-border',
-                )}
+                className="w-full rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-border"
               >
                 {school.name}
               </button>

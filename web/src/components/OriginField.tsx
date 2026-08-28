@@ -10,12 +10,12 @@ const SUGGESTION_CLOSE_DELAY_MS = 150
 
 interface OriginFieldProps {
   tile: Tile | null
-  onPinChange: (pin: PinPosition) => void
+  onPickOrigin: (pin: PinPosition) => void
   addressText: string
   onAddressTextChange: (text: string) => void
 }
 
-export default function OriginField({ tile, onPinChange, addressText, onAddressTextChange }: OriginFieldProps) {
+export default function OriginField({ tile, onPickOrigin, addressText, onAddressTextChange }: OriginFieldProps) {
   const { status, suggestions, search } = useGeocodeSuggestions(tile)
   const [isOpen, setIsOpen] = useState(false)
 
@@ -27,7 +27,7 @@ export default function OriginField({ tile, onPinChange, addressText, onAddressT
 
   const selectSuggestion = (suggestion: GeocodeResult): void => {
     onAddressTextChange(suggestion.displayName)
-    onPinChange({ lon: suggestion.lon, lat: suggestion.lat })
+    onPickOrigin({ lon: suggestion.lon, lat: suggestion.lat })
     setIsOpen(false)
   }
 

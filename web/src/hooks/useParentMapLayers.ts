@@ -2,6 +2,7 @@ import type maplibregl from 'maplibre-gl'
 import { useRouteLayers } from '@/hooks/useRouteLayers'
 import { useShortestRouteLayer } from '@/hooks/useShortestRouteLayer'
 import { useAlternateRoutesLayer } from '@/hooks/useAlternateRoutesLayer'
+import { useRouteLayerOrder } from '@/hooks/useRouteLayerOrder'
 import { useAoiBoundaryLayer } from '@/hooks/useAoiBoundaryLayer'
 import { useOfficialZoneLayer } from '@/hooks/useOfficialZoneLayer'
 import { usePinMarker } from '@/hooks/usePinMarker'
@@ -18,7 +19,6 @@ interface UseParentMapLayersInput {
   hideHeatData: boolean
   solvedRoutes: SolvedRoutes | null
   selectedRouteId: SelectedRouteId
-  baselineC: number
   routeFailed: boolean
   selectedSchool: School | null
   pin: PinPosition
@@ -34,7 +34,6 @@ export function useParentMapLayers(input: UseParentMapLayersInput): void {
     hideHeatData,
     solvedRoutes,
     selectedRouteId,
-    baselineC,
     routeFailed,
     selectedSchool,
     pin,
@@ -55,7 +54,6 @@ export function useParentMapLayers(input: UseParentMapLayersInput): void {
   useShortestRouteLayer({
     map,
     shortest: solvedRoutes?.shortest ?? null,
-    baselineC,
     hideHeatData,
     theme,
     selected: selectedRouteId === 'shortest',
@@ -68,6 +66,7 @@ export function useParentMapLayers(input: UseParentMapLayersInput): void {
     theme,
     selected: selectedRouteId === 'coolest',
   })
+  useRouteLayerOrder(map, selectedRouteId)
   useRouteFocus(map, focusGeometry, selectedSchool !== null ? `${selectedSchool.id}:${selectedRouteId}` : null)
   useAoiBoundaryLayer(map, tile, theme)
   useOfficialZoneLayer({

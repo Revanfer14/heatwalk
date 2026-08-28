@@ -5,11 +5,12 @@ import type { SchoolNational } from '@/lib/districtTypes'
 
 interface UseDistrictSelectionHandlersInput {
   districtBlocks: BlocksGeoJson | null
-  selectedSchoolId: string | null
-  setSelectedSchoolId: (schoolId: string) => void
+  focusedSchoolId: string | null
+  setFocusedSchoolId: (schoolId: string | null) => void
   setSelectedBlockId: (blockId: string | null) => void
   setUnanalyzedNotice: (school: SchoolNational | null) => void
   setPanelView: (view: DistrictPanelView) => void
+  setHour: (hour: string | null) => void
 }
 
 interface DistrictSelectionHandlers {
@@ -23,14 +24,34 @@ interface DistrictSelectionHandlers {
 export function useDistrictSelectionHandlers(
   input: UseDistrictSelectionHandlersInput,
 ): DistrictSelectionHandlers {
-  const { districtBlocks, selectedSchoolId, setSelectedSchoolId, setSelectedBlockId, setUnanalyzedNotice, setPanelView } =
-    input
+  const {
+    districtBlocks,
+    focusedSchoolId,
+    setFocusedSchoolId,
+    setSelectedBlockId,
+    setUnanalyzedNotice,
+    setPanelView,
+    setHour,
+  } = input
+
+  const clearSchoolFocus = (): void => {
+    setFocusedSchoolId(null)
+    setSelectedBlockId(null)
+    setUnanalyzedNotice(null)
+    setHour(null)
+    setPanelView('schools')
+  }
 
   return {
     handleSelectAnalyzed: (schoolId: string) => {
-      setSelectedSchoolId(schoolId)
+      if (schoolId === focusedSchoolId) {
+        clearSchoolFocus()
+        return
+      }
+      setFocusedSchoolId(schoolId)
       setSelectedBlockId(null)
       setUnanalyzedNotice(null)
+      setHour(null)
       setPanelView('school')
     },
     handleSelectUnanalyzed: (school: SchoolNational) => {
@@ -40,15 +61,16 @@ export function useDistrictSelectionHandlers(
     },
     handleBlockClick: (blockId: string) => {
       const block = findDistrictBlock(districtBlocks, blockId)
-      if (block !== null && block.properties.school_id !== selectedSchoolId) {
-        setSelectedSchoolId(block.properties.school_id)
+      if (block !== null && block.properties.school_id !== focusedSchoolId) {
+        setFocusedSchoolId(block.properties.school_id)
+        setHour(null)
       }
       setSelectedBlockId(blockId)
       setUnanalyzedNotice(null)
       setPanelView('block')
     },
     handleBackToSchools: () => {
-      setPanelView('schools')
+      clearSchoolFocus()
     },
     handleBackToSchool: () => {
       setSelectedBlockId(null)

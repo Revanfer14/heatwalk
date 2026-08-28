@@ -7,6 +7,7 @@ const DEFAULT_DOSE_FRACTION_DIGITS = 0
 const DEFAULT_MILES_FRACTION_DIGITS = 1
 const DEFAULT_KILOMETERS_FRACTION_DIGITS = 2
 const DEFAULT_PERCENT_FRACTION_DIGITS = 0
+const DEFAULT_COORDINATE_FRACTION_DIGITS = 4
 const HOUR_MINUTE_PATTERN = /^(\d{2}):(\d{2})$/
 const HOURS_PER_HALF_DAY = 12
 
@@ -108,6 +109,10 @@ export function percentOf(part: number, total: number): number {
 
 export function percentChange(current: number, baseline: number): number {
   return baseline > 0 ? ((current - baseline) / baseline) * 100 : 0
+}
+
+export function formatPinCoordinates(lon: number, lat: number): string {
+  return `${lat.toFixed(DEFAULT_COORDINATE_FRACTION_DIGITS)}, ${lon.toFixed(DEFAULT_COORDINATE_FRACTION_DIGITS)}`
 }
 
 export function formatHourAmPm(hour: string): string {

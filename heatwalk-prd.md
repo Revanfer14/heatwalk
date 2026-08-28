@@ -341,6 +341,8 @@ Peta menampilkan pin seluruh sekolah NCES (FR-20). Klik pin sekolah teranalisis 
 
 Daftar sekolah di kolom kiri dapat dicari dan difilter ke "sudah dianalisis". Pada skala ratusan sekolah, daftar adalah jalur navigasi utama, bukan peta — dan ia sekaligus jalur setara yang dapat dibaca screen reader (§aksesibilitas `DESIGN.md`).
 
+**Amendemen 2026-08-28 (Revan): seleksi sekolah di Mode 1 kini berbentuk siklus fokus.** Klik pin teranalisis (atau baris daftar) memfokuskan sekolah itu: semua pin sekolah lain — teranalisis maupun belum — hilang dari peta, menyisakan zona + blok + pin sekolah terfokus, supaya peta tidak bising saat satu sekolah sedang dibaca. Keluar dari fokus lewat tombol back di panel (kembali ke daftar sekolah) atau dengan mengklik pin yang sama sekali lagi. Saat tidak fokus, semua pin kembali tampil dan tidak ada zona yang dirender; Mode 1 tidak lagi mengunci satu sekolah terpilih sejak boot.
+
 #### FR-7 — Rendering dua batas *(P0)*
 
 - **Layer A:** lingkaran walk zone resmi — garis putus-putus, tanpa isian
@@ -378,6 +380,8 @@ Klik blok → panel menampilkan:
 Klik blok merah → render rute teradem yang **gagal** di peta, dengan segmen penyumbang dosis tertinggi di-highlight.
 
 Objeknya identik dengan yang dilihat orang tua di FR-3. Itu yang membuat dua mode ini satu produk, bukan dua.
+
+**Amendemen 2026-08-28 (Revan): FR-10 dicabut dari produk.** Mode 1 tidak lagi me-render rute apa pun di peta — tampilan distrik kini murni zona: lingkaran kebijakan, choropleth dosis, dan lingkaran radius setara-dosis. Bukti kuantitatif per blok tetap utuh di panel detail blok (FR-9) dari angka yang di-precompute pipeline (`shortest`/`coolest` per blok); yang dihapus hanya garis rute di peta beserta kode klien yang menghitungnya di Mode 1 (`useDistrictSelectedRoute`, highlight segmen). Pembuktian rute visual tetap hidup di Mode 2 (FR-3).
 
 #### FR-11 — Panel outcome kuantitatif *(P0)*
 
@@ -463,6 +467,8 @@ Zoom keluar memperlihatkan ribuan sekolah; zoom masuk memperlihatkan mana yang s
 
 **Aturan keras:** sekolah belum teranalisis **tidak boleh** menampilkan angka apa pun — bukan interpolasi, bukan rata-rata regional, bukan estimasi. Nol angka. Satu angka karangan yang ditemukan juri membatalkan kriteria "real use of the platform" untuk seluruh submission.
 
+**Amendemen 2026-08-28 (Revan): pin belum-teranalisis tampil terkunci.** Pada zoom pin (≥10), pin belum-teranalisis di-redupkan (opasitas ikon ±0,55) dan tidak lagi membawa label nama — hanya pin teranalisis yang berlabel — supaya status "belum bisa dibuka" terbaca sekilas dari bentuknya. Klik pin belum-teranalisis tetap memunculkan notice "belum dianalisis" (tidak berubah), dan saat satu sekolah sedang difokuskan (amendemen FR-6) seluruh pin lain — termasuk yang belum teranalisis — hilang dari peta.
+
 Sumber: NCES CCD school directory (lat/lon, nama, jenjang, enrollment, distrik). Dimuat sebagai satu file terpisah dan di-render sebagai layer simbol MapLibre — bukan marker DOM, yang akan mematikan browser pada jumlah segini.
 
 #### FR-21 — Peta cakupan tile *(P1)*
@@ -521,6 +527,10 @@ Legend mengambang di sisi kanan peta, bisa dilipat, sadar-mode: kelas zona + mak
 #### FR-28 — Warna suhu di rute Mode 2 *(P1)*
 
 Rute terpendest diberi warna per segmen mengikuti suhu jalannya pada jam terpilih: ramp **biru → oren** (biru = di baseline, makin oren = makin panas), jangkar domain dari `meta.baseline_c` sampai segmen terpanas di jalur. Rute teradem berubah dari tinta hitam menjadi **biru solid** — keputusan produk 2026-08-27: biru = "jawaban", ramp di rute terpendest = paparan status quo. Saat FR-16, rute terpendest kembali netral abu putus-putus dan seluruh warna hilang — momen "lampu dimatikan" tetap utuh.
+
+**Amendemen 2026-08-28 (Revan): di Mode 2, biru hanya milik rute yang kartunya terpilih.** Dengan tiga kartu rute (FR-30), peta menampilkan terlalu banyak biru sekaligus — rute teradem selalu biru dan ramp rute terpendek berujung biru — sehingga kartu yang sedang terpilih tidak terbaca dari warna. Aturan baru Mode 2: satu-satunya garis biru (`--route-coolest`) adalah rute yang kartunya terpilih di panel; semua rute lain (teradem, terpendek, alternatif) netral `--ink-subtle`. Konsekuensi: ramp biru→oren tidak lagi muncul di Mode 2 dan hanya hidup di Mode 1 (di sana tidak ada seleksi kartu), dan rute terpilih dipindah ke atas tumpukan layer supaya geometri bersama (G8) tidak menutupi garis biru. FR-16 tidak berubah.
+
+**Amendemen 2026-08-28 (Revan, penutup): ramp biru→oren dipensiunkan dari seluruh produk.** Konsekuensi bergandengan dua keputusan hari ini — biru hanya untuk rute terpilih di Mode 2 (di atas) dan rute dihapus total dari Mode 1 (amendemen FR-10) — ramp per-segmen tidak lagi punya tempat tampil di mode mana pun. Token `--route-heat-cool`/`--route-heat-hot` dihapus dari `theme.css`, kode ramp klien (`routeRampFeatures`) dihapus, dan rute kini tampil di Mode 2 saja. Satu-satunya warna rute di produk adalah `--route-coolest` untuk rute terpilih.
 
 #### FR-29 — Suhu live di Mode 2 *(P1)*
 

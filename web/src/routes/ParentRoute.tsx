@@ -3,13 +3,12 @@ import ParentPanelContent from '@/components/ParentPanelContent'
 import ParentRouteResults from '@/components/ParentRouteResults'
 import MapPanel from '@/components/MapPanel'
 import MapPanelHeader from '@/components/MapPanelHeader'
-import MapPanelFooter from '@/components/MapPanelFooter'
-import TileCoverageInfo from '@/components/TileCoverageInfo'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMapInstance } from '@/hooks/useMapInstance'
 import { useParentRouteData } from '@/hooks/useParentRouteData'
 import { useParentMapLayers } from '@/hooks/useParentMapLayers'
 import { useOriginAddressSync } from '@/hooks/useOriginAddressSync'
+import { usePickOrigin } from '@/hooks/usePickOrigin'
 import { useFlyToSchool } from '@/hooks/useFlyToSchool'
 import { useIsSidePanelViewport } from '@/hooks/useIsSidePanelViewport'
 import { useMapPanelPadding } from '@/hooks/useMapPanelPadding'
@@ -53,6 +52,7 @@ export default function ParentRoute() {
   } = useParentRouteData()
 
   const handlePinDragEnd = useOriginAddressSync(setAddressText)
+  const handlePickOrigin = usePickOrigin(map, setPin)
 
   useEffect(() => {
     setSelectedRouteId('coolest')
@@ -65,7 +65,6 @@ export default function ParentRoute() {
     hideHeatData,
     solvedRoutes,
     selectedRouteId,
-    baselineC: schoolData?.temps.meta.baseline_c ?? 0,
     routeFailed,
     selectedSchool,
     pin,
@@ -92,7 +91,7 @@ export default function ParentRoute() {
   const panelContent = (
     <ParentPanelContent
       tile={tile}
-      onPinChange={setPin}
+      onPickOrigin={handlePickOrigin}
       addressText={addressText}
       onAddressTextChange={setAddressText}
       schools={schools}
@@ -131,11 +130,6 @@ export default function ParentRoute() {
       collapsed={panelCollapsed}
       header={<MapPanelHeader title="HeatWalk" eyebrow="Orlando" />}
       peek={panelContent}
-      footer={
-        <MapPanelFooter>
-          <TileCoverageInfo tile={tile} fetchedAt={schoolData?.temps.meta.fetched_at ?? null} />
-        </MapPanelFooter>
-      }
     >
       <div className="flex flex-col gap-4 p-4">
         {isSidePanel && panelContent}

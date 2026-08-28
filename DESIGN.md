@@ -48,9 +48,7 @@ Tombol, tautan, border, teks, ikon, chart, tabel — semuanya monokrom, di kedua
 | `--zone-safe` | `#3F6B4A` | `#7FB08C` | hijau — rute terpendek sudah aman |
 | `--zone-reroute` | `#B07A1A` | `#E0B25C` | kuning — perlu pemilihan rute |
 | `--zone-bus` | `#A33A28` | `#E0705C` | merah — rute teradem pun gagal |
-| `--route-coolest` | `#1E5FA8` | `#7FB3EA` | biru — rute teradem, "jawaban" (FR-28) |
-| `--route-heat-cool` | `#1E5FA8` | `#7FB3EA` | biru — ujung dingin ramp suhu rute |
-| `--route-heat-hot` | `#C2410C` | `#F59E0B` | oren — ujung panas ramp suhu rute |
+| `--route-coolest` | `#1E5FA8` | `#7FB3EA` | biru — rute terpilih di Mode 2, "jawaban" (FR-28) |
 
 Fill choropleth memakai token yang sama pada opacity 18% (safe), 22% (reroute), 30% (bus), dengan stroke 1px pada warna penuh.
 
@@ -73,12 +71,11 @@ Tanpa API key. **Keputusan produk 2026-08-27 malam (Revan):** rencana basemap se
 
 | Elemen | Gaya |
 |---|---|
-| Rute terpendek (data panas tampil, FR-28) | 2,5px solid, warna per segmen: ramp `--route-heat-cool` → `--route-heat-hot` sesuai `temp_c`, tanpa dasharray — 3,5px saat kartunya terpilih di panel |
+| Rute terpendek (Mode 2, data panas tampil) | 2,5px `--ink-subtle` saat kartunya tidak terpilih; 3,5px `--route-coolest` saat terpilih |
 | Rute terpendek (FR-16 aktif) | 2px `--ink-subtle`, dashed `4 4` — balik ke netral; 3px saat terpilih |
-| Rute teradem | 5px solid `--route-coolest`, dengan casing 8px `--bg` di bawahnya — 6,5px (casing 9,5px) saat terpilih |
-| Rute teradem yang **gagal** (FR-10) | 5px solid `--zone-bus`, casing sama |
+| Rute teradem | 5px solid `--route-coolest`, dengan casing 8px `--bg` di bawahnya — 6,5px (casing 9,5px) saat terpilih; 2,5px `--ink-subtle` tanpa casing saat kartunya tidak terpilih |
 | Rute alternatif (FR-30, Mode 2) | 2px solid `--ink-subtle`, tanpa dasharray — 3px saat kartunya terpilih di panel |
-| Segmen prioritas top-5 (FR-24) | 7px `--zone-bus`, opacity 100%, di atas layer rute, + label rank |
+| Segmen prioritas top-5 (FR-24) | 7px `--zone-bus`, opacity 100%, di atas choropleth blok, + label rank |
 | Lingkaran walk zone resmi | 1,5px `--ink-muted`, dashed `6 6`, tanpa fill |
 | Lingkaran radius setara-dosis (FR-18) | 1,5px solid `--ink`, tanpa fill |
 | Hover pada salah satu lingkaran (FR-26) | garis menebal ke 3px + tooltip deskripsi |
@@ -88,6 +85,10 @@ Tanpa API key. **Keputusan produk 2026-08-27 malam (Revan):** rencana basemap se
 **Amendemen 2026-08-28 (Revan, FR-30):** rute alternatif memakai abu `--ink-subtle` polos, bukan hitam/merah seperti sempat diusulkan — merah tetap eksklusif milik `--zone-bus` (rute teradem gagal, segmen prioritas), dan menambah warna baru untuk alternatif akan melanggar aturan "warna hanya di peta/legend/badge". Alternatif juga hilang saat FR-16 aktif, sama seperti rute teradem — hanya rute terpendek netral yang bertahan. **Jumlahnya dipangkas dari dua menjadi satu** (amendemen lanjutan hari yang sama) — total tiga kartu rute (teradem, terpendek, satu alternatif), bukan empat.
 
 **Amendemen 2026-08-28 (Revan): memilih kartu rute membingkai ulang peta ke rute itu.** Bug yang ditemukan Revan — peta tidak berubah saat kartu selain "Coolest" diklik — diperbaiki dengan dua mekanisme sekaligus: (1) rute yang kartunya terpilih menebalkan garisnya (lihat lebar per baris di tabel atas), dan (2) peta `fitBounds` ke kotak pembatas geometri rute itu (`hooks/useRouteFocus.ts`, padding 64px, `maxZoom` 17, durasi 600ms). Mekanisme kedua ini wajib ada karena ~90% pasangan blok–sekolah punya rute teradem yang identik dengan rute terpendek (G8, `docs/LIMITATIONS.md`) — kalau geometrinya sama persis, menebalkan garis saja tidak terlihat karena satu rute akan selalu digambar tepat di atas rute lain; `fitBounds` tetap memberi umpan balik nyata di kasus itu.
+
+**Amendemen 2026-08-28 (Revan, lanjutan): di Mode 2, biru hanya milik rute yang kartunya terpilih.** Dengan tiga kartu, dua garis biru sekaligus (rute teradem selalu biru + ramp rute terpendek yang berujung biru) membuat seleksi tidak terbaca. Aturan baru: rute yang tidak terpilih — teradem, terpendek, alternatif — semuanya 2–2,5px `--ink-subtle` polos (rute teradem tanpa casing); rute terpilih `--route-coolest` dengan lebar + casing terpilih, dan layer-nya dipindah ke atas tumpukan (`hooks/useRouteLayerOrder.ts`, `moveLayer` tepat di bawah layer batas AOI) supaya geometri bersama G8 tidak menutupi garis biru. Ramp biru→oren kini eksklusif Mode 1, yang tidak punya seleksi kartu; token `--route-heat-*` tetap dipakai di sana. FR-16 tidak berubah: rute terpendek kembali netral abu putus-putus, rute teradem dan alternatif hilang total.
+
+**Amendemen 2026-08-28 (Revan, penutup): rute dihapus dari Mode 1; ramp dipensiunkan dari seluruh produk.** Mode 1 kini murni zona — lingkaran kebijakan, choropleth dosis, lingkaran setara-dosis (amendemen FR-10 di PRD); seluruh baris tabel di atas hanya berlaku untuk Mode 2, dan baris "rute teradem gagal" dihapus. Konsekuensi bergandengan dengan amendemen sebelumnya: ramp biru→oren tidak lagi punya tempat tampil di mode mana pun. Token `--route-heat-cool`/`--route-heat-hot` dihapus dari `theme.css` dan kode ramp klien (`routeRampFeatures`) dihapus; teks ramp pada keputusan 2026-08-27 di atas berlaku sebagai catatan sejarah. Satu-satunya warna rute yang tersisa adalah `--route-coolest` untuk rute terpilih di Mode 2.
 
 ### Label di atas choropleth
 
@@ -103,6 +104,8 @@ Peran penanda dibedakan **lewat bentuk dan glyph, tidak pernah lewat warna** —
 | Sekolah (tempat tetap, kedua mode) | Chip persegi radius `4px`, isi `--bg`, border 1,5px | `GraduationCap`, warna border | Tengah |
 
 Sekolah teranalisis memakai border/glyph `--ink`; sekolah belum teranalisis (Mode 1) memakai `--ink-subtle`. Teardrop dipakai khusus untuk titik yang **dipilih dan digeser** orang tua; chip untuk tempat yang **sudah tetap** — kontrasnya harus tetap terbaca setelah difilter grayscale.
+
+**Amendemen 2026-08-28 (Revan): pin belum-teranalisis tampil terkunci.** Pada zoom pin (≥10), pin belum-teranalisis di-redupkan (`icon-opacity` ±0,55) dan tidak membawa label nama — hanya pin teranalisis yang berlabel — supaya status "belum bisa dibuka" terbaca sekilas dari bentuknya. Kliknya tetap memunculkan notice "belum dianalisis" (FR-20). Saat satu sekolah sedang difokuskan di Mode 1, seluruh pin lain — teranalisis maupun belum — hilang dari peta; pin kembali tampil semua begitu fokus dilepas.
 
 Setiap label teks di atas peta (nama sekolah, `Your location`, label suhu blok) wajib punya halo/outline `--bg` selebar minimal 1,5px di sekelilingnya, supaya tetap kontras terhadap basemap berwarna di kedua tema (lihat keputusan basemap di atas). `text-font` dilayani glyph server OpenFreeMap; yang tersedia hanya **`Noto Sans Regular` / `Bold` / `Italic`** — `Medium` dan `SemiBold` mengembalikan 404 sejak basemap pindah ke `liberty` (fontstack self-hosted di `web/public/fonts/` sudah dihapus). Jangan memakai fontstack lain di layer symbol.
 
@@ -164,7 +167,7 @@ Anggaran gerak sangat kecil, dan ini yang pertama dipotong kalau waktu mepet (de
 - Tidak ada animasi masuk saat scroll. Tidak ada stagger.
 - `@media (prefers-reduced-motion: reduce)` wajib ada dan mematikan semuanya.
 
-Dua pengecualian yang boleh dipoles: transisi FR-16 (fade 180ms saat layer panas hilang) dan pergantian geometri rute teradem (fade 120ms, lihat bagian berikutnya) — dipicu slider jam di Mode 1, atau di Mode 2 oleh suhu live FortyGuard yang datang belakangan dan meng-upgrade jalur (FR-29). Keduanya cukup untuk terbaca sebagai perubahan, cukup cepat untuk tidak terasa seperti efek.
+Dua pengecualian yang boleh dipoles: transisi FR-16 (fade 180ms saat layer panas hilang) dan pergantian geometri rute teradem (fade 120ms, lihat bagian berikutnya) — di Mode 2 dipicu suhu live FortyGuard yang datang belakangan dan meng-upgrade jalur (FR-29). Keduanya cukup untuk terbaca sebagai perubahan, cukup cepat untuk tidak terasa seperti efek.
 
 Angka **tidak pernah** di-tween. Lihat bagian Slider jam.
 
@@ -331,10 +334,10 @@ Bukan tambahan — produknya soal keselamatan anak dan akan dipresentasikan ke l
 - [ ] Tidak ada komentar tersisa di `components/ui/`.
 - [ ] Basemap memakai style `liberty` dari OpenFreeMap, dan atribusi OpenStreetMap terlihat.
 - [ ] Semua layer symbol memakai `Noto Sans Regular`/`Bold`/`Italic` (fontstack lain 404 di glyph server).
-- [ ] FR-16 mematikan **semua** layer data panas: zona, label suhu, top-5 segmen, tooltip radius dosis, ramp rute, rute alternatif (FR-30) — tersisa lingkaran kebijakan + rute terpendek netral saja.
+- [ ] FR-16 mematikan **semua** layer data panas: zona, label suhu, top-5 segmen, tooltip radius dosis, rute teradem, rute alternatif (FR-30) — tersisa lingkaran kebijakan + rute terpendek netral saja (Mode 2; Mode 1 tidak punya rute).
 - [ ] Overlay dosis panas, legend, dan badge klasifikasi tetap kontras jelas terhadap basemap berwarna (cek merah/kuning zona vs warna jalan/bangunan basemap).
 - [ ] Slider jam (Mode 1) monokrom, diskrit, dan jumlah tick-nya sama dengan panjang `meta.hours`.
-- [ ] Angka berganti tanpa tween saat jam digeser (Mode 1) atau saat suhu live tiba (Mode 2); hanya geometri rute yang fade.
+- [ ] Angka berganti tanpa tween saat jam digeser (Mode 1) atau saat suhu live tiba (Mode 2); hanya geometri rute yang fade (Mode 2).
 - [ ] Slider (Mode 1) dapat digeser penuh dengan keyboard, dan `aria-valuetext` berisi jam.
 - [ ] Mode 2 tidak punya slider jam — kondisi langsung ("Now · 7:00 AM", format 12 jam) selalu tampil di panel, dan hilang bersama field origin/destination saja, bukan lewat FR-16.
 - [ ] Kartu rute alternatif (FR-30) monokrom, jumlahnya bisa 0 atau 1 (total 2–3 kartu) tanpa merusak layout panel.

@@ -15,14 +15,25 @@ Dipakai untuk re-orientasi cepat sesi berikutnya. Sumber lengkap: `heatwalk-prd.
 | 13 | Legend peta sisi kanan (FR-27) + tombol info metodologi (FR-25) | ⏳ belum mulai | `phase-13: legend peta sisi kanan + tombol info metodologi` |
 | 14 | Parent: rute teradem biru + ramp FR-28, suhu live per-sel FR-29, opsi rute majemuk FR-30, slider dihapus FR-13 | ✅ selesai, **belum di-commit** | `phase-14: rute biru/ramp FR-28, suhu live per-sel FR-29, opsi rute majemuk FR-30, slider dihapus dari mode orang tua` |
 
-## Yang ada di working tree (uncommitted, 125 file)
+## Yang ada di working tree (uncommitted)
 
-Semua perubahan Fase 9 + 10 + 11 menumpuk di working tree:
+Tumpukan Fase 9 + 10 + 11 + 14 **sudah di-commit oleh Revan** sebagai `3424098` ("added more schools in orlando, restyled some ui details", 510 file), disusul migrasi Git LFS `3e5a19c` + `3571af2` (Census). `HEAD == origin/main`.
 
-- **Dokumen**: `heatwalk-prd.md` (FR-22..28), `DESIGN.md`, `docs/CONTRACT.md`, `docs/METHODOLOGY.md` (§Fase 10), `docs/LIMITATIONS.md` (#21 celah barat)
-- **Pipeline**: `block_table.py` (hapus skip POP100=0), `blocks_hours.py` (+`mean_c`), `step5_export.py` (file distrik gabungan), `verify_step4.py` (cek skema jam + partisi distrik), **baru** `verify_schema_parity.py`
-- **Data**: `data/out/` + mirror `web/public/data/` — 6 sekolah AOI ter-rebuild, **baru** `district_blocks.geojson` (3198 fitur, 5.8 MB) + `district_blocks_hours.json` (2.3 MB); fixtures ikut ter-generate ulang
-- **Frontend**: `web/src` — loader distrik baru (`useDistrictBlocks`, `districtDataCache` singleton, `findDistrictBlock`), label suhu blok (`useBlockTempLabelsLayer`, `blockTempLabelFeatures`), `applyHourClass` stamp `temp_label`, font pin `Noto Sans Bold` (Medium 404), **dihapus** `useBlocksHours.ts`
+Yang belum di-commit sekarang (sesi 28 Agustus, kedua dan ketiga — permintaan Revan untuk mode orang tua lalu tampilan distrik):
+
+**Lanjutan kedua (mode orang tua, route `/`):**
+
+- **Biru hanya rute terpilih (amendemen FR-28, Mode 2)**: rute tak terpilih 2–2,5px `--ink-subtle`, casing teradem disembunyikan. Hook baru `useRouteLayerOrder.ts` memindahkan layer rute terpilih tepat di bawah batas AOI via `moveLayer` (id layer diekspor dari tiap hook) — tanpa ini, geometri bersama G8 membuat abu menutupi biru.
+- **Origin**: hook baru `usePickOrigin.ts` (pin + `flyTo` zoom ≥14,5 saat saran dipilih); `useOriginAddressSync` ditulis ulang — teks langsung jadi koordinat (`formatPinCoordinates` di `units.ts`), alamat reverse-geocode menimpa hanya jika permintaan masih terbaru, kegagalan Nominatim (limit ±1 req/s) tidak lagi meninggalkan alamat basi. Rantai prop di-rename `onPinChange` → `onPickOrigin`.
+- Catatan: Revan sendiri mengomentari prop `footer` MapPanel di `ParentRoute.tsx` — biarkan apa adanya.
+
+**Lanjutan ketiga (tampilan distrik, route `/district`):**
+
+- **Rute dihapus total dari Mode 1 (FR-10 dicabut)**: hapus `useDistrictSelectedRoute.ts`, `useSegmentHighlightLayer.ts`, `lib/segmentHighlight.ts`, `solveCoolestPathSegments`+`coolestDoseAcrossHours` di `routeSolver.ts`; `useDistrictMapLayers`/`DistrictRoute` tanpa input rute. Angka rute per blok tetap di panel detail (precompute pipeline).
+- **Siklus fokus sekolah**: state baru `focusedSchoolId` (district-local, mulai null) di `DistrictStateProvider`; klik pin/baris → fokus (pin lain hilang dari peta via filter `resolveAnalyzedSchoolId`), klik pin yang sama lagi / tombol back → lepas fokus penuh (fokus+blok+notice+jam dibersihkan, panel kembali ke daftar). `appState.selectedSchoolId` tak lagi disentuh Mode 1. `SchoolList` kehilangan prop `selectedSchoolId` (selalu null di daftar sekarang).
+- **Pin belum-teranalisis terkunci**: `useSchoolPinsLayer` — `icon-opacity` ±0,55 + tanpa label nama untuk pin redup; klik tetap memunculkan notice FR-20.
+- **Ramp FR-28 dipensiunkan**: hapus `lib/routeRampFeatures.ts`, prop `unselectedColor`, token `--route-heat-*` dari `theme.css`+`mapPaint.ts` — ramp tak punya tempat tampil lagi (Mode 2 netral, Mode 1 tanpa rute). `--route-coolest` tetap.
+- **Dokumen**: PRD FR-6/FR-10/FR-20/FR-28 amendemen; DESIGN.md §Rute tabel + 2 amendemen penutup + §Penanda lokasi + checklist; METHODOLOGY §Revisi Fase 14 lanjutan kedua & ketiga; CURRENT_STATE (bagian ini).
 
 ## Angka kunci hasil Fase 10 (sudah disetujui user)
 
@@ -59,6 +70,11 @@ Semua perubahan Fase 9 + 10 + 11 menumpuk di working tree:
 - Zona penuh di dalam lingkaran 4 sekolah timur (celah barat sesuai LIMITATIONS #21)
 - Klik blok milik sekolah lain → sekolah terpilih ikut berganti
 - FR-16 ON → zona + label hilang; halo label terbaca di dark mode
+- Mode 2: satu-satunya garis biru = rute yang kartunya terpilih; klik kartu lain → biru berpindah dan garis terpilih tidak tertutup abu pada geometri bersama
+- Mode 2: pilih saran Origin → kamera terbang ke pin baru; seret pin → teks Origin berganti (koordinat dulu, lalu alamat)
+- Mode 1 tanpa fokus: semua pin tampil, tidak ada zona/rute, pin belum-teranalisis redup tanpa label; klik pinnya → notice "belum dianalisis"
+- Mode 1 fokus: hanya pin sekolah terfokus yang tersisa + zona penuh; klik pin itu sekali lagi atau tombol back → kembali ke daftar semua pin
+- Mode 1: pindah fokus antar sekolah me-reset slider jam ke jam kanonik
 
 ## Fase 14 — selesai, dikerjakan di luar urutan (lompat sebelum Fase 13)
 

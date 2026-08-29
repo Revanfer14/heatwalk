@@ -109,6 +109,10 @@ def main() -> None:
     dasymetric_totals = enrollment_calibration.dasymetric_children_by_school(tile["id"], tile["bbox"], schools)
     correction_factors = enrollment_calibration.correction_factors(schools, dasymetric_totals)
 
+    blocks_hours_by_school = {
+        school["id"]: blocks_hours.build_blocks_hours(routed_by_school[school["id"]]) for school in schools
+    }
+
     canonical_hour = next(iter(routed_by_school.values()))["meta"]["canonical_hour"]
     daily_station_temps = station_temp_at_local_hour_by_date(
         EXCEEDANCE_STATION_ICAO, EXCEEDANCE_STATION_START_DATE, EXCEEDANCE_STATION_END_DATE,
@@ -118,7 +122,7 @@ def main() -> None:
     n_years = school_years_spanned(daily_station_temps, tile["timezone"])
 
     summary = summary_build.build_summary(
-        schools, classified_by_school, routed_by_school, correction_factors,
+        schools, classified_by_school, routed_by_school, blocks_hours_by_school, correction_factors,
         median_income_by_block_group, daily_station_temps, station_temp_on_fetch_date, n_years,
     )
     write_json(DATA_OUT_DIR / "summary.json", summary)
@@ -126,15 +130,13 @@ def main() -> None:
     street_names = segment_priority.load_street_names(tile["id"])
 
     blocks_geojson_by_school: dict[str, dict] = {}
-    blocks_hours_by_school: dict[str, dict] = {}
     for school in schools:
         blocks_geojson = build_blocks_geojson(classified_by_school[school["id"]], polygons_by_geoid)
         write_json(DATA_OUT_DIR / "by_school" / school["id"] / "blocks.geojson", blocks_geojson)
         blocks_geojson_by_school[school["id"]] = blocks_geojson
 
-        blocks_hours_payload = blocks_hours.build_blocks_hours(routed_by_school[school["id"]])
+        blocks_hours_payload = blocks_hours_by_school[school["id"]]
         write_json(DATA_OUT_DIR / "by_school" / school["id"] / "blocks_hours.json", blocks_hours_payload)
-        blocks_hours_by_school[school["id"]] = blocks_hours_payload
 
         school_dir = DATA_OUT_DIR / "by_school" / school["id"]
         school_graph = _load_json(school_dir / "graph.json")

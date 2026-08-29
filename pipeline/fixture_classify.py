@@ -1,6 +1,6 @@
 import hashlib
 
-from pipeline import step4_classify, summary_build
+from pipeline import blocks_hours, step4_classify, summary_build
 from pipeline.config import BASELINE_C, FETCH_HOURS, THRESHOLD_DOSE_C_MIN, WALK_SPEED_MPS
 from pipeline.fixture_geometry import block_heat_factor, grid_path_edges, nearest_grid_cell, school_lonlat
 from pipeline.fixture_temps import CANONICAL_HOUR, HOUR_OFFSET_C, ORLANDO_SPREAD_C
@@ -143,6 +143,10 @@ def classify_and_summarize(
         for school in schools
     }
 
+    blocks_hours_by_school = {
+        school["id"]: blocks_hours.build_blocks_hours(routed_by_school[school["id"]]) for school in schools
+    }
+
     median_income_by_block_group = _synthetic_median_income_by_block_group(
         [block["block_id"] for block in blocks]
     )
@@ -150,7 +154,7 @@ def classify_and_summarize(
     station_temp_on_fetch_date = BASELINE_C + ORLANDO_SPREAD_C * 0.5
 
     summary = summary_build.build_summary(
-        schools, classified_by_school, routed_by_school, correction_factors,
+        schools, classified_by_school, routed_by_school, blocks_hours_by_school, correction_factors,
         median_income_by_block_group, daily_station_temps, station_temp_on_fetch_date,
         SYNTHETIC_STATION_YEARS,
     )

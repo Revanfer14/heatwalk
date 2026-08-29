@@ -45,6 +45,33 @@ def _bus_not_needed_kids(school_blocks: list[dict], walk_radius_mi: float) -> in
     )
 
 
+def _misclassified_by_hour(
+    school_blocks: list[dict],
+    blocks_hours_payload: dict[str, dict],
+    hours: list[str],
+    walk_radius_mi: float,
+) -> dict[str, dict]:
+    by_hour: dict[str, dict] = {}
+    for hour in hours:
+        walk_should_bus = 0
+        bus_not_needed = 0
+        for block in school_blocks:
+            hour_record = blocks_hours_payload.get(block["block_id"], {}).get(hour)
+            if hour_record is None:
+                continue
+            block_class_at_hour = hour_record["class"]
+            if block["status_now"] == "walk" and block_class_at_hour == "red":
+                walk_should_bus += block["kids_est"]
+            elif (
+                block["status_now"] == "bus"
+                and block_class_at_hour == "green"
+                and (block["distance_mi"] - walk_radius_mi) <= BUS_NOT_NEEDED_MAX_EXCESS_MI
+            ):
+                bus_not_needed += block["kids_est"]
+        by_hour[hour] = {"walk_should_bus": walk_should_bus, "bus_not_needed": bus_not_needed}
+    return by_hour
+
+
 def _days_exceedance_for_school(
     routed: dict,
     threshold: float,
@@ -75,6 +102,7 @@ def build_summary(
     schools: list[dict],
     classified_by_school: dict[str, list[dict]],
     routed_by_school: dict[str, dict],
+    blocks_hours_by_school: dict[str, dict],
     correction_factors: dict[str, float | None],
     median_income_by_block_group: dict[str, int | None],
     daily_station_temps: dict[str, float],
@@ -103,6 +131,7 @@ def build_summary(
 
         routed = routed_by_school[school_id]
         threshold = routed["meta"]["threshold"]
+        hours = routed["meta"]["hours"]
 
         summary[school_id] = {
             "in_walk_zone": in_walk_zone,
@@ -115,6 +144,9 @@ def build_summary(
                 "bus_not_needed": _bus_not_needed_kids(school_blocks, school["walk_radius_mi"]),
                 "walk_should_bus": no_safe_route,
             },
+            "misclassified_by_hour": _misclassified_by_hour(
+                school_blocks, blocks_hours_by_school[school_id], hours, school["walk_radius_mi"]
+            ),
             "dose_eliminated_per_child_per_day": round(avg_eliminated, 1),
             "dose_eliminated_per_child_per_year": round(avg_eliminated * SCHOOL_DAYS_PER_YEAR, 1),
             "equivalent_minutes_at_42c": (

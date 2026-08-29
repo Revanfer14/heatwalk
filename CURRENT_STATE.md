@@ -12,7 +12,7 @@ Dipakai untuk re-orientasi cepat sesi berikutnya. Sumber lengkap: `heatwalk-prd.
 | 10 | Pipeline: blok tak berpenduduk + `mean_c` per jam + file distrik gabungan | ✅ selesai, **belum di-commit** | `phase-10: klasifikasi blok tak berpenduduk + mean_c per jam + file blok distrik gabungan` |
 | 11 | Distrik: render blok gabungan + label suhu blok + perbaikan font pin | ✅ selesai, **belum di-commit** | `phase-11: render blok distrik gabungan + label suhu blok + perbaikan font pin` |
 | 12 | Distrik: hover lingkaran (FR-26) + highlight top-5 segmen (FR-24) | 🔄 **SEDANG BERJALAN** — desain final terkunci, belum ada kode ditulis | `phase-12: tooltip deskripsi lingkaran + highlight top-5 segmen prioritas di peta` |
-| 13 | Legend peta sisi kanan (FR-27) + tombol info metodologi (FR-25) | ⏳ belum mulai | `phase-13: legend peta sisi kanan + tombol info metodologi` |
+| 13 | Legend peta sisi kanan (FR-27) + tombol info metodologi (FR-25) | 🔄 **sebagian selesai, belum di-commit** — FR-27 Mode 1 (kartu legend kanan-bawah, bisa dilipat, meredup FR-16) dan FR-25 (lewat dialog About baru, FR-31) selesai; FR-27 Mode 2 dan garis top-5 di legend Mode 1 belum | `phase-13: FR-27 map legend for district mode + FR-25/FR-31 about dialog` |
 | 14 | Parent: rute teradem biru + ramp FR-28, suhu live per-sel FR-29, opsi rute majemuk FR-30, slider dihapus FR-13 | ✅ selesai, **belum di-commit** | `phase-14: rute biru/ramp FR-28, suhu live per-sel FR-29, opsi rute majemuk FR-30, slider dihapus dari mode orang tua` |
 
 ## Yang ada di working tree (uncommitted)
@@ -34,6 +34,16 @@ Yang belum di-commit sekarang (sesi 28 Agustus, kedua dan ketiga — permintaan 
 - **Pin belum-teranalisis terkunci**: `useSchoolPinsLayer` — `icon-opacity` ±0,55 + tanpa label nama untuk pin redup; klik tetap memunculkan notice FR-20.
 - **Ramp FR-28 dipensiunkan**: hapus `lib/routeRampFeatures.ts`, prop `unselectedColor`, token `--route-heat-*` dari `theme.css`+`mapPaint.ts` — ramp tak punya tempat tampil lagi (Mode 2 netral, Mode 1 tanpa rute). `--route-coolest` tetap.
 - **Dokumen**: PRD FR-6/FR-10/FR-20/FR-28 amendemen; DESIGN.md §Rute tabel + 2 amendemen penutup + §Penanda lokasi + checklist; METHODOLOGY §Revisi Fase 14 lanjutan kedua & ketiga; CURRENT_STATE (bagian ini).
+
+**Lanjutan keempat (Fase 13, legend kanan + dialog About, permintaan Revan):**
+
+- **Legend peta sisi kanan (FR-27, Mode 1 saja)**: konten statis di `lib/legendContent.ts` + `lib/aboutContent.ts` (baru); `LegendLineSwatch.tsx` (baru, swatch garis SVG dash/solid via token `currentColor`); `MapLegendContent.tsx` (baru) — empat seksi: kelas zona (pakai ulang `ClassificationBadge`), dua lingkaran radius (label + mil dari `schoolSummary`), batas AOI + catatan label suhu blok, dan paragraf baseline/threshold nyata dari `schoolData.temps.meta`. Baris/seksi yang berasal dari data panas meredup saat FR-16; baris lingkaran kebijakan dan batas AOI tetap penuh.
+- **`MapLegend.tsx`** (baru) — kartu mengambang kanan-bawah, bisa dilipat (state `legendCollapsed` diangkat ke `DistrictStateProvider` karena `useMapPanelPadding` membutuhkannya), dirender di `DistrictRoute` hanya pada viewport ≥768px. `panelGeometry.ts` += `LEGEND_WIDTH_PX`/`LEGEND_ATTRIBUTION_CLEARANCE_PX`; `useMapPanelPadding` += opsi `rightReservedPx` supaya `map.setPadding` ikut me-reserve lebar legend.
+- **Viewport sempit**: `MapLegendContent` yang sama dirender **di dalam** panel sekolah (`DistrictSchoolView.tsx`, ganti `ZoneLegend`) saat `useIsSidePanelViewport()` `false` — satu sumber konten, dua tempat tampil tergantung ukuran layar. `ZoneLegend.tsx` dihapus (nol importer setelahnya).
+- **Dialog About (FR-31, baru, tanpa nomor FR sebelum sesi ini)**: `AboutDialog.tsx`, dipasang di `FloatingControls.tsx` sehingga tampil di kedua mode. Isi: tiga seksi prosa dari `aboutContent.ts` + baris baseline/threshold nyata (`useSchoolMeta`, sekolah pertama teranalisis) + dua tautan ke `/methodology` dan `/limitations` (dialog ditutup dulu sebelum `navigate`, supaya overlay Radix tidak tertinggal di atas halaman doc). Menyerap FR-25 — tombol info metodologi kini membuka dialog ini, bukan langsung `/methodology`.
+- **Beres-beres sisa edit `DistrictPanel.tsx`**: prop `tile`/import `Tile` yang sudah tak terpakai (sisa dari pembersihan `TileCoverageInfo` sebelumnya) dibuang; `DistrictRoute.tsx` berhenti mengoper `tile` ke panel.
+- **Dilaporkan, tidak dieksekusi**: `TileCoverageInfo.tsx` masih nol-importer di seluruh repo (menyentuh FR-21) — keputusan hapus/tidaknya diserahkan ke Revan.
+- **Dokumen**: PRD FR-31 baru + amendemen FR-25/FR-27; DESIGN.md §Layout per mode (cluster kontrol + catatan ketidaksesuaian FR-27 di Mode 1); CURRENT_STATE (bagian ini).
 
 ## Angka kunci hasil Fase 10 (sudah disetujui user)
 

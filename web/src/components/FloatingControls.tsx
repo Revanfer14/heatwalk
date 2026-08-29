@@ -1,4 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import AboutDialog from '@/components/AboutDialog'
 import ModeSwitch from '@/components/ModeSwitch'
 import HideHeatToggle from '@/components/HideHeatToggle'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -33,6 +34,7 @@ export default function FloatingControls() {
       <ModeSwitch />
       <HideHeatToggle />
       <ThemeToggle />
+      <AboutDialog />
     </div>
   )
 }

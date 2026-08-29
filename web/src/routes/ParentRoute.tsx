@@ -3,6 +3,8 @@ import ParentPanelContent from '@/components/ParentPanelContent'
 import ParentRouteResults from '@/components/ParentRouteResults'
 import MapPanel from '@/components/MapPanel'
 import MapPanelHeader from '@/components/MapPanelHeader'
+import MapLegend from '@/components/MapLegend'
+import ParentMapLegendContent from '@/components/ParentMapLegendContent'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMapInstance } from '@/hooks/useMapInstance'
 import { useParentRouteData } from '@/hooks/useParentRouteData'
@@ -12,6 +14,7 @@ import { usePickOrigin } from '@/hooks/usePickOrigin'
 import { useFlyToSchool } from '@/hooks/useFlyToSchool'
 import { useIsSidePanelViewport } from '@/hooks/useIsSidePanelViewport'
 import { useMapPanelPadding } from '@/hooks/useMapPanelPadding'
+import { LEGEND_WIDTH_PX } from '@/lib/panelGeometry'
 import { SAMPLE_LOCATIONS } from '@/lib/sampleLocations'
 import type { SelectedRouteId } from '@/lib/selectedRouteId'
 
@@ -23,6 +26,7 @@ export default function ParentRoute() {
   const isSidePanel = useIsSidePanelViewport()
   const [addressText, setAddressText] = useState(SAMPLE_LOCATIONS[0].label)
   const [selectedRouteId, setSelectedRouteId] = useState<SelectedRouteId>('coolest')
+  const [legendCollapsed, setLegendCollapsed] = useState(false)
 
   const {
     schools,
@@ -72,7 +76,13 @@ export default function ParentRoute() {
     onPinDragEnd: handlePinDragEnd,
   })
   useFlyToSchool(map, selectedSchool, SCHOOL_FLY_TO_ZOOM)
-  useMapPanelPadding(map, { isSidePanel, collapsed: panelCollapsed, panelRef })
+  const legendReservedPx = isSidePanel && !legendCollapsed ? LEGEND_WIDTH_PX : 0
+  useMapPanelPadding(map, {
+    isSidePanel,
+    collapsed: panelCollapsed,
+    panelRef,
+    rightReservedPx: legendReservedPx,
+  })
 
   if (bootLoading) {
     return <Skeleton className="fixed inset-x-4 top-16 h-24 rounded-lg" />
@@ -125,16 +135,23 @@ export default function ParentRoute() {
   )
 
   return (
-    <MapPanel
-      panelRef={panelRef}
-      collapsed={panelCollapsed}
-      header={<MapPanelHeader title="HeatWalk" eyebrow="Orlando" />}
-      peek={panelContent}
-    >
-      <div className="flex flex-col gap-4 p-4">
-        {isSidePanel && panelContent}
-        {resultsContent}
-      </div>
-    </MapPanel>
+    <>
+      <MapPanel
+        panelRef={panelRef}
+        collapsed={panelCollapsed}
+        header={<MapPanelHeader title="HeatWalk" eyebrow="Orlando" />}
+        peek={panelContent}
+      >
+        <div className="flex flex-col gap-4 p-4">
+          {isSidePanel && panelContent}
+          {resultsContent}
+        </div>
+      </MapPanel>
+      {isSidePanel && (
+        <MapLegend collapsed={legendCollapsed} onToggleCollapsed={() => setLegendCollapsed((current) => !current)}>
+          <ParentMapLegendContent hideHeatData={hideHeatData} />
+        </MapLegend>
+      )}
+    </>
   )
 }

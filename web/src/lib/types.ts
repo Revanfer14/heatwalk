@@ -65,6 +65,7 @@ export interface SchoolSummary {
   no_safe_route: number
   lowest_income_quartile: number
   misclassified: SchoolMisclassified
+  misclassified_by_hour: Record<string, SchoolMisclassified>
   dose_eliminated_per_child_per_day: number
   dose_eliminated_per_child_per_year: number
   equivalent_minutes_at_42c: number

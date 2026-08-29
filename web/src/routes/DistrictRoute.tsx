@@ -1,6 +1,8 @@
 import { useRef } from 'react'
 import DistrictStateProvider from '@/components/DistrictStateProvider'
 import DistrictPanel from '@/components/DistrictPanel'
+import MapLegend from '@/components/MapLegend'
+import MapLegendContent from '@/components/MapLegendContent'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMapInstance } from '@/hooks/useMapInstance'
 import { useDistrictRouteData } from '@/hooks/useDistrictRouteData'
@@ -10,6 +12,7 @@ import { useAoiBoundaryLayer } from '@/hooks/useAoiBoundaryLayer'
 import { useDistrictSelectionHandlers } from '@/hooks/useDistrictSelectionHandlers'
 import { useIsSidePanelViewport } from '@/hooks/useIsSidePanelViewport'
 import { useMapPanelPadding } from '@/hooks/useMapPanelPadding'
+import { LEGEND_WIDTH_PX } from '@/lib/panelGeometry'
 import type { LonLat } from '@/lib/geoDistance'
 
 const SCHOOL_FLY_TO_ZOOM = 13.5
@@ -32,6 +35,8 @@ function DistrictRouteInner() {
     setSelectedBlockId,
     layerVisibility,
     toggleLayer,
+    misclassifiedHighlight,
+    toggleMisclassifiedHighlight,
     schoolSearchText,
     setSchoolSearchText,
     includeUnanalyzed,
@@ -46,9 +51,12 @@ function DistrictRouteInner() {
     districtBlocks,
     districtBlocksError,
     policyCircleBlocks,
+    focusedSchoolBlocks,
     nationalSchools,
     schoolSummary,
     selectedBlock,
+    legendCollapsed,
+    toggleLegendCollapsed,
   } = useDistrictRouteData()
 
   const schoolPoint: LonLat | null = selectedSchool !== null ? [selectedSchool.lon, selectedSchool.lat] : null
@@ -69,6 +77,8 @@ function DistrictRouteInner() {
     walkRadiusMi: selectedSchool?.walk_radius_mi ?? null,
     doseRadiusMi: schoolSummary?.radius_setara_dosis_mi ?? null,
     blocks: policyCircleBlocks,
+    focusedSchoolBlocks,
+    misclassifiedHighlight,
     layerVisibility,
     hideHeatData,
     theme,
@@ -82,7 +92,8 @@ function DistrictRouteInner() {
 
   useFlyToSchool(map, selectedSchool, SCHOOL_FLY_TO_ZOOM)
   useAoiBoundaryLayer(map, tile, theme)
-  useMapPanelPadding(map, { isSidePanel, collapsed: panelCollapsed, panelRef })
+  const legendReservedPx = isSidePanel && !legendCollapsed ? LEGEND_WIDTH_PX : 0
+  useMapPanelPadding(map, { isSidePanel, collapsed: panelCollapsed, panelRef, rightReservedPx: legendReservedPx })
 
   if (bootLoading) return <Skeleton className="fixed inset-x-4 top-16 h-24 rounded-lg" />
 
@@ -95,32 +106,44 @@ function DistrictRouteInner() {
   }
 
   return (
-    <DistrictPanel
-      panelRef={panelRef}
-      collapsed={panelCollapsed}
-      panelView={panelView}
-      schools={schools}
-      nationalSchools={nationalSchools}
-      selectedSchool={selectedSchool}
-      schoolData={schoolData}
-      schoolSummary={schoolSummary}
-      selectedBlock={selectedBlock}
-      unanalyzedNotice={unanalyzedNotice}
-      tile={tile}
-      hour={hour}
-      onHourChange={setHour}
-      layerVisibility={layerVisibility}
-      onToggleLayer={toggleLayer}
-      hideHeatData={hideHeatData}
-      schoolSearchText={schoolSearchText}
-      onSearchTextChange={setSchoolSearchText}
-      includeUnanalyzed={includeUnanalyzed}
-      onIncludeUnanalyzedChange={setIncludeUnanalyzed}
-      onSelectAnalyzed={handleSelectAnalyzed}
-      onSelectUnanalyzed={handleSelectUnanalyzed}
-      onBackToSchools={handleBackToSchools}
-      onBackToSchool={handleBackToSchool}
-    />
+    <>
+      <DistrictPanel
+        panelRef={panelRef}
+        collapsed={panelCollapsed}
+        panelView={panelView}
+        schools={schools}
+        nationalSchools={nationalSchools}
+        selectedSchool={selectedSchool}
+        schoolData={schoolData}
+        schoolSummary={schoolSummary}
+        selectedBlock={selectedBlock}
+        unanalyzedNotice={unanalyzedNotice}
+        hour={hour}
+        onHourChange={setHour}
+        layerVisibility={layerVisibility}
+        onToggleLayer={toggleLayer}
+        misclassifiedHighlight={misclassifiedHighlight}
+        onToggleMisclassifiedHighlight={toggleMisclassifiedHighlight}
+        hideHeatData={hideHeatData}
+        schoolSearchText={schoolSearchText}
+        onSearchTextChange={setSchoolSearchText}
+        includeUnanalyzed={includeUnanalyzed}
+        onIncludeUnanalyzedChange={setIncludeUnanalyzed}
+        onSelectAnalyzed={handleSelectAnalyzed}
+        onSelectUnanalyzed={handleSelectUnanalyzed}
+        onBackToSchools={handleBackToSchools}
+        onBackToSchool={handleBackToSchool}
+      />
+      {isSidePanel && (
+        <MapLegend collapsed={legendCollapsed} onToggleCollapsed={toggleLegendCollapsed}>
+          <MapLegendContent
+            hideHeatData={hideHeatData}
+            schoolSummary={schoolSummary}
+            meta={schoolData?.temps.meta ?? null}
+          />
+        </MapLegend>
+      )}
+    </>
   )
 }
 

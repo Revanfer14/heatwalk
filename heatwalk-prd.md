@@ -400,17 +400,12 @@ Baris terakhir wajib ada. °C·menit tidak intuitif; terjemahan ke "menit di suh
 
 ```
 Siswa di walk zone            [n]
-Cukup ganti rute              [n]  ([%])
-Tidak punya rute aman         [n]  ([%])
-Kuartil pendapatan terbawah   [n]  ([%] dari yang berisiko)
 
-Radius kebijakan              [n] mi
-Radius setara-dosis           [n] mi  ([%])
-
-Salah klasifikasi:
-  Dapat bus, tidak perlu      [n]
-  Jalan kaki, seharusnya bus  [n]
+Jalan kaki, seharusnya bus    [n]  [toggle sorot di peta]
+Dapat bus, tidak perlu        [n]  [toggle sorot di peta]
 ```
+
+**Amendemen 2026-08-28 (Revan): ringkasan sekolah dipangkas ke tiga baris.** Lima baris — cukup ganti rute, tidak punya rute aman, kuartil pendapatan terbawah, radius kebijakan, radius setara-dosis — dihapus dari panel karena tenggelamkan dua angka yang benar-benar jadi *ask* ke school board. Alasan G4 (mengkuantifikasi siswa yang salah klasifikasi) tetap terpenuhi penuh: dua baris salah klasifikasi justru dinaikkan derajatnya jadi kontrol peta — sebuah `<Switch>` di sisi tiap angka menyalakan outline netral (`--ink` di atas `--bg`, nol warna baru) yang menyorot persis blok-blok penyumbang angka itu di choropleth Mode 1 (`web/src/hooks/useMisclassifiedHighlightLayer.ts`). "Tidak punya rute aman" tidak hilang sebagai informasi — `no_safe_route` identik dengan `misclassified.walk_should_bus` di `summary.json` (`pipeline/summary_build.py:116`), diverifikasi sama di seluruh 42 sekolah. Kuartil pendapatan terbawah dan radius kebijakan tetap hidup penuh di `summary.json` dan CSV export (FR-14); hanya tidak lagi jadi baris panel. Radius setara-dosis lihat amendemen FR-18.
 
 #### FR-13 — Slider jam *(P0)*
 
@@ -447,6 +442,8 @@ Radius setara-dosis  0,42 mi   (−58%)
 ```
 
 Dirender sebagai lingkaran ketiga di peta Mode 1, dan sebagai satu baris di ringkasan sekolah FR-12. Ini berbicara dalam satuan yang sudah dipakai kebijakan distrik hari ini.
+
+**Amendemen 2026-08-28 (Revan): baris radius setara-dosis dipindah dari ringkasan sekolah ke legend.** Sejak amendemen FR-12, panel ringkasan hanya menyisakan tiga baris; radius kebijakan dan radius setara-dosis (dengan mil dan persentase perubahannya) sekarang dibaca di §Radius circles pada legend peta (`MapLegendContent.tsx`), yang tetap bersumber dari `summary.json` tanpa dihitung ulang di frontend. Lingkaran ketiga di peta dan layer toggle-nya (`Dose-equivalent radius` di `LayerToggles`) tidak berubah.
 
 #### FR-19 — Exceedance per blok *(P1)*
 
@@ -516,6 +513,8 @@ Lima segmen teratas `segments.json` (urutan existing: kids terdampang, lalu suhu
 
 Satu tombol ikon di cluster kontrol yang membuka `/methodology`. Panel metodologi sudah ada; tombol ini membuatnya ditemukan tanpa harus tahu link tersembunyi di atribusi peta.
 
+**Amendemen 2026-08-28 (Revan): entry point-nya adalah dialog About (FR-31), bukan navigasi langsung.** Tombol ikon di cluster kontrol membuka `AboutDialog` (`web/src/components/AboutDialog.tsx`); dua tautan di bagian bawah dialog itu yang membuka `/methodology` dan `/limitations`. Satu tombol menutup dua kebutuhan sekaligus — cluster kontrol tidak bertambah dua ikon terpisah.
+
 #### FR-26 — Deskripsi lingkaran saat hover *(P2)*
 
 Hover pada lingkaran kebijakan (putus-putus) atau lingkaran radius setara-dosis (solid) menebalkan garisnya dan menampilkan tooltip penjelasan: apa lingkaran ini, berapa milnya (dari data, bukan teks mati), dan untuk lingkaran kebijakan — bahwa 2,0 mi adalah kebijakan **distrik** (OCPS, seragam K–12 per FS 1006.23), bukan aturan federal. Tooltip radius setara-dosis ikut sembunyi saat FR-16.
@@ -523,6 +522,8 @@ Hover pada lingkaran kebijakan (putus-putus) atau lingkaran radius setara-dosis 
 #### FR-27 — Legend peta sisi kanan *(P1)*
 
 Legend mengambang di sisi kanan peta, bisa dilipat, sadar-mode: kelas zona + makna kedua lingkaran + garis top-5 (Mode 1); rute + ramp suhu + lingkaran kebijakan (Mode 2). Ini **pengecualian disengaja** atas aturan "nol kontrol lain yang mengambang di atas peta" di DESIGN.md — legend dipindah ke atas peta supaya selalu terlihat saat panel samping collapsed, dan `map.setPadding` ikut me-reserve lebarnya. Konten legend meredup saat FR-16.
+
+**Status 2026-08-28: dibangun untuk Mode 1 saja.** `MapLegend.tsx` + `MapLegendContent.tsx` menutupi kelas zona, kedua lingkaran radius, batas AOI, dan baris baseline/threshold untuk mode distrik; garis top-5 (FR-24) belum ditautkan ke legend. Sisi Mode 2 (rute + lingkaran kebijakan; ramp suhu di spec ini sudah usang, dicabut oleh amendemen penutup FR-28) **belum dibangun** — FR-27 belum selesai penuh.
 
 #### FR-28 — Warna suhu di rute Mode 2 *(P1)*
 
@@ -564,6 +565,10 @@ Keputusan produk 2026-08-28 (Revan): selain rute teradem dan rute terpendek (FR-
 - Alternatif ikut hilang saat FR-16 aktif, sama seperti rute teradem.
 
 **Amendemen 2026-08-28 (Revan, lanjutan): rute terpendek dihapus dari kartu dan dari peta; alternatif naik dari satu jadi dua.** Revan melaporkan rute terpendek kebanyakan redundan secara visual dengan rute teradem (G8 di atas). Kartu "Shortest route" dan garisnya di peta dihapus dari Mode 2; `ALTERNATE_ROUTE_COUNT` di `web/src/lib/routeAlternatives.ts` naik dari 1 ke 2, jadi panel tetap tiga kartu total — teradem + hingga dua alternatif, bisa kurang kalau mesin pencari kehabisan jalur berbeda (aturan "boleh nol" di atas kini berlaku untuk dua slot). FR-3 (rute terpendek) tidak dihapus dari produk — `routeSolver.ts` tetap menghitungnya, dan tetap satu-satunya pembanding di tabel FR-4 (`RouteComparisonPanel`), cuma berhenti punya representasi visual dan berhenti bisa dipilih sebagai kartu. Peran "garis netral putus-putus" FR-16 berpindah dari rute terpendek ke rute teradem sendiri — lihat amendemen §Rute di `DESIGN.md`.
+
+#### FR-31 — Dialog About *(P1)*
+
+Ditambahkan 2026-08-28 atas permintaan langsung Revan; tidak lahir dari draf PRD awal, dicatat di sini supaya tidak jadi kode tanpa nomor FR (lihat CLAUDE.md §"Kalau ragu"). Satu tombol ikon (`Info`, lucide-react) di cluster kontrol yang membuka `Dialog` shadcn/ui berisi tiga seksi prosa singkat — masalah yang dipecahkan (walk zone jarak-tetap tidak tahu apa-apa soal panas), kenapa dosis panas kumulatif dipakai sebagai penggantinya, dan apa yang dihasilkan HeatWalk (daftar blok terklasifikasi ulang + bukti per blok) — plus satu baris baseline/threshold nyata dibaca dari `data/out/` (`useSchoolMeta`, sekolah pertama yang teranalisis), dan dua tautan di bagian bawah ke `/methodology` dan `/limitations`. Dialog tertutup dulu sebelum navigasi ke halaman doc supaya overlay Radix tidak tertinggal. Dirender di `FloatingControls`, jadi muncul di kedua mode. Menyerap FR-25 — lihat amendemen di FR-25 di atas.
 
 ---
 

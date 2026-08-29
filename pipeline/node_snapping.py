@@ -2,7 +2,13 @@ import numpy as np
 from pyproj import Transformer
 
 
-def snap_points(nodes: dict[str, list[float]], lons: list[float], lats: list[float], utm_epsg: int) -> list[str]:
+def snap_points(
+    nodes: dict[str, list[float]],
+    lons: list[float],
+    lats: list[float],
+    utm_epsg: int,
+    exclude_node_id: str | None = None,
+) -> list[str]:
     node_ids = list(nodes)
     to_utm = Transformer.from_crs("EPSG:4326", f"EPSG:{utm_epsg}", always_xy=True)
 
@@ -14,9 +20,14 @@ def snap_points(nodes: dict[str, list[float]], lons: list[float], lats: list[flo
     query_x = np.atleast_1d(query_x)
     query_y = np.atleast_1d(query_y)
 
+    exclude_index = node_ids.index(exclude_node_id) if exclude_node_id is not None else None
+
     snapped: list[str] = []
     for x, y in zip(query_x, query_y):
         distances_sq = (node_x - x) ** 2 + (node_y - y) ** 2
+        if exclude_index is not None:
+            distances_sq = distances_sq.copy()
+            distances_sq[exclude_index] = np.inf
         snapped.append(node_ids[int(np.argmin(distances_sq))])
     return snapped
 

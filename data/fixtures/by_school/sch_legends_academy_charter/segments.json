@@ -1,1 +1,1 @@
-[]
+[{"edge_id":"n11_1-n11_2","street_name":"Grid St 11","kids_affected":78,"peak_c":37.88,"peak_shaded_c":36.38,"dose_reduction_pct":45},{"edge_id":"n11_2-n11_3","street_name":"Grid St 11","kids_affected":78,"peak_c":37.84,"peak_shaded_c":36.34,"dose_reduction_pct":43},{"edge_id":"n11_1-n12_1","street_name":"Grid Ave 1","kids_affected":34,"peak_c":37.79,"peak_shaded_c":36.29,"dose_reduction_pct":38}]

@@ -1,1 +1,1 @@
-[{"edge_id":"n2_8-n3_8","street_name":"Grid Ave 8","kids_affected":43,"peak_c":36.74,"peak_shaded_c":35.24,"dose_reduction_pct":65},{"edge_id":"n1_8-n2_8","street_name":"Grid Ave 8","kids_affected":26,"peak_c":36.03,"peak_shaded_c":34.53,"dose_reduction_pct":100}]
+[{"edge_id":"n4_8-n5_8","street_name":"Grid Ave 8","kids_affected":18,"peak_c":37.15,"peak_shaded_c":35.65,"dose_reduction_pct":56},{"edge_id":"n5_8-n6_8","street_name":"Grid Ave 8","kids_affected":18,"peak_c":36.82,"peak_shaded_c":35.32,"dose_reduction_pct":60}]

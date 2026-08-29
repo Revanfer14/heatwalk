@@ -178,13 +178,15 @@ Angka **tidak pernah** di-tween. Lihat bagian Slider jam.
 
 **Amendemen 2026-08-28 (Revan, FR-13): kontrol ini sekarang eksklusif Mode 1.** Mode 2 menghapus slider — lihat amendemen §Mode 2 di atas — dan selalu memakai jam Orlando saat ini. Spesifikasi di bawah tetap berlaku penuh untuk `HourSlider` di panel distrik.
 
+**Amendemen 2026-08-28 (Revan): slider Mode 1 ditulis 12 jam AM/PM, membatalkan "tetap memakai format 24 jam" di amendemen sebelumnya.** Jamnya sekarang disajikan lewat `formatHourAmPm` (`web/src/lib/units.ts`, sudah dipakai `LiveConditionsRow` di Mode 2) supaya kedua mode konsisten. Langkahnya tetap dibaca dari `meta.hours` tanpa perubahan — cuma penyajiannya yang berubah dari `"15:00"` menjadi `"3:00 PM"`.
+
 Kontrol paling sering disentuh di Mode 1 dan mengubah hampir semua angka di layar, jadi dia harus terasa langsung dan tidak boleh terlihat dekoratif.
 
 ### Bentuk
 
 Track 2px `--border-strong`, satu tick per jam pada `--border`, thumb lingkaran 16px `--ink` dengan ring 2px `--bg` di bawahnya. Bagian track sebelum thumb tetap `--border-strong` — **jangan diberi fill berbeda.** Ini bukan progress bar; tidak ada jam yang "lebih selesai" dari jam lain.
 
-Label jam di bawah track memakai ukuran caption dan `tabular-nums`. Tampilkan ujung dan jam aktif saja (`07:00 · · · 15:00 · · · 16:00`); menampilkan sepuluh label sekaligus membuat baris ini lebih ramai daripada angka yang seharusnya jadi fokus.
+Label jam di bawah track memakai ukuran caption dan `tabular-nums`. Tampilkan ujung dan jam aktif saja (`7:00 AM · · · 3:00 PM · · · 4:00 PM`); menampilkan sepuluh label sekaligus membuat baris ini lebih ramai daripada angka yang seharusnya jadi fokus.
 
 Jam aktif ditulis penuh di atas track, ukuran H2 panel, `--ink`. Ini satu-satunya tempat jam ditulis besar.
 
@@ -195,7 +197,7 @@ Jam aktif ditulis penuh di atas track, ukuran H2 panel, `--ink`. Ini satu-satuny
 3. **Nol warna**, sesuai aturan tunggal di atas. Slider bukan peta, bukan legend, bukan badge status.
 4. Target sentuh thumb minimum 44px — perbesar area sentuhnya, bukan lingkarannya.
 5. Dapat dioperasikan penuh dengan keyboard: panah kiri/kanan geser satu jam, `Home`/`End` ke ujung. Focus ring 2px `--ink` seperti elemen lain.
-6. `aria-valuetext` berisi jamnya dalam kata (`"15:00"`), bukan indeks langkahnya.
+6. `aria-valuetext` berisi jamnya dalam kata (`"3:00 PM"`), bukan indeks langkahnya.
 
 ### Saat jam berganti
 
@@ -244,7 +246,7 @@ Satu aplikasi, dua route: `/` untuk mode orang tua (pintu masuk default) dan `/d
 **Peta mengisi seluruh viewport**, di bawah semua elemen lain, tanpa header opaque. Di atasnya mengambang dua hal saja:
 
 1. **Panel peta** — satu `<section>` `--surface-raised`, border penuh, radius `8px`, shadow (lihat aturan shadow di atas), inset `16px` dari tepi kiri, atas, bawah viewport, lebar tetap `380px` pada viewport ≥768px. Baris atas panel berisi wordmark + label AOI (`HeatWalk` · `Orlando`) pada layar pertama, atau tombol kembali + judul konteks (`‹ Jackson Elementary`) saat menyelam ke detail. Isi panel di bawahnya scroll sendiri; baris bawah panel (footer) menampilkan hitungan hasil/cakupan, setara dengan atribusi status.
-2. **Cluster kontrol** — satu wadah kecil mengambang di kanan atas, `--surface-raised`, border, radius `8px`, shadow, isinya empat hal (segmented switch `Parent`/`District` · toggle "hide heat data" FR-16 · toggle tema · tombol info metodologi FR-25, keputusan produk 2026-08-27) plus tombol collapse/expand panel.
+2. **Cluster kontrol** — satu wadah kecil mengambang di kanan atas, `--surface-raised`, border, radius `8px`, shadow, isinya empat hal (segmented switch `Parent`/`District` · toggle "hide heat data" FR-16 · toggle tema · tombol info FR-25, keputusan produk 2026-08-27) plus tombol collapse/expand panel. **Status 2026-08-28:** tombol info FR-25 dibangun sebagai dialog About (FR-31, `AboutDialog.tsx`) — membuka prosa masalah/solusi produk plus tautan ke `/methodology` dan `/limitations` di bagian bawahnya, bukan navigasi langsung ke satu halaman.
 
 **Nol kontrol lain yang mengambang di atas peta** — dengan satu pengecualian disengaja (keputusan produk 2026-08-27, FR-27): **legend peta sisi kanan**, yang justru harus terlihat saat panel samping di-collapse. Slider jam, toggle layer, dan export tetap hidup **di dalam** panel; legend mengambang di sisi kanan (bisa dilipat, sadar-mode), dan `map.setPadding` ikut me-reserve lebarnya supaya `flyTo` tetap terpusat di area yang benar-benar terlihat.
 
@@ -294,9 +296,11 @@ Satu panel peta yang sama, dipakai sebagai **tumpukan tiga tampilan** yang salin
 1. **Daftar sekolah** — pencarian + daftar sekolah teranalisis dan (opsional) sekolah nasional belum teranalisis.
 2. **Sekolah terpilih** — ringkasan sekolah (FR-12) sebagai grid metrik dua kolom (bukan baris horizontal — lebar panel 380px tidak cukup untuk baris), legend zona, toggle layer (A/B/C), slider jam, lalu (kalau ada) export CSV. Kembali → daftar sekolah.
 
+**Amendemen 2026-08-28 (Revan): dua baris salah klasifikasi di ringkasan sekolah (FR-12) masing-masing dapat `<Switch>` yang menyorot blok bersangkutan di peta.** Sorotan digambar sebagai garis netral di atas choropleth — casing 4px `--bg` lalu garis 2px `--ink`, nol warna baru — bukan fill baru, supaya tetap patuh aturan warna hanya di peta/legend/badge. Dua kategori independen, bisa menyala bersamaan. Switch redup dan nonaktif saat FR-16 aktif **atau** saat hitungannya nol (mis. "Gets bus, doesn't need it" nol di seluruh 42 sekolah wave-1 hari ini) — bukan disembunyikan, supaya angka nol tetap terbaca sebagai fakta, bukan hilang diam-diam.
+
 **Amendemen (Revan): FR-15 tabel prioritas segmen dicabut dari panel.** Terlalu banyak diagnostik di satu layar untuk keputusan yang seharusnya sederhana ("blok ini hijau/merah, kenapa"); FR-15 memang yang pertama di daftar korban dev plan setelah animasi. `SegmentPriorityTable.tsx` dan `useSegmentPriority.ts` dihapus dari `web/src/`, bukan disembunyikan.
 
-**Catatan ketidaksesuaian ditemukan saat pembersihan ini:** baris di atas sebelumnya menyatakan "legend zona tidak lagi di panel — pindah ke legend peta sisi kanan (FR-27)", tapi tidak ada komponen legend mengambang di `web/src/` — `ZoneLegend` hanya pernah dirender di panel sekolah. FR-27 (legend peta sisi kanan) belum pernah dibangun untuk Mode 1; legend tetap di panel karena ini satu-satunya tempat kategori zona dijelaskan lewat teks (wajib per aturan redundansi warna di atas). Belum diperbaiki — lapor ke Revan, jangan dianggap selesai.
+**Status 2026-08-28: ketidaksesuaian di atas sudah diperbaiki.** Legend zona kini hidup di kartu mengambang kanan-bawah (`MapLegend.tsx` + `MapLegendContent.tsx`, FR-27), bisa dilipat, sadar-tema, meredup saat FR-16 — bukan lagi hanya di dalam panel sekolah. `ZoneLegend.tsx` dihapus. Salinan `MapLegendContent` tetap dirender **di dalam** panel sekolah pada viewport di bawah `SIDE_PANEL_MIN_VIEWPORT_PX` (768px), karena di sana kartu mengambang akan bertabrakan dengan bottom sheet yang menempati seluruh sisi bawah layar — bukan duplikasi konten, satu sumber (`legendContent.ts`) dirender di salah satu dari dua tempat tergantung viewport. `map.setPadding` ikut me-reserve lebar legend lewat `useMapPanelPadding`'s `rightReservedPx`. Yang belum: legend sisi Mode 2 (rute + lingkaran kebijakan) dan garis top-5 FR-24 di Mode 1 — FR-27 belum selesai penuh, lihat status di `heatwalk-prd.md`.
 3. **Blok terpilih** — panel detail blok (FR-9), termasuk "lihat kenapa" (FR-10) dan panel outcome (FR-11) saat kategori merah. Kembali → sekolah terpilih.
 
 Slider jam ada di tampilan 2, di dalam panel. Di mode ini dia mengontrol layer zona: menggesernya mengganti warna choropleth, bukan angka panel.

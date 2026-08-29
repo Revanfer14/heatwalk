@@ -1,4 +1,5 @@
 import { Slider } from '@/components/ui/slider'
+import { formatHourAmPm } from '@/lib/units'
 
 interface HourSliderProps {
   hours: string[]
@@ -14,13 +15,13 @@ export default function HourSlider({ hours, hour, onHourChange, label }: HourSli
   return (
     <div className="w-full">
       {label !== undefined && <p className="mb-1 text-xs font-medium text-ink-muted">{label}</p>}
-      <p className="mb-2 text-center text-lg font-semibold tabular-nums text-ink">{hour}</p>
+      <p className="mb-2 text-center text-lg font-semibold tabular-nums text-ink">{formatHourAmPm(hour)}</p>
       <Slider
         min={0}
         max={lastIndex}
         step={1}
         value={[activeIndex]}
-        valueText={hour}
+        valueText={formatHourAmPm(hour)}
         onValueChange={([index]) => onHourChange(hours[index])}
         aria-label="Hour"
       />
@@ -34,9 +35,9 @@ export default function HourSlider({ hours, hour, onHourChange, label }: HourSli
         ))}
       </div>
       <div className="mt-1 flex justify-between text-xs tabular-nums text-ink-subtle">
-        <span>{hours[0]}</span>
-        {activeIndex !== 0 && activeIndex !== lastIndex && <span>{hour}</span>}
-        <span>{hours[lastIndex]}</span>
+        <span>{formatHourAmPm(hours[0])}</span>
+        {activeIndex !== 0 && activeIndex !== lastIndex && <span>{formatHourAmPm(hour)}</span>}
+        <span>{formatHourAmPm(hours[lastIndex])}</span>
       </div>
     </div>
   )

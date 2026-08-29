@@ -27,7 +27,11 @@ def route_school(school: dict, blocks: list[dict], utm_epsg: int) -> dict:
     canonical_hour = temps_payload["meta"]["canonical_hour"]
     school_node = node_snapping.snap_point(nodes, school["lon"], school["lat"], utm_epsg)
     block_nodes = node_snapping.snap_points(
-        nodes, [block["lon"] for block in blocks], [block["lat"] for block in blocks], utm_epsg
+        nodes,
+        [block["lon"] for block in blocks],
+        [block["lat"] for block in blocks],
+        utm_epsg,
+        exclude_node_id=school_node,
     )
 
     first_hour_graph = routing.build_routing_graph(edges, temps_edges, hours[0], lambda_detour)

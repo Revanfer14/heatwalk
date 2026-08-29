@@ -7,6 +7,7 @@ import { useNationalSchools } from '@/hooks/useNationalSchools'
 import { useDistrictBlocks } from '@/hooks/useDistrictBlocks'
 import { useDefaultHour } from '@/hooks/useDefaultHour'
 import { applyHourClass } from '@/lib/applyHourClass'
+import { blocksForSchool } from '@/lib/blocksForSchool'
 import { blocksInsidePolicyCircle } from '@/lib/blocksInsidePolicyCircle'
 import { findDistrictBlock } from '@/lib/findDistrictBlock'
 
@@ -39,6 +40,11 @@ export function useDistrictRouteData() {
     return applyHourClass(circleBlocks, districtBlocksHours, hour)
   }, [districtBlocks, districtBlocksHours, hour, selectedSchool])
 
+  const focusedSchoolBlocks = useMemo(() => {
+    if (districtBlocks === null || selectedSchool === null) return null
+    return applyHourClass(blocksForSchool(districtBlocks, selectedSchool.id), districtBlocksHours, hour)
+  }, [districtBlocks, districtBlocksHours, hour, selectedSchool])
+
   const schoolSummary = focusedSchoolId !== null ? (summary?.[focusedSchoolId] ?? null) : null
 
   return {
@@ -52,6 +58,7 @@ export function useDistrictRouteData() {
     districtBlocksHours,
     districtBlocksError,
     policyCircleBlocks,
+    focusedSchoolBlocks,
     nationalSchools,
     nationalSchoolsLoading,
     schoolSummary,

@@ -7,6 +7,11 @@ export interface LayerVisibility {
   doseRadius: boolean
 }
 
+export interface MisclassifiedHighlight {
+  walkShouldBus: boolean
+  busNotNeeded: boolean
+}
+
 export type DistrictPanelView = 'schools' | 'school' | 'block'
 
 export interface DistrictStateContextValue {
@@ -18,12 +23,16 @@ export interface DistrictStateContextValue {
   setSelectedBlockId: (blockId: string | null) => void
   layerVisibility: LayerVisibility
   toggleLayer: (layer: keyof LayerVisibility) => void
+  misclassifiedHighlight: MisclassifiedHighlight
+  toggleMisclassifiedHighlight: (category: keyof MisclassifiedHighlight) => void
   schoolSearchText: string
   setSchoolSearchText: (text: string) => void
   includeUnanalyzed: boolean
   setIncludeUnanalyzed: (value: boolean) => void
   unanalyzedNotice: SchoolNational | null
   setUnanalyzedNotice: (school: SchoolNational | null) => void
+  legendCollapsed: boolean
+  toggleLegendCollapsed: () => void
 }
 
 export const DistrictStateContext = createContext<DistrictStateContextValue | null>(null)

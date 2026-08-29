@@ -7,11 +7,12 @@ interface UseMapPanelPaddingOptions {
   isSidePanel: boolean
   collapsed: boolean
   panelRef: RefObject<HTMLElement | null>
+  rightReservedPx?: number
 }
 
 export function useMapPanelPadding(
   map: maplibregl.Map | null,
-  { isSidePanel, collapsed, panelRef }: UseMapPanelPaddingOptions,
+  { isSidePanel, collapsed, panelRef, rightReservedPx = 0 }: UseMapPanelPaddingOptions,
 ): void {
   const { height: panelHeightPx } = useElementSize(panelRef)
 
@@ -19,11 +20,16 @@ export function useMapPanelPadding(
     if (map === null) return
 
     const sidePanelPadding = collapsed
-      ? { top: PANEL_INSET_PX, left: PANEL_INSET_PX, right: PANEL_INSET_PX, bottom: PANEL_INSET_PX }
+      ? {
+          top: PANEL_INSET_PX,
+          left: PANEL_INSET_PX,
+          right: PANEL_INSET_PX + rightReservedPx,
+          bottom: PANEL_INSET_PX,
+        }
       : {
           top: PANEL_INSET_PX,
           left: PANEL_INSET_PX * 2 + PANEL_WIDTH_PX,
-          right: PANEL_INSET_PX,
+          right: PANEL_INSET_PX + rightReservedPx,
           bottom: PANEL_INSET_PX,
         }
 
@@ -40,5 +46,5 @@ export function useMapPanelPadding(
     return () => {
       map.setPadding({ top: 0, left: 0, right: 0, bottom: 0 })
     }
-  }, [map, isSidePanel, collapsed, panelHeightPx])
+  }, [map, isSidePanel, collapsed, panelHeightPx, rightReservedPx])
 }

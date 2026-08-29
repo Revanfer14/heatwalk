@@ -279,6 +279,10 @@ Objek keyed by `school_id`. **Real sejak Fase 4** — `pipeline/summary_build.py
     "no_safe_route": 142,
     "lowest_income_quartile": 61,
     "misclassified": { "bus_not_needed": 12, "walk_should_bus": 142 },
+    "misclassified_by_hour": {
+      "07:00": { "bus_not_needed": 4, "walk_should_bus": 0 },
+      "15:00": { "bus_not_needed": 12, "walk_should_bus": 142 }
+    },
     "dose_eliminated_per_child_per_day": 214,
     "dose_eliminated_per_child_per_year": 38520,
     "equivalent_minutes_at_42c": 43,
@@ -295,6 +299,7 @@ Objek keyed by `school_id`. **Real sejak Fase 4** — `pipeline/summary_build.py
 | `lowest_income_quartile` | `integer` | anak | tidak | ACS B19013 kuartil terbawah, dalam blok merah |
 | `misclassified.bus_not_needed` | `integer` | anak | tidak | definisi G4 di `docs/METHODOLOGY.md`, ambang `BUS_NOT_NEEDED_MAX_EXCESS_MI`. **Nol di seluruh 42 sekolah teranalisis** (juga nol di enam sekolah gelombang 1/Fase 10) — bukan lagi karena tidak ada blok berstatus `bus` (itu hanya berlaku di bbox kecil gelombang 1), tapi karena nol dari blok berstatus `bus` yang berklasifikasi hijau. Lihat `docs/METHODOLOGY.md` §Fase 4 dan §Fase 10 Temuan 2 |
 | `misclassified.walk_should_bus` | `integer` | anak | tidak | = jumlah anak blok merah di dalam walk zone resmi |
+| `misclassified_by_hour.<HH:MM>.bus_not_needed` / `.walk_should_bus` | `integer` | anak | tidak | **Real sejak revisi 2026-08-29 (FR-13 × FR-12).** Definisi identik dengan `misclassified.*`, dievaluasi ulang untuk setiap jam di `meta.hours`, dengan `class` diambil dari `blocks_hours.json` pada jam itu alih-alih dari `class` canonical di `blocks.geojson` — supaya nilainya ikut bergerak saat slider jam Mode 1 digeser, bukan diam di jam kanonik. `misclassified_by_hour[canonical_hour]` selalu sama persis dengan `misclassified` di atas (diverifikasi untuk seluruh 42 sekolah). Dihitung `pipeline/summary_build.py:_misclassified_by_hour`, nol perhitungan ulang di frontend — panel Mode 1 (`SchoolSummaryRow.tsx`) hanya memilih key jam aktif lewat `web/src/lib/misclassifiedHighlight.ts:misclassifiedCountsForHour`. |
 | `dose_eliminated_per_child_per_day` | `number` | °C·menit | tidak | `shortest.dose - coolest.dose` rata-rata blok merah |
 | `dose_eliminated_per_child_per_year` | `number` | °C·menit | tidak | `× SCHOOL_DAYS_PER_YEAR` |
 | `equivalent_minutes_at_42c` | `number` | menit | tidak | `dose_eliminated_per_day / (42.0 - baseline_c)` |

@@ -4,10 +4,11 @@ import { useOfficialZoneLayer } from '@/hooks/useOfficialZoneLayer'
 import { useDoseZoneLayer } from '@/hooks/useDoseZoneLayer'
 import { useBlockTempLabelsLayer } from '@/hooks/useBlockTempLabelsLayer'
 import { useDoseRadiusLayer } from '@/hooks/useDoseRadiusLayer'
+import { useMisclassifiedHighlightLayer } from '@/hooks/useMisclassifiedHighlightLayer'
 import { useNationalSchoolsLayer } from '@/hooks/useNationalSchoolsLayer'
 import { useNationalSchoolsClicks } from '@/hooks/useNationalSchoolsClicks'
 import { resolveAnalyzedSchoolId } from '@/lib/resolveAnalyzedSchool'
-import type { LayerVisibility } from '@/lib/districtStateContext'
+import type { LayerVisibility, MisclassifiedHighlight } from '@/lib/districtStateContext'
 import type { BlocksGeoJson, School } from '@/lib/types'
 import type { SchoolNational } from '@/lib/districtTypes'
 import type { LonLat } from '@/lib/geoDistance'
@@ -18,6 +19,8 @@ interface UseDistrictMapLayersInput {
   walkRadiusMi: number | null
   doseRadiusMi: number | null
   blocks: BlocksGeoJson | null
+  focusedSchoolBlocks: BlocksGeoJson | null
+  misclassifiedHighlight: MisclassifiedHighlight
   layerVisibility: LayerVisibility
   hideHeatData: boolean
   theme: string
@@ -36,6 +39,8 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
     walkRadiusMi,
     doseRadiusMi,
     blocks,
+    focusedSchoolBlocks,
+    misclassifiedHighlight,
     layerVisibility,
     hideHeatData,
     theme,
@@ -71,6 +76,15 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
     schoolPoint,
     doseRadiusMi,
     visible: layerVisibility.doseRadius && !hideHeatData,
+    theme,
+  })
+  useMisclassifiedHighlightLayer({
+    map,
+    blocks: focusedSchoolBlocks,
+    highlight: misclassifiedHighlight,
+    schoolId: focusedSchoolId,
+    walkRadiusMi,
+    hideHeatData,
     theme,
   })
   useNationalSchoolsLayer({ map, nationalSchools: visibleNationalSchools, theme })

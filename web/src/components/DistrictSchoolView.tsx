@@ -52,7 +52,12 @@ export default function DistrictSchoolView({
 
       <div className="flex flex-col gap-4 border-t border-border pt-4">
         {!isSidePanel && (
-          <MapLegendContent hideHeatData={hideHeatData} schoolSummary={schoolSummary} meta={meta} />
+          <MapLegendContent
+            hideHeatData={hideHeatData}
+            schoolSummary={schoolSummary}
+            meta={meta}
+            misclassifiedHighlight={misclassifiedHighlight}
+          />
         )}
         <LayerToggles layerVisibility={layerVisibility} onToggle={onToggleLayer} hideHeatData={hideHeatData} />
         {hour !== null && hours.length > 0 && <HourSlider hours={hours} hour={hour} onHourChange={onHourChange} />}

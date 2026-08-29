@@ -140,6 +140,7 @@ function DistrictRouteInner() {
             hideHeatData={hideHeatData}
             schoolSummary={schoolSummary}
             meta={schoolData?.temps.meta ?? null}
+            misclassifiedHighlight={misclassifiedHighlight}
           />
         </MapLegend>
       )}

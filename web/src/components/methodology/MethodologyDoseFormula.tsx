@@ -1,29 +1,35 @@
+import { Link } from 'react-router-dom'
+
 export default function MethodologyDoseFormula() {
   return (
     <div className="flex flex-col gap-3 text-ink-muted">
+      <p>For each edge of the walking network:</p>
       <p>
-        <span className="font-medium text-ink">tcm</span> is FortyGuard&rsquo;s thermal comfort metric — verified
-        2m ambient air temperature, not surface temperature. Verified within ±3°C of a reference METAR reading at
-        Phoenix Sky Harbor during Fase 0 (docs/METHODOLOGY.md, [Fase 0] Definisi tcm).
-      </p>
-      <p>
-        Heat dose for one edge of the walking network is:
-        <br />
         <code className="text-sm text-ink">
           dose = max(temp_c − baseline_c, 0) × (length_m / walk_speed_mps) / 60
         </code>
       </p>
       <p>
-        The clamp at zero matters: Dijkstra cannot route on negative weights, and a cool edge must never earn a
-        &ldquo;credit&rdquo; that makes a longer route win. Walk speed is a pipeline constant, 1.2 m/s, applied
-        uniformly — see Limitations for what that simplifies away.
+        The result is in °C·minutes: how long a child spends above the baseline temperature, weighted by how far
+        above it they are.
+      </p>
+      <p>Two properties matter.</p>
+      <p>
+        <span className="font-medium text-ink">The clamp at zero.</span> Dijkstra cannot route on negative weights,
+        and a cool segment must never earn a credit that lets a longer route win.
       </p>
       <p>
-        Routing weighs every edge twice: by raw distance (the shortest route) and by{' '}
-        <code className="text-sm text-ink">dose + lambda × length_m</code> (the coolest route, with a
-        detour penalty so it never wanders more than 1.4× the shortest distance). One lambda value per school,
-        held constant across all hours, so the route shown does not jump for reasons unrelated to heat as the
-        hour slider moves.
+        <span className="font-medium text-ink">Walking speed is one constant for every child</span>, 1.2 m/s. See{' '}
+        <Link to="/limitations" className="underline underline-offset-3 hover:text-ink">
+          Limitations
+        </Link>{' '}
+        for what that flattens.
+      </p>
+      <p>
+        Routing runs twice over the same graph: once weighted by raw distance, once by{' '}
+        <code className="text-sm text-ink">dose + λ × length_m</code>. λ is a detour penalty — without it the
+        &ldquo;coolest&rdquo; route wanders. One λ per school, held constant across all hours, so the drawn route
+        never changes for reasons unrelated to heat.
       </p>
     </div>
   )

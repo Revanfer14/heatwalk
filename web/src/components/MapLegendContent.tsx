@@ -1,8 +1,10 @@
 import ClassificationBadge from '@/components/ClassificationBadge'
 import LegendLineSwatch from '@/components/LegendLineSwatch'
 import { BLOCK_CLASS_DEFINITION, LEGEND_AOI_LABEL, LEGEND_RADIUS_LINES, LEGEND_TEMP_LABEL_NOTE } from '@/lib/legendContent'
+import { MISCLASSIFIED_HIGHLIGHT_LABELS } from '@/lib/misclassifiedHighlight'
 import { formatDose, formatMiles, formatTemperaturePair } from '@/lib/units'
 import { cn } from '@/lib/utils'
+import type { MisclassifiedHighlight } from '@/lib/districtStateContext'
 import type { BlockClass, SchoolSummary, TempsMeta } from '@/lib/types'
 
 const BLOCK_CLASSES: BlockClass[] = ['green', 'yellow', 'red']
@@ -12,13 +14,27 @@ const RADIUS_MILES_BY_ID: Record<'officialZone' | 'doseRadius', (summary: School
   doseRadius: (summary) => summary.radius_setara_dosis_mi,
 }
 
+function activeHighlightLabels(highlight: MisclassifiedHighlight): string[] {
+  return (Object.keys(highlight) as (keyof MisclassifiedHighlight)[])
+    .filter((category) => highlight[category])
+    .map((category) => MISCLASSIFIED_HIGHLIGHT_LABELS[category])
+}
+
 interface MapLegendContentProps {
   hideHeatData: boolean
   schoolSummary: SchoolSummary | null
   meta: TempsMeta | null
+  misclassifiedHighlight: MisclassifiedHighlight
 }
 
-export default function MapLegendContent({ hideHeatData, schoolSummary, meta }: MapLegendContentProps) {
+export default function MapLegendContent({
+  hideHeatData,
+  schoolSummary,
+  meta,
+  misclassifiedHighlight,
+}: MapLegendContentProps) {
+  const highlightLabels = hideHeatData ? [] : activeHighlightLabels(misclassifiedHighlight)
+
   return (
     <div className="flex flex-col gap-4 text-sm">
       <section className={cn('flex flex-col gap-2', hideHeatData && 'opacity-50')}>
@@ -32,6 +48,18 @@ export default function MapLegendContent({ hideHeatData, schoolSummary, meta }: 
           ))}
         </ul>
       </section>
+
+      {highlightLabels.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-subtle">Spotlighted blocks</h3>
+          <ul className="flex flex-col gap-1 text-ink">
+            {highlightLabels.map((label) => (
+              <li key={label}>{label}</li>
+            ))}
+          </ul>
+          <p className="text-xs text-ink-muted">Other blocks dim while this is on.</p>
+        </section>
+      )}
 
       <section className="flex flex-col gap-2">
         <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-subtle">Radius circles</h3>

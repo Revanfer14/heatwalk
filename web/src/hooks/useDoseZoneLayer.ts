@@ -2,7 +2,8 @@ import { useEffect } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { getRouteColors } from '@/lib/mapPaint'
 import { registerHatchPattern, HATCH_PATTERN_ID } from '@/lib/hatchPattern'
-import { buildClassColorExpression, buildFillOpacityExpression } from '@/lib/doseZonePaint'
+import { buildClassColorExpression, buildFillOpacityExpression, buildLineOpacityExpression } from '@/lib/doseZonePaint'
+import type { MapFilterExpression } from '@/lib/misclassifiedHighlight'
 import type { BlocksGeoJson } from '@/lib/types'
 
 const FILL_LAYER_ID = 'heatwalk-dose-zone-fill'
@@ -16,6 +17,7 @@ interface UseDoseZoneLayerInput {
   blocks: BlocksGeoJson | null
   visible: boolean
   theme: string
+  highlightFilter: MapFilterExpression | null
   onBlockClick: (blockId: string) => void
 }
 
@@ -46,7 +48,7 @@ function addLayers(map: maplibregl.Map): void {
 }
 
 export function useDoseZoneLayer(input: UseDoseZoneLayerInput): void {
-  const { map, blocks, visible, theme, onBlockClick } = input
+  const { map, blocks, visible, theme, highlightFilter, onBlockClick } = input
 
   useEffect(() => {
     if (map === null) return
@@ -64,11 +66,16 @@ export function useDoseZoneLayer(input: UseDoseZoneLayerInput): void {
     if (map === null || map.getLayer(FILL_LAYER_ID) === undefined) return
     const colors = getRouteColors()
     registerHatchPattern(map, colors.zoneBus)
+    const fillOpacity = buildFillOpacityExpression(highlightFilter)
+    const lineOpacity = buildLineOpacityExpression(highlightFilter)
     map.setPaintProperty(FILL_LAYER_ID, 'fill-color', buildClassColorExpression(colors))
-    map.setPaintProperty(FILL_LAYER_ID, 'fill-opacity', buildFillOpacityExpression())
+    map.setPaintProperty(FILL_LAYER_ID, 'fill-opacity', fillOpacity)
+    map.setPaintProperty(HATCH_LAYER_ID, 'fill-opacity', lineOpacity)
     map.setPaintProperty(LINE_SOLID_LAYER_ID, 'line-color', buildClassColorExpression(colors))
+    map.setPaintProperty(LINE_SOLID_LAYER_ID, 'line-opacity', lineOpacity)
     map.setPaintProperty(LINE_DASHED_LAYER_ID, 'line-color', colors.zoneReroute)
-  }, [map, theme])
+    map.setPaintProperty(LINE_DASHED_LAYER_ID, 'line-opacity', lineOpacity)
+  }, [map, theme, highlightFilter])
 
   useEffect(() => {
     if (map === null) return

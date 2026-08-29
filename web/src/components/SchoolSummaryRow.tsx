@@ -2,7 +2,7 @@ import Metric from '@/components/Metric'
 import MisclassifiedHighlightToggle from '@/components/MisclassifiedHighlightToggle'
 import { Separator } from '@/components/ui/separator'
 import type { MisclassifiedHighlight } from '@/lib/districtStateContext'
-import { misclassifiedCountsForHour } from '@/lib/misclassifiedHighlight'
+import { MISCLASSIFIED_HIGHLIGHT_LABELS, misclassifiedCountsForHour } from '@/lib/misclassifiedHighlight'
 import type { SchoolSummary } from '@/lib/types'
 
 interface SchoolSummaryRowProps {
@@ -28,14 +28,14 @@ export default function SchoolSummaryRow({
       <Separator />
       <div className="flex flex-col gap-3">
         <MisclassifiedHighlightToggle
-          label="Walks, should get bus"
+          label={MISCLASSIFIED_HIGHLIGHT_LABELS.walkShouldBus}
           count={misclassified.walk_should_bus}
           checked={misclassifiedHighlight.walkShouldBus}
           onToggle={() => onToggleMisclassifiedHighlight('walkShouldBus')}
           hideHeatData={hideHeatData}
         />
         <MisclassifiedHighlightToggle
-          label="Gets bus, doesn't need it"
+          label={MISCLASSIFIED_HIGHLIGHT_LABELS.busNotNeeded}
           count={misclassified.bus_not_needed}
           checked={misclassifiedHighlight.busNotNeeded}
           onToggle={() => onToggleMisclassifiedHighlight('busNotNeeded')}

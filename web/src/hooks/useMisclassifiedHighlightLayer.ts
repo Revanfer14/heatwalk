@@ -2,33 +2,34 @@ import { useEffect } from 'react'
 import type maplibregl from 'maplibre-gl'
 import type { FilterSpecification } from 'maplibre-gl'
 import { getRouteColors } from '@/lib/mapPaint'
-import { buildMisclassifiedFilter } from '@/lib/misclassifiedHighlight'
-import type { MisclassifiedHighlight } from '@/lib/districtStateContext'
+import { buildClassColorExpression } from '@/lib/doseZonePaint'
+import type { MapFilterExpression } from '@/lib/misclassifiedHighlight'
 import type { BlocksGeoJson } from '@/lib/types'
 
+const HIGHLIGHT_FILL_OPACITY = 0.55
+const HIGHLIGHT_LINE_WIDTH = 1.5
+
 const SOURCE_ID = 'heatwalk-misclassified-highlight'
-const CASING_LAYER_ID = 'heatwalk-misclassified-highlight-casing'
+const FILL_LAYER_ID = 'heatwalk-misclassified-highlight-fill'
 const LINE_LAYER_ID = 'heatwalk-misclassified-highlight-line'
-const ALL_LAYER_IDS = [CASING_LAYER_ID, LINE_LAYER_ID]
+const ALL_LAYER_IDS = [FILL_LAYER_ID, LINE_LAYER_ID]
 
 interface UseMisclassifiedHighlightLayerInput {
   map: maplibregl.Map | null
   blocks: BlocksGeoJson | null
-  highlight: MisclassifiedHighlight
-  schoolId: string | null
-  walkRadiusMi: number | null
+  filter: MapFilterExpression | null
   hideHeatData: boolean
   theme: string
 }
 
 function addLayers(map: maplibregl.Map): void {
   map.addSource(SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-  map.addLayer({ id: CASING_LAYER_ID, type: 'line', source: SOURCE_ID, paint: { 'line-width': 4 } })
-  map.addLayer({ id: LINE_LAYER_ID, type: 'line', source: SOURCE_ID, paint: { 'line-width': 2 } })
+  map.addLayer({ id: FILL_LAYER_ID, type: 'fill', source: SOURCE_ID, paint: { 'fill-opacity': HIGHLIGHT_FILL_OPACITY } })
+  map.addLayer({ id: LINE_LAYER_ID, type: 'line', source: SOURCE_ID, paint: { 'line-width': HIGHLIGHT_LINE_WIDTH } })
 }
 
 export function useMisclassifiedHighlightLayer(input: UseMisclassifiedHighlightLayerInput): void {
-  const { map, blocks, highlight, schoolId, walkRadiusMi, hideHeatData, theme } = input
+  const { map, blocks, filter, hideHeatData, theme } = input
 
   useEffect(() => {
     if (map === null) return
@@ -43,9 +44,9 @@ export function useMisclassifiedHighlightLayer(input: UseMisclassifiedHighlightL
   }, [map])
 
   useEffect(() => {
-    if (map === null || map.getLayer(CASING_LAYER_ID) === undefined) return
+    if (map === null || map.getLayer(FILL_LAYER_ID) === undefined) return
     const colors = getRouteColors()
-    map.setPaintProperty(CASING_LAYER_ID, 'line-color', colors.bg)
+    map.setPaintProperty(FILL_LAYER_ID, 'fill-color', buildClassColorExpression(colors))
     map.setPaintProperty(LINE_LAYER_ID, 'line-color', colors.ink)
   }, [map, theme])
 
@@ -56,16 +57,12 @@ export function useMisclassifiedHighlightLayer(input: UseMisclassifiedHighlightL
   }, [map, blocks])
 
   useEffect(() => {
-    if (map === null || map.getLayer(CASING_LAYER_ID) === undefined) return
-
-    const filter = schoolId !== null && walkRadiusMi !== null
-      ? buildMisclassifiedFilter(highlight, schoolId, walkRadiusMi)
-      : null
+    if (map === null || map.getLayer(FILL_LAYER_ID) === undefined) return
 
     const visibility = filter !== null && !hideHeatData ? 'visible' : 'none'
     for (const layerId of ALL_LAYER_IDS) {
       map.setLayoutProperty(layerId, 'visibility', visibility)
       map.setFilter(layerId, filter as FilterSpecification | null)
     }
-  }, [map, highlight, schoolId, walkRadiusMi, hideHeatData])
+  }, [map, filter, hideHeatData])
 }

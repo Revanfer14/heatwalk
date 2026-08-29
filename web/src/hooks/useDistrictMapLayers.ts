@@ -8,6 +8,7 @@ import { useMisclassifiedHighlightLayer } from '@/hooks/useMisclassifiedHighligh
 import { useNationalSchoolsLayer } from '@/hooks/useNationalSchoolsLayer'
 import { useNationalSchoolsClicks } from '@/hooks/useNationalSchoolsClicks'
 import { resolveAnalyzedSchoolId } from '@/lib/resolveAnalyzedSchool'
+import { buildMisclassifiedFilter } from '@/lib/misclassifiedHighlight'
 import type { LayerVisibility, MisclassifiedHighlight } from '@/lib/districtStateContext'
 import type { BlocksGeoJson, School } from '@/lib/types'
 import type { SchoolNational } from '@/lib/districtTypes'
@@ -57,12 +58,18 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
     return nationalSchools.filter((school) => resolveAnalyzedSchoolId(school, schools) === focusedSchoolId)
   }, [nationalSchools, schools, focusedSchoolId])
 
+  const misclassifiedFilter = useMemo(() => {
+    if (focusedSchoolId === null || walkRadiusMi === null) return null
+    return buildMisclassifiedFilter(misclassifiedHighlight, focusedSchoolId, walkRadiusMi)
+  }, [misclassifiedHighlight, focusedSchoolId, walkRadiusMi])
+
   useOfficialZoneLayer({ map, schoolPoint, walkRadiusMi, visible: layerVisibility.officialZone, theme })
   useDoseZoneLayer({
     map,
     blocks,
     visible: layerVisibility.doseZone && !hideHeatData,
     theme,
+    highlightFilter: hideHeatData ? null : misclassifiedFilter,
     onBlockClick,
   })
   useBlockTempLabelsLayer({
@@ -81,9 +88,7 @@ export function useDistrictMapLayers(input: UseDistrictMapLayersInput): void {
   useMisclassifiedHighlightLayer({
     map,
     blocks: focusedSchoolBlocks,
-    highlight: misclassifiedHighlight,
-    schoolId: focusedSchoolId,
-    walkRadiusMi,
+    filter: misclassifiedFilter,
     hideHeatData,
     theme,
   })

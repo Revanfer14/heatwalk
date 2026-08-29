@@ -1,12 +1,22 @@
 import { useState, type FormEvent } from 'react'
 import FieldLabel from '@/components/FieldLabel'
-import { useGeocodeSuggestions } from '@/hooks/useGeocodeSuggestions'
+import { useGeocodeSuggestions, type GeocodeStatus } from '@/hooks/useGeocodeSuggestions'
 import type { GeocodeResult } from '@/lib/geocode'
 import type { PinPosition } from '@/lib/appStateContext'
 import type { Tile } from '@/lib/types'
 
 const ORIGIN_INPUT_ID = 'heatwalk-origin-input'
 const SUGGESTION_CLOSE_DELAY_MS = 150
+const DRAG_PIN_HINT = "Can't find your address? Drag the pin on the map."
+const NO_MATCH_HINT = 'No match inside the mapped area. Try dragging the pin instead.'
+const SEARCH_UNAVAILABLE_HINT = 'Search unavailable right now. Try dragging the pin instead.'
+
+function originHintFor(isSuggestionListOpen: boolean, status: GeocodeStatus): string {
+  if (!isSuggestionListOpen) return DRAG_PIN_HINT
+  if (status === 'not_found') return NO_MATCH_HINT
+  if (status === 'error') return SEARCH_UNAVAILABLE_HINT
+  return DRAG_PIN_HINT
+}
 
 interface OriginFieldProps {
   tile: Tile | null
@@ -68,12 +78,7 @@ export default function OriginField({ tile, onPickOrigin, addressText, onAddress
           ))}
         </ul>
       )}
-      {isOpen && status === 'not_found' && (
-        <p className="text-xs text-ink-subtle">No match inside the mapped area. Try dragging the pin instead.</p>
-      )}
-      {isOpen && status === 'error' && (
-        <p className="text-xs text-ink-subtle">Search unavailable right now. Try dragging the pin instead.</p>
-      )}
+      <p className="text-xs text-ink-subtle">{originHintFor(isOpen, status)}</p>
     </div>
   )
 }

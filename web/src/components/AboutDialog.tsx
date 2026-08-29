@@ -11,17 +11,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { useAppState } from '@/hooks/useAppState'
-import { useSchoolMeta } from '@/hooks/useSchoolMeta'
 import { ABOUT_SECTIONS } from '@/lib/aboutContent'
-import { formatDose, formatTemperaturePair } from '@/lib/units'
 
 export default function AboutDialog() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
-  const { schools } = useAppState()
-  const firstSchoolId = schools[0]?.id ?? null
-  const { meta } = useSchoolMeta(open ? firstSchoolId : null)
 
   const goToDoc = (path: string): void => {
     setOpen(false)
@@ -44,17 +38,13 @@ export default function AboutDialog() {
         </DialogHeader>
         <div className="flex flex-col gap-5">
           {ABOUT_SECTIONS.map((section) => (
-            <section key={section.id} className="flex flex-col gap-1.5">
+            <section key={section.id} className="flex flex-col gap-2">
               <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-ink-subtle">{section.title}</h3>
-              <p className="text-sm text-ink-muted">{section.body}</p>
+              {section.paragraphs.map((paragraph) => (
+                <p key={paragraph} className="text-sm text-ink-muted">{paragraph}</p>
+              ))}
             </section>
           ))}
-          {meta !== null && (
-            <p className="text-xs text-ink-subtle">
-              Baseline {formatTemperaturePair(meta.baseline_c)} · threshold {formatDose(meta.threshold)}, read live
-              from {schools[0]?.name ?? 'the first analyzed school'}.
-            </p>
-          )}
         </div>
         <Separator />
         <div className="flex items-center gap-2">

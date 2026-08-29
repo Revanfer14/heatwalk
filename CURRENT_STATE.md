@@ -45,6 +45,11 @@ Yang belum di-commit sekarang (sesi 28 Agustus, kedua dan ketiga — permintaan 
 - **Dilaporkan, tidak dieksekusi**: `TileCoverageInfo.tsx` masih nol-importer di seluruh repo (menyentuh FR-21) — keputusan hapus/tidaknya diserahkan ke Revan.
 - **Dokumen**: PRD FR-31 baru + amendemen FR-25/FR-27; DESIGN.md §Layout per mode (cluster kontrol + catatan ketidaksesuaian FR-27 di Mode 1); CURRENT_STATE (bagian ini).
 
+**Lanjutan kelima (29 Agustus, mode orang tua, permintaan Revan):**
+
+- **Hint drag-pin dikembalikan ke Origin**: `OriginField.tsx` — satu baris caption (`text-xs text-ink-subtle`) permanen di bawah input, teks default *"Can't find your address? Drag the pin on the map."* Fungsi murni `originHintFor(isSuggestionListOpen, status)` menggantikan dua blok `{isOpen && status === ...}` lama, sehingga hint dan pesan `not_found`/`error` berbagi satu slot — tidak pernah dua baris sekaligus, tidak ada layout shift ke Destination. Chip alamat contoh (dihapus 28 Agustus, lihat entri di atas) **tetap tidak dikembalikan**. Pin sudah `draggable: true` sejak awal (`usePinMarker.tsx`) dan tidak ada handler klik-di-peta — perubahan ini murni memberi hint itu affordance visual, tanpa menyentuh logika pin/geocode.
+- **Dokumen**: DESIGN.md §Mode 2 (amendemen baru 2026-08-29) + checklist; CURRENT_STATE (bagian ini).
+
 ## Angka kunci hasil Fase 10 (sudah disetujui user)
 
 - Blok terklasifikasi: 2304 → **3198** (hijau 209→243, merah 2095→2955, kuning 0)

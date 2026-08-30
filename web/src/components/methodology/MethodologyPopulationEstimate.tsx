@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom'
-
 export default function MethodologyPopulationEstimate() {
   return (
     <div className="flex flex-col gap-3 text-ink-muted">
@@ -50,11 +48,7 @@ export default function MethodologyPopulationEstimate() {
         and most middle schools in the area come out too high, while charter and alternative programs come out
         too low. Secondary catchments are geographically much larger than elementary ones, so a nearest-school
         estimate systematically undercounts their denominators; lottery-enrolled schools have no geographic
-        catchment at all. Factors are published as computed rather than clipped into the band. See{' '}
-        <Link to="/limitations" className="underline underline-offset-3 hover:text-ink">
-          Limitations
-        </Link>
-        .
+        catchment at all. Factors are published as computed rather than clipped into the band.
       </p>
     </div>
   )

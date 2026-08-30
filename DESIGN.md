@@ -1,365 +1,365 @@
 # DESIGN.md
 
-Sistem visual HeatWalk. Dokumen ini mengikat untuk seluruh `web/`. Kalau ada keputusan visual yang tidak tertulis di sini, ikuti prinsipnya, jangan improvisasi.
+HeatWalk's visual system. This document is binding for all of `web/`. If a visual decision isn't written here, follow its principles — don't improvise.
 
 ---
 
-## Arah desain
+## Design direction
 
-**Monokrom, padat informasi, tanpa dekorasi.** Referensi: kesederhanaan [kurawal.dev](https://kurawal.dev) — hitam-putih, tipografi yang menanggung seluruh hierarki, garis tipis sebagai pemisah, ruang kosong yang lega, nol ornamen.
+**Monochrome, information-dense, no decoration.** Reference: the simplicity of [kurawal.dev](https://kurawal.dev) — black and white, typography carrying the entire hierarchy, thin rules as separators, generous whitespace, zero ornament.
 
-Produk ini dibawa ke rapat school board. Yang bikin dia dipercaya adalah angka yang bisa ditelusuri, bukan tampilan yang manis. Setiap elemen visual harus bisa menjawab: *informasi apa yang hilang kalau ini dihapus?* Kalau jawabannya "tidak ada", hapus.
+This product gets brought to a school board meeting. What makes it trustworthy is traceable numbers, not a pretty finish. Every visual element must be able to answer: *what information is lost if this is removed?* If the answer is "none," remove it.
 
-Satu hal yang harus diingat orang setelah demo: **momen FR-16.** Satu klik, semua warna dan semua garis rute hilang, tinggal lingkaran putus-putus di atas peta abu-abu. Seluruh sistem visual di bawah ini didesain supaya momen itu terasa seperti lampu dimatikan.
+The one thing people should remember after the demo: **the FR-16 moment.** One click, every color and every route line disappears, leaving only a dashed circle on a gray map. The entire visual system below is designed so that moment feels like the lights going out.
 
-### Yang dilarang
+### Forbidden
 
-Gradient · glassmorphism · blur dekoratif · drop shadow di elemen non-overlay · sudut membulat besar · emoji di UI · ikon berwarna · ilustrasi · badge warna-warni · animasi masuk per-section · hero berukuran layar penuh · card bersarang di dalam card.
+Gradients · glassmorphism · decorative blur · drop shadows on non-overlay elements · large rounded corners · emoji in the UI · colored icons · illustrations · multicolor badges · per-section entrance animations · full-screen hero sections · cards nested inside cards.
 
 ---
 
-## Warna
+## Color
 
-Aturan tunggal yang menentukan segalanya:
+One rule that governs everything:
 
-> **Warna hanya boleh muncul di dalam peta, legend peta, dan badge status klasifikasi. Tidak di tempat lain.**
+> **Color may only appear inside the map, the map legend, and classification status badges. Nowhere else.**
 
-Tombol, tautan, border, teks, ikon, chart, tabel — semuanya monokrom, di kedua mode. Konsekuensinya, satu-satunya warna di layar selalu berarti sesuatu, dan tombol "sembunyikan data panas" membuat layar benar-benar kehilangan seluruh warnanya.
+Buttons, links, borders, text, icons, charts, tables — all monochrome, in both modes. Consequence: the only color ever on screen always means something, and the "hide heat data" button makes the screen genuinely lose all of its color.
 
-### Netral
+### Neutrals
 
-| Token | Light | Dark | Pakai untuk |
+| Token | Light | Dark | Used for |
 |---|---|---|---|
-| `--bg` | `#FFFFFF` | `#0A0A0A` | latar halaman |
-| `--surface` | `#FAFAFA` | `#171717` | panel, sheet, header tabel |
-| `--surface-raised` | `#FFFFFF` | `#1F1F1F` | dialog, popover, tooltip |
-| `--border` | `#E5E5E5` | `#262626` | pemisah, garis tabel |
-| `--border-strong` | `#D4D4D4` | `#3A3A3A` | border input, outline tombol |
-| `--ink` | `#0A0A0A` | `#FAFAFA` | teks utama, angka headline |
-| `--ink-muted` | `#525252` | `#A3A3A3` | teks sekunder, label |
-| `--ink-subtle` | `#737373` | `#737373` | caption, placeholder, satuan |
+| `--bg` | `#FFFFFF` | `#0A0A0A` | page background |
+| `--surface` | `#FAFAFA` | `#171717` | panels, sheets, table headers |
+| `--surface-raised` | `#FFFFFF` | `#1F1F1F` | dialogs, popovers, tooltips |
+| `--border` | `#E5E5E5` | `#262626` | separators, table rules |
+| `--border-strong` | `#D4D4D4` | `#3A3A3A` | input borders, button outlines |
+| `--ink` | `#0A0A0A` | `#FAFAFA` | primary text, headline numbers |
+| `--ink-muted` | `#525252` | `#A3A3A3` | secondary text, labels |
+| `--ink-subtle` | `#737373` | `#737373` | captions, placeholders, units |
 
-`--ink-subtle` adalah batas bawah. Jangan pernah bikin teks lebih terang dari itu — semuanya sudah pas-pasan di 4,5:1 dan teks abu-abu muda "biar elegan" adalah cara tercepat bikin produk data terlihat tidak bisa dipercaya.
+`--ink-subtle` is the floor. Never make text lighter than that — everything is already right at the edge of 4.5:1, and light-gray text "for elegance" is the fastest way to make a data product look untrustworthy.
 
-### Data (hanya di peta, legend, dan badge status)
+### Data colors (map, legend, and status badges only)
 
-| Token | Light | Dark | Arti |
+| Token | Light | Dark | Meaning |
 |---|---|---|---|
-| `--zone-safe` | `#3F6B4A` | `#7FB08C` | hijau — rute terpendek sudah aman |
-| `--zone-reroute` | `#B07A1A` | `#E0B25C` | kuning — perlu pemilihan rute |
-| `--zone-bus` | `#A33A28` | `#E0705C` | merah — rute teradem pun gagal |
-| `--route-coolest` | `#1E5FA8` | `#7FB3EA` | biru — rute terpilih di Mode 2, "jawaban" (FR-28) |
+| `--zone-safe` | `#3F6B4A` | `#7FB08C` | green — shortest route is already safe |
+| `--zone-reroute` | `#B07A1A` | `#E0B25C` | yellow — needs route choice |
+| `--zone-bus` | `#A33A28` | `#E0705C` | red — even the coolest route fails |
+| `--route-coolest` | `#1E5FA8` | `#7FB3EA` | blue — the selected route in Mode 2, the "answer" (FR-28) |
 
-Fill choropleth memakai token yang sama pada opacity 18% (safe), 22% (reroute), 30% (bus), dengan stroke 1px pada warna penuh.
+Choropleth fill uses the same tokens at 18% opacity (safe), 22% (reroute), 30% (bus), with a 1px stroke at full color.
 
-**Redundansi wajib.** Hijau-kuning-merah adalah kombinasi terburuk untuk buta warna deuteran, dan ini keputusan yang menyangkut anak orang. Setiap kategori harus dapat dibedakan tanpa warna sama sekali:
+**Redundancy is mandatory.** Green-yellow-red is the worst possible combination for deuteranopia, and this is a decision that affects someone's kid. Every category must be distinguishable with zero color:
 
-- Blok merah diberi **arsir diagonal** di atas fill-nya.
-- Blok kuning diberi **garis putus-putus** pada stroke-nya.
-- Blok hijau polos.
-- Setiap tempat yang menampilkan kategori wajib menyertakan **teks labelnya**, bukan cuma swatch.
+- Red blocks get a **diagonal hatch** over their fill.
+- Yellow blocks get a **dashed** stroke.
+- Green blocks are plain.
+- Anywhere a category is shown must include its **text label**, not just a swatch.
 
 ### Basemap
 
-**OpenFreeMap remote, style `liberty`.** Style URL `https://tiles.openfreemap.org/styles/liberty`, dibaca MapLibre langsung sebagai style JSON — basemap berwarna standar (taman hijau, air biru, jalan/bangunan warna natural), bukan `grayscale`.
+**Remote OpenFreeMap, style `liberty`.** Style URL `https://tiles.openfreemap.org/styles/liberty`, read directly by MapLibre as style JSON — a standard colored basemap (green parks, blue water, natural-colored roads/buildings), not `grayscale`.
 
-Tanpa API key. **Keputusan produk 2026-08-27 malam (Revan):** rencana basemap self-hosted PMTiles (`web/public/heatwalk-aoi.pmtiles`) diganti ke tile server pihak ketiga OpenFreeMap — lihat `docs/METHODOLOGY.md` §Fase 8 untuk alasan dan angka biaya cakupannya. Konsekuensinya, verifikasi "cabut internet, demo tetap jalan" (dev plan Fase 7) **tidak lagi berlaku untuk basemap** — peta butuh internet saat runtime. Bagian lain aplikasi (data `data/out/`, graph, routing) tetap sepenuhnya offline setelah load pertama.
+No API key. **Product decision, night of 2026-08-27 (Revan):** the planned self-hosted PMTiles basemap (`web/public/heatwalk-aoi.pmtiles`) was replaced with the third-party OpenFreeMap tile server — see `docs/METHODOLOGY.md` §Phase 8 for the reasoning and the coverage-cost numbers. Consequence: the "pull the internet, demo still works" verification (dev plan Phase 7) **no longer applies to the basemap** — the map needs internet at runtime. The rest of the app (`data/out/` data, graph, routing) remains fully offline after the first load.
 
-**Keputusan produk 2026-08-27 (Revan): basemap sengaja diganti dari `grayscale` ke `light` berwarna**, menggantikan aturan lama "kalau basemap-nya berwarna, seluruh sistem ini batal". Konsekuensinya, aturan "warna hanya di peta/legend/badge" di atas sekarang dibaca sebagai *warna non-peta tetap monokrom*, bukan lagi *basemap itu sendiri harus netral*. Overlay dosis panas, legend, dan badge klasifikasi tetap wajib kontras jelas terhadap basemap berwarna ini — verifikasi kontras AOI secara visual di layar tiap kali basemap atau palet overlay berubah, karena warna basemap sekarang bisa bentrok dengan warna zona (terutama merah/kuning terhadap jalan/bangunan). Atribusi OpenStreetMap wajib terlihat di peta.
+**Product decision 2026-08-27 (Revan): the basemap was deliberately switched from `grayscale` to colored `light`**, replacing the old rule "if the basemap is colored, this whole system is void." Consequence: the "color only in map/legend/badge" rule above is now read as *non-map color stays monochrome*, not *the basemap itself must be neutral*. The heat-dose overlay, legend, and classification badges must still contrast clearly against this colored basemap — verify AOI contrast visually on screen every time the basemap or overlay palette changes, because basemap colors can now clash with zone colors (especially red/yellow against roads/buildings). OpenStreetMap attribution must be visible on the map.
 
-### Rute
+### Routes
 
-| Elemen | Gaya |
+| Element | Style |
 |---|---|
-| Rute teradem (data panas tampil) | 5px solid `--route-coolest`, dengan casing 8px `--bg` di bawahnya — 6,5px (casing 9,5px) saat terpilih; 2,5px `--ink-subtle` tanpa casing saat kartunya tidak terpilih |
-| Rute teradem (FR-16 aktif) | 2px `--ink-subtle`, dashed `4 4` — balik ke netral; 3px saat terpilih, tanpa casing. Satu-satunya garis yang tersisa di peta saat FR-16 aktif |
-| Rute alternatif (FR-30, Mode 2) | 2px solid `--ink-subtle`, tanpa dasharray — 3px saat kartunya terpilih di panel |
-| Segmen prioritas top-5 (FR-24) | 7px `--zone-bus`, opacity 100%, di atas choropleth blok, + label rank |
-| Lingkaran walk zone resmi | 1,5px `--ink-muted`, dashed `6 6`, tanpa fill |
-| Lingkaran radius setara-dosis (FR-18) | 1,5px solid `--ink`, tanpa fill |
-| Hover pada salah satu lingkaran (FR-26) | garis menebal ke 3px + tooltip deskripsi |
+| Coolest route (heat data shown) | 5px solid `--route-coolest`, with an 8px `--bg` casing beneath it — 6.5px (9.5px casing) when selected; 2.5px `--ink-subtle` with no casing when its card is not selected |
+| Coolest route (FR-16 active) | 2px `--ink-subtle`, dashed `4 4` — reverts to neutral; 3px when selected, no casing. The only line left on the map while FR-16 is active |
+| Alternate route (FR-30, Mode 2) | 2px solid `--ink-subtle`, no dasharray — 3px when its card is selected |
+| Top-5 priority segment (FR-24) | 7px `--zone-bus`, 100% opacity, above the block choropleth, + rank label — **not built**, see FR-24 status |
+| Official walk-zone circle | 1.5px `--ink-muted`, dashed `6 6`, no fill |
+| Dose-equivalent radius circle (FR-18) | 1.5px solid `--ink`, no fill |
+| Hover on either circle (FR-26) | not built — see FR-26 status |
 
-**Keputusan produk 2026-08-27 (Revan):** rute teradem memakai **biru** (`--route-coolest`), bukan tinta — biru adalah jawaban; ramp biru→oren pada rute terpendek menunjukkan paparan panas status quo. Dua rute tetap terbedakan tanpa warna lewat lebar (2,5px vs 5px + casing) dan legend berlabel. Saat FR-16 aktif, ramp dan rute teradem hilang total — rute terpendek kembali netral abu putus-putus, momen "lampu dimatikan" tetap utuh.
+**Product decision 2026-08-27 (Revan):** the coolest route uses **blue** (`--route-coolest`), not ink — blue is the answer; the blue→orange ramp on the shortest route showed status-quo heat exposure. The two routes stay distinguishable without color via width (2.5px vs 5px + casing) and a labeled legend. When FR-16 is active, the ramp and the coolest route disappear entirely — the shortest route returns to neutral dashed gray, and the "lights out" moment stays intact.
 
-**Amendemen 2026-08-28 (Revan, FR-30):** rute alternatif memakai abu `--ink-subtle` polos, bukan hitam/merah seperti sempat diusulkan — merah tetap eksklusif milik `--zone-bus` (rute teradem gagal, segmen prioritas), dan menambah warna baru untuk alternatif akan melanggar aturan "warna hanya di peta/legend/badge". Alternatif juga hilang saat FR-16 aktif, sama seperti rute teradem — hanya rute terpendek netral yang bertahan. **Jumlahnya dipangkas dari dua menjadi satu** (amendemen lanjutan hari yang sama) — total tiga kartu rute (teradem, terpendek, satu alternatif), bukan empat.
+**2026-08-28 amendment (Revan, FR-30):** alternate routes use plain gray `--ink-subtle`, not black/red as briefly proposed — red stays exclusive to `--zone-bus` (failing coolest route, priority segments), and adding a new color for alternates would break the "color only in map/legend/badge" rule. Alternates also disappear when FR-16 is active, same as the coolest route. **Their count was cut from two to one** (same-day follow-up amendment) — three route cards total (coolest, shortest, one alternate), not four.
 
-**Amendemen 2026-08-28 (Revan): memilih kartu rute membingkai ulang peta ke rute itu.** Bug yang ditemukan Revan — peta tidak berubah saat kartu selain "Coolest" diklik — diperbaiki dengan dua mekanisme sekaligus: (1) rute yang kartunya terpilih menebalkan garisnya (lihat lebar per baris di tabel atas), dan (2) peta `fitBounds` ke kotak pembatas geometri rute itu (`hooks/useRouteFocus.ts`, padding 64px, `maxZoom` 17, durasi 600ms). Mekanisme kedua ini wajib ada karena ~90% pasangan blok–sekolah punya rute teradem yang identik dengan rute terpendek (G8, `docs/LIMITATIONS.md`) — kalau geometrinya sama persis, menebalkan garis saja tidak terlihat karena satu rute akan selalu digambar tepat di atas rute lain; `fitBounds` tetap memberi umpan balik nyata di kasus itu.
+**2026-08-28 amendment (Revan): selecting a route card reframes the map to that route.** A bug Revan found — the map didn't change when a card other than "Coolest" was clicked — was fixed with two mechanisms at once: (1) the route whose card is selected gets a thicker line (see per-row widths in the table above), and (2) the map `fitBounds`s to that route's geometry bounding box (`hooks/useRouteFocus.ts`, 64px padding, `maxZoom` 17, 600ms duration). The second mechanism is required because ~90% of block–school pairs have a coolest route identical to the shortest route (G8, `docs/METHODOLOGY.md`) — when the geometry is exactly the same, thickening the line alone isn't visible, since one route is always drawn directly on top of the other; `fitBounds` still gives real feedback in that case.
 
-**Amendemen 2026-08-28 (Revan, lanjutan): di Mode 2, biru hanya milik rute yang kartunya terpilih.** Dengan tiga kartu, dua garis biru sekaligus (rute teradem selalu biru + ramp rute terpendek yang berujung biru) membuat seleksi tidak terbaca. Aturan baru: rute yang tidak terpilih — teradem, terpendek, alternatif — semuanya 2–2,5px `--ink-subtle` polos (rute teradem tanpa casing); rute terpilih `--route-coolest` dengan lebar + casing terpilih, dan layer-nya dipindah ke atas tumpukan (`hooks/useRouteLayerOrder.ts`, `moveLayer` tepat di bawah layer batas AOI) supaya geometri bersama G8 tidak menutupi garis biru. Ramp biru→oren kini eksklusif Mode 1, yang tidak punya seleksi kartu; token `--route-heat-*` tetap dipakai di sana. FR-16 tidak berubah: rute terpendek kembali netral abu putus-putus, rute teradem dan alternatif hilang total.
+**2026-08-28 amendment (Revan, follow-up): in Mode 2, blue belongs only to the route whose card is selected.** With three cards, two simultaneous blue lines (the coolest route always blue + the shortest route's ramp ending in blue) made the selection unreadable. New rule: unselected routes — coolest, shortest, alternate — are all plain 2–2.5px `--ink-subtle` (coolest route with no casing); the selected route is `--route-coolest` with the selected width + casing, and its layer is moved to the top of the stack (`hooks/useRouteLayerOrder.ts`, `moveLayer` just below the AOI boundary layer) so that shared geometry (G8) doesn't cover the blue line. The blue→orange ramp is now exclusive to Mode 1, which has no card selection; the `--route-heat-*` tokens still apply there. FR-16 is unchanged: the shortest route returns to neutral dashed gray, and the coolest route and alternates disappear entirely.
 
-**Amendemen 2026-08-28 (Revan, penutup): rute dihapus dari Mode 1; ramp dipensiunkan dari seluruh produk.** Mode 1 kini murni zona — lingkaran kebijakan, choropleth dosis, lingkaran setara-dosis (amendemen FR-10 di PRD); seluruh baris tabel di atas hanya berlaku untuk Mode 2, dan baris "rute teradem gagal" dihapus. Konsekuensi bergandengan dengan amendemen sebelumnya: ramp biru→oren tidak lagi punya tempat tampil di mode mana pun. Token `--route-heat-cool`/`--route-heat-hot` dihapus dari `theme.css` dan kode ramp klien (`routeRampFeatures`) dihapus; teks ramp pada keputusan 2026-08-27 di atas berlaku sebagai catatan sejarah. Satu-satunya warna rute yang tersisa adalah `--route-coolest` untuk rute terpilih di Mode 2.
+**2026-08-28 amendment (Revan, closing): routes removed from Mode 1; the ramp retired from the whole product.** Mode 1 is now purely zones — policy circle, dose choropleth, dose-equivalent circle (FR-10 amendment in the PRD); every row in the table above now applies to Mode 2 only, and the "coolest route fails" row is removed. Consequence, alongside the previous amendment: the blue→orange ramp no longer has anywhere to display in any mode. The `--route-heat-cool`/`--route-heat-hot` tokens are removed from `theme.css` and the client ramp code (`routeRampFeatures`) is removed; the ramp text in the 2026-08-27 decision above stands as historical record. The only route color left in the product is `--route-coolest` for the selected route in Mode 2.
 
-**Amendemen 2026-08-28 (Revan, lanjutan): rute terpendek dihapus dari kartu dan dari peta; rute alternatif naik dari satu jadi dua.** Revan melaporkan rute terpendek kebanyakan redundan dengan rute teradem (G8, ~90% pasangan blok–sekolah punya jalur identik) — kartu dan garisnya dihapus dari Mode 2. `hooks/useShortestRouteLayer.ts` dihapus; `web/src/lib/routeAlternatives.ts` `ALTERNATE_ROUTE_COUNT` naik dari 1 ke 2, sehingga panel tetap menampilkan tiga kartu (teradem + dua alternatif) alih-alih dua. Rute terpendek **tetap dihitung** oleh `routeSolver.ts` untuk tabel perbandingan FR-4 (`RouteComparisonPanel`) — hanya berhenti punya representasi visual di peta dan berhenti bisa dipilih. Konsekuensinya, peran "garis netral putus-putus saat FR-16 aktif" yang sebelumnya dipegang rute terpendek sekarang dipegang rute teradem sendiri (`hooks/useRouteLayers.ts`, lewat `lib/coolestRoutePaint.ts`): saat FR-16 aktif, garis rute teradem berubah jadi `--ink-subtle` 2px dashed `4 4` (3px saat terpilih), tanpa casing, dan warna `--zone-bus` (rute gagal) diabaikan total selama FR-16 aktif — merah adalah sinyal panas dan FR-16 mematikan seluruh sinyal panas.
+**2026-08-28 amendment (Revan, follow-up): the shortest route is removed from cards and from the map; alternates go from one to two.** Revan reported the shortest route was mostly redundant with the coolest route (G8, ~90% of block–school pairs share an identical path) — its card and line are removed from Mode 2. `hooks/useShortestRouteLayer.ts` is removed; `web/src/lib/routeAlternatives.ts`'s `ALTERNATE_ROUTE_COUNT` goes from 1 to 2, so the panel still shows three cards (coolest + two alternates) instead of two. The shortest route is **still computed** by `routeSolver.ts` for the FR-4 comparison table (`RouteComparisonPanel`) — it just stops having a visual representation on the map and stops being selectable. Consequence: the role of "neutral dashed line while FR-16 is active," previously held by the shortest route, is now held by the coolest route itself (`hooks/useRouteLayers.ts`, via `lib/coolestRoutePaint.ts`): while FR-16 is active, the coolest route's line turns `--ink-subtle` 2px dashed `4 4` (3px when selected), with no casing, and the `--zone-bus` color (failing route) is completely ignored while FR-16 is active — red is a heat signal, and FR-16 turns off every heat signal.
 
-### Label di atas choropleth
+### Labels over the choropleth
 
-Label suhu blok (FR-23): `Noto Sans Bold` ~10px, warna `--ink`, halo `--bg` 1,5px, di pusat poligon blok, muncul mulai zoom ±12,5 (collision detection MapLibre menangani kerapatan). Label rank top-5 segmen (FR-24): angka `1`–`5` dengan gaya sama, di midpoint segmen. Keduanya data panas — sembunyi saat FR-16.
+Block temperature labels (FR-23): `Noto Sans Bold` ~10px, `--ink` color, `--bg` halo 1.5px, centered on the block polygon, appearing from zoom ±12.5 (MapLibre collision detection handles density). Top-5 segment rank labels (FR-24, not built): numbers `1`–`5` in the same style, at the segment midpoint. Both are heat data — hidden when FR-16 is active.
 
-### Penanda lokasi
+### Location markers
 
-Peran penanda dibedakan **lewat bentuk dan glyph, tidak pernah lewat warna** — konsekuensi langsung dari larangan ikon berwarna di atas. Ikon glyph dari `lucide-react`, stroke `1,5`, ukuran `16`.
+Marker roles are distinguished **by shape and glyph, never by color** — a direct consequence of the ban on colored icons above. Glyph icons from `lucide-react`, stroke `1.5`, size `16`.
 
-| Peran | Bentuk | Glyph | Anchor |
+| Role | Shape | Glyph | Anchor |
 |---|---|---|---|
-| Your location (bisa digeser, Mode 2) | Teardrop, isi `--ink`, outline 1,5px `--bg` | `House`, warna `--bg`, di kepala teardrop | Ujung bawah (titik presisi) |
-| Sekolah (tempat tetap, kedua mode) | Chip persegi radius `4px`, isi `--bg`, border 1,5px | `GraduationCap`, warna border | Tengah |
+| Your location (draggable, Mode 2) | Teardrop, `--ink` fill, 1.5px `--bg` outline | `House`, `--bg` color, at the teardrop's head | Bottom tip (precise point) |
+| School (fixed location, both modes) | Square chip, `4px` radius, `--bg` fill, 1.5px border | `GraduationCap`, border color | Center |
 
-Sekolah teranalisis memakai border/glyph `--ink`; sekolah belum teranalisis (Mode 1) memakai `--ink-subtle`. Teardrop dipakai khusus untuk titik yang **dipilih dan digeser** orang tua; chip untuk tempat yang **sudah tetap** — kontrasnya harus tetap terbaca setelah difilter grayscale.
+Analyzed schools use `--ink` border/glyph; unanalyzed schools (Mode 1) use `--ink-subtle`. The teardrop is used specifically for the point a parent **selects and drags**; the chip is for a location that's **already fixed** — its contrast must stay legible after a grayscale filter.
 
-**Amendemen 2026-08-28 (Revan): pin belum-teranalisis tampil terkunci.** Pada zoom pin (≥10), pin belum-teranalisis di-redupkan (`icon-opacity` ±0,55) dan tidak membawa label nama — hanya pin teranalisis yang berlabel — supaya status "belum bisa dibuka" terbaca sekilas dari bentuknya. Kliknya tetap memunculkan notice "belum dianalisis" (FR-20). Saat satu sekolah sedang difokuskan di Mode 1, seluruh pin lain — teranalisis maupun belum — hilang dari peta; pin kembali tampil semua begitu fokus dilepas.
+**2026-08-28 amendment (Revan): unanalyzed pins render as locked.** At pin zoom (≥10), unanalyzed pins are dimmed (icon opacity ±0.55) and carry no name label — only analyzed pins are labeled — so the "not yet unlockable" status reads at a glance from its shape alone. Clicking one still surfaces the "not analyzed" notice (FR-20), unchanged. While a school is focused in Mode 1, every other pin — analyzed or not — disappears from the map; all pins reappear once focus is cleared.
 
-Setiap label teks di atas peta (nama sekolah, `Your location`, label suhu blok) wajib punya halo/outline `--bg` selebar minimal 1,5px di sekelilingnya, supaya tetap kontras terhadap basemap berwarna di kedua tema (lihat keputusan basemap di atas). `text-font` dilayani glyph server OpenFreeMap; yang tersedia hanya **`Noto Sans Regular` / `Bold` / `Italic`** — `Medium` dan `SemiBold` mengembalikan 404 sejak basemap pindah ke `liberty` (fontstack self-hosted di `web/public/fonts/` sudah dihapus). Jangan memakai fontstack lain di layer symbol.
+Every text label over the map (school name, `Your location`, block temperature label) must have a `--bg` halo/outline at least 1.5px wide around it, to stay legible against the colored basemap in both themes (see the basemap decision above). `text-font` is served by the OpenFreeMap glyph server; only **`Noto Sans Regular` / `Bold` / `Italic`** are available — `Medium` and `SemiBold` return 404 since the basemap moved to `liberty` (the self-hosted fontstack at `web/public/fonts/` has been removed). Don't use any other fontstack on symbol layers.
 
-Pin sekolah di Mode 1 (101 ribu+ sekolah nasional) hanya dirender sebagai chip + label pada zoom ≥ 10; di bawah itu mereka tetap titik `circle` polos (basemap AOI toh tidak ter-cover di bawah zoom itu). Pin sekolah teranalisis diberi `symbol-sort-key` lebih tinggi supaya tidak pernah kalah tabrakan label dari sekolah lain.
+School pins in Mode 1 (101,000+ national schools) render as a chip + label only at zoom ≥ 10; below that they remain plain `circle` points (the AOI basemap isn't even covered below that zoom anyway). Analyzed school pins get a higher `symbol-sort-key` so they never lose a label collision to another school.
 
 ---
 
-## Tipografi
+## Typography
 
-**Inter** untuk semuanya. Satu keluarga, hierarki dibangun dari ukuran dan berat, bukan dari pergantian font.
+**Inter** for everything. One family, hierarchy built from size and weight, not by switching fonts.
 
-Pasang via `@fontsource-variable/inter` (self-hosted — demo harus tetap jalan tanpa internet setelah load pertama, NFR §7). Jangan pakai Google Fonts CDN.
+Loaded via `@fontsource-variable/inter` (self-hosted). Don't use the Google Fonts CDN.
 
 ```css
 font-optical-sizing: auto;
 font-feature-settings: "cv05" 1, "ss01" 1;
 ```
 
-### Aturan angka
+### Number rule
 
-Setiap angka di UI — suhu, dosis, jarak, jumlah anak, persentase — wajib `font-variant-numeric: tabular-nums`. Produk ini penuh tabel perbandingan; angka yang tidak sejajar kolomnya bikin panel FR-4 tidak terbaca.
+Every number in the UI — temperature, dose, distance, child count, percentage — must use `font-variant-numeric: tabular-nums`. This product is full of comparison tables; numbers whose columns don't align make the FR-4 panel unreadable.
 
-Bikin satu komponen `<Metric>` yang menangani ini, jangan tempel utility-nya satu-satu.
+Build one `<Metric>` component that handles this, don't sprinkle the utility one-off.
 
-### Skala
+### Scale
 
-| Peran | Ukuran | Berat | Tracking |
+| Role | Size | Weight | Tracking |
 |---|---|---|---|
-| Display (judul halaman masuk) | `clamp(2rem, 5vw, 3.25rem)` | 600 | `-0.03em` |
-| H1 seksi | `1.75rem` | 600 | `-0.02em` |
-| H2 panel | `1.125rem` | 600 | `-0.01em` |
+| Display (entry page title) | `clamp(2rem, 5vw, 3.25rem)` | 600 | `-0.03em` |
+| Section H1 | `1.75rem` | 600 | `-0.02em` |
+| Panel H2 | `1.125rem` | 600 | `-0.01em` |
 | Body | `0.9375rem` | 400 | `0` |
-| Angka headline (mis. `41,2°C`) | `2rem` | 600 | `-0.02em` |
+| Headline number (e.g. `41.2°C`) | `2rem` | 600 | `-0.02em` |
 | Label / caption | `0.8125rem` | 500 | `0` |
-| Eyebrow seksi | `0.75rem` | 500 | `0.08em`, uppercase, `--ink-subtle` |
+| Section eyebrow | `0.75rem` | 500 | `0.08em`, uppercase, `--ink-subtle` |
 
-Eyebrow uppercase dipakai hemat — maksimal satu per layar, persis seperti label seksi di kurawal.dev.
+Uppercase eyebrows are used sparingly — at most one per screen, exactly like the section labels on kurawal.dev.
 
-Line-height: 1,5 untuk body, 1,15 untuk display dan angka headline. Panjang baris prosa maksimal 70ch. Pakai `text-wrap: balance` di heading.
+Line height: 1.5 for body, 1.15 for display and headline numbers. Prose line length maxes out at 70ch. Use `text-wrap: balance` on headings.
 
 ---
 
-## Spasi, garis, radius
+## Spacing, lines, radius
 
-- Skala 4px: `4 · 8 · 12 · 16 · 24 · 32 · 48 · 64 · 96`. Tidak ada nilai di luar skala.
-- **Garis dulu, bayangan belakangan.** Pemisahan dikerjakan `1px solid --border`. Shadow hanya untuk elemen yang benar-benar melayang: dialog, popover, dropdown, bottom sheet, panel peta mengambang, dan cluster kontrol mengambang (lihat keputusan produk 2026-08-27 kedua di bawah).
-- Radius: `4px` untuk input dan tombol, `8px` untuk panel dan dialog, `9999px` hanya untuk pill/badge. Peta dan choropleth **tanpa radius** — bentuk kotak-kotak per blok itu disengaja (PRD FR-7), jangan dihaluskan.
-- Border tabel: hanya garis horizontal. Tidak ada garis vertikal, tidak ada zebra striping.
+- 4px scale: `4 · 8 · 12 · 16 · 24 · 32 · 48 · 64 · 96`. No values outside the scale.
+- **Lines first, shadows later.** Separation is done with `1px solid --border`. Shadows only for elements that genuinely float: dialogs, popovers, dropdowns, bottom sheets, the floating map panel, and the floating control cluster (see the second 2026-08-27 product decision below).
+- Radius: `4px` for inputs and buttons, `8px` for panels and dialogs, `9999px` only for pills/badges. The map and choropleth have **no radius** — the blocky per-block shape is deliberate (PRD FR-7), don't smooth it out.
+- Table borders: horizontal rules only. No vertical rules, no zebra striping.
 
 ---
 
 ## Motion
 
-Anggaran gerak sangat kecil, dan ini yang pertama dipotong kalau waktu mepet (dev plan).
+The motion budget is very small, and it's the first thing cut if time runs short (dev plan).
 
-- Durasi `120ms` (hover, fokus) sampai `200ms` (panel, sheet).
-- Easing `cubic-bezier(0.16, 1, 0.3, 1)`. Tanpa bounce, tanpa elastic.
-- Hanya `opacity` dan `transform`. Jangan animasikan properti layout.
-- Tidak ada animasi masuk saat scroll. Tidak ada stagger.
-- `@media (prefers-reduced-motion: reduce)` wajib ada dan mematikan semuanya.
+- Duration `120ms` (hover, focus) to `200ms` (panel, sheet).
+- Easing `cubic-bezier(0.16, 1, 0.3, 1)`. No bounce, no elastic.
+- Only `opacity` and `transform`. Don't animate layout properties.
+- No scroll-triggered entrance animations. No stagger.
+- `@media (prefers-reduced-motion: reduce)` must exist and turn everything off.
 
-Dua pengecualian yang boleh dipoles: transisi FR-16 (fade 180ms saat layer panas hilang) dan pergantian geometri rute teradem (fade 120ms, lihat bagian berikutnya) — di Mode 2 dipicu suhu live FortyGuard yang datang belakangan dan meng-upgrade jalur (FR-29). Keduanya cukup untuk terbaca sebagai perubahan, cukup cepat untuk tidak terasa seperti efek.
+Two exceptions get polish: the FR-16 transition (180ms fade when the heat layer disappears) and the coolest-route geometry change (120ms fade, see the next section) — in Mode 2, triggered when live FortyGuard temperature arrives later and upgrades the route (FR-29). Both are enough to read as a change, fast enough not to feel like an effect.
 
-Angka **tidak pernah** di-tween. Lihat bagian Slider jam.
+Numbers are **never** tweened. See the Hour slider section.
 
 ---
 
-## Slider jam
+## Hour slider
 
-**Amendemen 2026-08-28 (Revan, FR-13): kontrol ini sekarang eksklusif Mode 1.** Mode 2 menghapus slider — lihat amendemen §Mode 2 di atas — dan selalu memakai jam Orlando saat ini. Spesifikasi di bawah tetap berlaku penuh untuk `HourSlider` di panel distrik.
+**2026-08-28 amendment (Revan, FR-13): this control is now exclusive to Mode 1.** Mode 2 removes the slider — see the §Mode 2 amendment above — and always uses the current Orlando hour. The spec below still applies in full to the `HourSlider` in the district panel.
 
-**Amendemen 2026-08-28 (Revan): slider Mode 1 ditulis 12 jam AM/PM, membatalkan "tetap memakai format 24 jam" di amendemen sebelumnya.** Jamnya sekarang disajikan lewat `formatHourAmPm` (`web/src/lib/units.ts`, sudah dipakai `LiveConditionsRow` di Mode 2) supaya kedua mode konsisten. Langkahnya tetap dibaca dari `meta.hours` tanpa perubahan — cuma penyajiannya yang berubah dari `"15:00"` menjadi `"3:00 PM"`.
+**2026-08-28 amendment (Revan): the Mode 1 slider is written in 12-hour AM/PM, superseding the earlier "keep the 24-hour format" note.** Hours are now presented via `formatHourAmPm` (`web/src/lib/units.ts`, already used by `LiveConditionsRow` in Mode 2) so both modes are consistent. The steps are still read from `meta.hours` unchanged — only the presentation changes, from `"15:00"` to `"3:00 PM"`.
 
-Kontrol paling sering disentuh di Mode 1 dan mengubah hampir semua angka di layar, jadi dia harus terasa langsung dan tidak boleh terlihat dekoratif.
+The most-touched control in Mode 1, and it changes nearly every number on screen, so it must feel direct and never decorative.
 
-### Bentuk
+### Shape
 
-Track 2px `--border-strong`, satu tick per jam pada `--border`, thumb lingkaran 16px `--ink` dengan ring 2px `--bg` di bawahnya. Bagian track sebelum thumb tetap `--border-strong` — **jangan diberi fill berbeda.** Ini bukan progress bar; tidak ada jam yang "lebih selesai" dari jam lain.
+Track 2px `--border-strong`, one tick per hour on `--border`, a 16px `--ink` circular thumb with a 2px `--bg` ring underneath. The track segment before the thumb stays `--border-strong` — **don't give it a different fill.** This isn't a progress bar; no hour is "more done" than another.
 
-Label jam di bawah track memakai ukuran caption dan `tabular-nums`. Tampilkan ujung dan jam aktif saja (`7:00 AM · · · 3:00 PM · · · 4:00 PM`); menampilkan sepuluh label sekaligus membuat baris ini lebih ramai daripada angka yang seharusnya jadi fokus.
+Hour labels below the track use caption size and `tabular-nums`. Show only the endpoints and the active hour (`7:00 AM · · · 3:00 PM · · · 4:00 PM`); showing all ten labels at once makes this row busier than the number it's supposed to draw focus to.
 
-Jam aktif ditulis penuh di atas track, ukuran H2 panel, `--ink`. Ini satu-satunya tempat jam ditulis besar.
+The active hour is written large above the track, panel-H2 size, `--ink`. This is the only place the hour is written large.
 
-### Aturan
+### Rules
 
-1. **Langkahnya dibaca dari `meta.hours`, bukan dari konstanta.** Tile dengan tiga jam menampilkan tiga tick, bukan sepuluh dengan tujuh yang mati.
-2. **Diskrit, bukan kontinu.** Thumb mengunci ke tick. Tidak ada posisi antara dua jam, karena tidak ada datanya.
-3. **Nol warna**, sesuai aturan tunggal di atas. Slider bukan peta, bukan legend, bukan badge status.
-4. Target sentuh thumb minimum 44px — perbesar area sentuhnya, bukan lingkarannya.
-5. Dapat dioperasikan penuh dengan keyboard: panah kiri/kanan geser satu jam, `Home`/`End` ke ujung. Focus ring 2px `--ink` seperti elemen lain.
-6. `aria-valuetext` berisi jamnya dalam kata (`"3:00 PM"`), bukan indeks langkahnya.
+1. **Steps are read from `meta.hours`, not a constant.** A tile with three hours shows three ticks, not ten with seven dead.
+2. **Discrete, not continuous.** The thumb snaps to a tick. There's no position between two hours, because there's no data for it.
+3. **Zero color**, per the single rule above. The slider is not a map, not a legend, not a status badge.
+4. Minimum 44px touch target on the thumb — enlarge the hit area, not the visible circle.
+5. Fully keyboard-operable: left/right arrows move one hour, `Home`/`End` jump to the ends. 2px `--ink` focus ring like every other element.
+6. `aria-valuetext` contains the hour in words (`"3:00 PM"`), not its step index.
 
-### Saat jam berganti
+### When the hour changes
 
-Angka di panel berganti **tanpa transisi**. Nilai numerik yang di-tween terbaca sebagai animasi dan membuat orang menunggu; di sini yang dibutuhkan adalah pergantian instan supaya menggeser slider terasa seperti memeriksa, bukan seperti memuat.
+Numbers in the panel change **with no transition**. Tweened numeric values read as animation and make people wait; what's needed here is an instant switch so dragging the slider feels like checking, not like loading.
 
-Yang boleh bertransisi cuma geometri rute di peta: fade 120ms saat jalur rute teradem berubah, supaya perubahan jalur terbaca sebagai perubahan dan bukan sebagai glitch. Rute terpendek tidak pernah berubah antar jam — kalau dia ikut berkedip, ada yang salah di render, bukan di desain.
+The only thing allowed to transition is route geometry on the map: a 120ms fade when the coolest route's path changes, so a path change reads as a change and not a glitch. The shortest route never changes between hours — if it flickers too, something's wrong in the render, not the design.
 
-Kalau perhitungan ulang melewati 500ms (NFR §7), tampilkan `skeleton` di baris angka — **jangan** kosongkan panelnya dan jangan tampilkan spinner di atas peta.
+If recomputation takes longer than 500ms (NFR §7), show a `skeleton` in the number row — **don't** blank the panel and don't show a spinner over the map.
 
 ---
 
 ## Component library
 
-**shadcn/ui** (Radix + Tailwind v4). Alasannya: monokrom secara default, aksesibilitas Radix sudah beres, dan komponennya di-copy ke repo sehingga tidak ada style vendor yang harus dilawan.
+**shadcn/ui** (Radix + Tailwind v4). Reasoning: monochrome by default, Radix accessibility already handled, and components are copied into the repo so there's no vendor style to fight.
 
-Allowlist — jangan generate di luar daftar ini tanpa alasan:
+Allowlist — don't generate outside this list without a reason:
 
-`button` · `dialog` · `sheet` · `tabs` · `table` · `tooltip` · `switch` · `select` · `slider` · `badge` · `separator` · `skeleton` · `accordion` (khusus halaman Metodologi & Limitations)
+`button` · `dialog` · `sheet` · `tabs` · `table` · `tooltip` · `switch` · `select` · `slider` · `badge` · `separator` · `skeleton` · `accordion` (generated, currently unused)
 
-Aturan pemakaian:
+Usage rules:
 
-1. **Hapus seluruh komentar bawaan** dari file yang di-generate CLI. Aturan nol-komentar di `CLAUDE.md` berlaku penuh untuk `components/ui/`.
-2. Ikon dari `lucide-react`, stroke `1.5`, ukuran `16` atau `20`, warna selalu `currentColor`.
-3. Variant tombol yang dipakai cuma `default` (ink solid), `outline`, dan `ghost`. Tidak ada `destructive` — merah adalah warna data, bukan warna tombol.
-4. `card` tidak masuk allowlist. Pakai `<section>` dengan border dan padding. Card di dalam card selalu salah.
-5. Komponen khusus produk (`RouteComparisonPanel`, `ZoneLegend`, `Metric`, `TemperaturePair`) hidup di `web/src/components/`, terpisah dari `components/ui/`.
+1. **Strip all built-in comments** from CLI-generated files. The zero-comments rule in `CLAUDE.md` applies in full to `components/ui/`.
+2. Icons from `lucide-react`, stroke `1.5`, size `16` or `20`, color always `currentColor`.
+3. The only button variants used are `default` (solid ink), `outline`, and `ghost`. No `destructive` — red is a data color, not a button color.
+4. `card` is not on the allowlist. Use a `<section>` with a border and padding. A card inside a card is always wrong.
+5. Product-specific components (`RouteComparisonPanel`, `ZoneLegend`, `Metric`, `TemperaturePair`) live in `web/src/components/`, separate from `components/ui/`.
 
 ---
 
-## Tema
+## Theme
 
-Default **light mode**, tanpa memandang `prefers-color-scheme`. Toggle manual di header, disimpan di `localStorage`, diterapkan sebagai class `dark` di `<html>` sebelum paint pertama supaya tidak ada kedipan.
+Default is **light mode**, regardless of `prefers-color-scheme`. Manual toggle in the header, stored in `localStorage`, applied as a `dark` class on `<html>` before the first paint so there's no flash.
 
-Token diturunkan lewat `@theme` Tailwind v4 di satu file `web/src/styles/theme.css`. Tidak ada nilai warna literal di komponen mana pun — grep `#` di `src/` harus bersih kecuali di file itu.
+Tokens are derived through Tailwind v4's `@theme` in a single file, `web/src/styles/theme.css`. No literal color values in any component — a grep for `#` in `src/` should come back clean except for that file.
 
 ---
 
 ## Layout per mode
 
-**Keputusan produk 2026-08-27 (Revan), kedua: header persisten dibubarkan, diganti panel peta mengambang tunggal.** Sebelumnya arsitektur mengikat header penuh-lebar 48px plus (khusus Mode 1) tiga kolom penuh-tinggi yang menempel ke tepi viewport. Peta di baliknya memang sudah full-bleed secara teknis, tapi terkurung di keempat sisi sehingga terbaca sebagai jendela, bukan latar. Aturan baru: **peta mengisi seluruh viewport, dan seluruh produk dioperasikan dari satu panel mengambang.** Konsekuensinya, "empat hal di header" di atas sekarang tersebar ke dua tempat — wordmark pindah ke baris atas panel, tiga toggle jadi cluster kontrol mengambang — dan aturan "tiga kolom Mode 1" di bawah digantikan seluruhnya oleh subbagian baru. Prinsip yang tidak berubah: peta satu instance yang sama di kedua mode, tidak pernah di-unmount, dan FR-16 tetap harus terasa seperti lampu dimatikan — dengan peta benar-benar penuh layar sekarang, efeknya justru lebih kuat, bukan lebih lemah.
+**Product decision 2026-08-27 (Revan), second: the persistent header is dissolved, replaced by a single floating map panel.** The earlier architecture bound a full-width 48px+ header plus (Mode 1 only) three full-height columns pinned to the viewport edges. The map behind them was already technically full-bleed, but boxed in on all four sides so it read as a window, not a backdrop. New rule: **the map fills the entire viewport, and the whole product is operated from one floating panel.** Consequence: the "four things in the header" are now split across two places — the wordmark moves to the panel's top row, the three toggles become a floating control cluster — and the "Mode 1 three columns" rule below is entirely replaced by a new subsection. What doesn't change: one and the same map instance in both modes, never unmounted, and FR-16 still has to feel like the lights going out — with the map now genuinely full-screen, that effect is stronger, not weaker.
 
-### Kerangka bersama
+### Shared frame
 
-Satu aplikasi, dua route: `/` untuk mode orang tua (pintu masuk default) dan `/district` untuk mode distrik. Tidak ada login dan tidak ada sidebar navigasi — cuma ada dua tujuan, dipilih lewat **segmented control dua item** berlabel `Parent` / `District`.
+One app, two routes: `/` for parent mode (the default entry point) and `/district` for district mode. No login and no navigation sidebar — there are only two destinations, chosen via a **two-item segmented control** labeled `Parent` / `District`.
 
-**Peta mengisi seluruh viewport**, di bawah semua elemen lain, tanpa header opaque. Di atasnya mengambang dua hal saja:
+**The map fills the entire viewport**, beneath every other element, with no opaque header. Only two things float above it:
 
-1. **Panel peta** — satu `<section>` `--surface-raised`, border penuh, radius `8px`, shadow (lihat aturan shadow di atas), inset `16px` dari tepi kiri, atas, bawah viewport, lebar tetap `380px` pada viewport ≥768px. Baris atas panel berisi wordmark + label AOI (`HeatWalk` · `Orlando`) pada layar pertama, atau tombol kembali + judul konteks (`‹ Jackson Elementary`) saat menyelam ke detail. Isi panel di bawahnya scroll sendiri; baris bawah panel (footer) menampilkan hitungan hasil/cakupan, setara dengan atribusi status.
-2. **Cluster kontrol** — satu wadah kecil mengambang di kanan atas, `--surface-raised`, border, radius `8px`, shadow, isinya empat hal (segmented switch `Parent`/`District` · toggle "hide heat data" FR-16 · toggle tema · tombol info FR-25, keputusan produk 2026-08-27) plus tombol collapse/expand panel. **Status 2026-08-28:** tombol info FR-25 dibangun sebagai dialog About (FR-31, `AboutDialog.tsx`) — membuka prosa masalah/solusi produk plus tautan ke `/methodology` dan `/limitations` di bagian bawahnya, bukan navigasi langsung ke satu halaman.
+1. **The map panel** — a single `<section>`, `--surface-raised`, full border, `8px` radius, shadow (see the shadow rule above), inset `16px` from the left, top, and bottom viewport edges, fixed `380px` width at viewport ≥768px. The panel's top row holds the wordmark + AOI label (`HeatWalk` · `Orlando`) on the first screen, or a back button + contextual title (`‹ Jackson Elementary`) when drilled into detail. The panel body below scrolls on its own; the panel's bottom row (footer) shows a results/coverage count, equivalent to a status attribution line.
+2. **The control cluster** — a small floating container in the top right, `--surface-raised`, border, `8px` radius, shadow, containing four things (the `Parent`/`District` segmented switch · the "hide heat data" toggle FR-16 · the theme toggle · the info button FR-25, product decision 2026-08-27) plus a panel collapse/expand button. **Status as of 2026-08-28:** the FR-25 info button is built as the About dialog (FR-31, `AboutDialog.tsx`) — it opens prose about the product's problem/solution plus a link to `/methodology` at the bottom, rather than navigating directly to one page.
 
-**Nol kontrol lain yang mengambang di atas peta** — dengan satu pengecualian disengaja (keputusan produk 2026-08-27, FR-27): **legend peta sisi kanan**, yang justru harus terlihat saat panel samping di-collapse. Slider jam, toggle layer, dan export tetap hidup **di dalam** panel; legend mengambang di sisi kanan (bisa dilipat, sadar-mode), dan `map.setPadding` ikut me-reserve lebarnya supaya `flyTo` tetap terpusat di area yang benar-benar terlihat.
+**Zero other controls float over the map** — with one deliberate exception (product decision 2026-08-27, FR-27): **the right-side map legend**, which specifically needs to stay visible when the side panel is collapsed. The hour slider, layer toggles, and export live **inside** the panel; the legend floats on the right side (collapsible, theme-aware), and `map.setPadding` reserves its width so `flyTo` still centers on the area that's actually visible.
 
-**Peta adalah satu instance yang sama di kedua mode.** Dia hidup di atas router; berpindah mode hanya mengganti isi panel dan memicu `flyTo`. Jangan pernah unmount peta saat pindah route — selain memicu reload basemap, itu memutus adegan kedua video demo, yang justru bertugas membuktikan kedua mode berbagi satu engine. `map.setPadding` wajib mengikuti geometri panel yang sedang tampil di kedua mode, supaya `flyTo` memusatkan target di area peta yang benar-benar terlihat, bukan di belakang panel.
+**The map is one and the same instance in both modes.** It lives above the router; switching modes only changes the panel contents and triggers a `flyTo`. Never unmount the map when switching routes — besides triggering a basemap reload, it breaks the second scene of the demo video, whose job is precisely to prove both modes share one engine. `map.setPadding` must track whichever panel geometry is currently showing in both modes, so `flyTo` centers its target in the area of the map that's actually visible, not behind the panel.
 
-### Mode 2 — orang tua (mobile-first, 390px naik)
+### Mode 2 — parent (mobile-first, 390px up)
 
-**Keputusan produk 2026-08-28 (Revan): panel disusun ulang bergaya Google/Apple Maps.** Urutan lama (input alamat → kalimat status → slider jam → kalimat "aman sampai jam X" → panel perbandingan rute → tombol permohonan, semuanya kelihatan sekaligus) diganti urutan baru di bawah. Tidak ada FR yang dihapus — FR-2 (kalimat status), FR-4 (tabel perbandingan penuh), FR-5 (permohonan), dan kalimat `safe_until_hour` semuanya tetap ada, hanya dipindah posisi:
+**Product decision 2026-08-28 (Revan): the panel is restructured in a Google/Apple Maps style.** The old order (address input → status sentence → hour slider → "safe until hour X" sentence → route comparison panel → petition button, all visible at once) is replaced by the order below. No FR is removed — FR-2 (status sentence), FR-4 (full comparison table), FR-5 (petition), and the `safe_until_hour` sentence are all still present, just repositioned:
 
 ```
-Origin field          ← input pencarian + saran alamat langsung (Nominatim, debounced)
-Destination field     ← input pencarian dibatasi ke daftar sekolah dalam AOI, gaya field sama dengan Origin
-Kalimat status (FR-2) ← "Rumah kamu 1,1 mil dari SD Lincoln — di dalam walk zone."
-Kondisi langsung      ← "Now · 7:00 AM" + suhu live kalau tersedia, lihat amendemen di bawah
+Origin field          ← search input + live address suggestions (Nominatim, debounced)
+Destination field     ← search input restricted to the school list within the AOI, same field style as Origin
+Status sentence (FR-2) ← "Your home is 1.1 mi from Lincoln Elementary — inside the walk zone."
+Live conditions        ← "Now · 7:00 AM" + live temperature if available, see amendment below
 ──────
-Kartu rute: Coolest   ← waktu · jarak · suhu rata-rata
-Kartu rute: Alternate 1 (FR-30, kalau ada)
-Kartu rute: Alternate 2 (FR-30, kalau ada)
+Route card: Coolest    ← time · distance · mean temperature
+Route card: Alternate 1 (FR-30, if any)
+Route card: Alternate 2 (FR-30, if any)
 ──────
-Kalimat "Safe until"  ← baris sendiri, lihat aturan di bawah
+"Safe until" sentence  ← its own row, see the rule below
 ──────
-▸ Details             ← tabel perbandingan FR-4 penuh + tombol permohonan FR-5, di balik disclosure
+▸ Details              ← full FR-4 comparison table + FR-5 petition button, behind a disclosure
 ```
 
-**Amendemen 2026-08-28 (Revan): panel dipangkas ke Origin, Destination, Routes, Details.** Chip alamat contoh dan teks bantuan "Or drag the pin on the map." dihapus dari Origin — saran pencarian langsung menggantikan kebutuhan chip, dan drag-pin tidak butuh keterangan lagi di produk sekelas "usual map". Destination berhenti jadi `<select>` native dan jadi input pencarian yang menyaring daftar sekolah secara live saat diketik; mengklik salah satu hasil adalah **satu-satunya** cara mengganti sekolah — teks yang tidak cocok apa pun kembali ke sekolah terpilih terakhir saat field kehilangan fokus, sehingga pengguna tidak bisa memilih sekolah di luar daftar. Kalimat status dan kondisi langsung tetap ada (FR-2 P0, tidak boleh dihapus) tapi dibaca sebagai bagian dari alur Destination→Routes, bukan sebagai section kelima yang berdiri sendiri.
+**2026-08-28 amendment (Revan): the panel is trimmed to Origin, Destination, Routes, Details.** The example-address chip and the "Or drag the pin on the map." help text are removed from Origin — live search suggestions replace the need for the chip, and drag-pin doesn't need explanation anymore in a product at this level of "usual map." Destination stops being a native `<select>` and becomes a search input that filters the school list live as you type; clicking one of the results is the **only** way to change the school — text that doesn't match anything reverts to the last-selected school when the field loses focus, so the user can't land on a school outside the list. The status sentence and live-conditions row are still present (FR-2 P0, must not be removed) but are read as part of the Destination→Routes flow, not as a standalone fifth section.
 
-FR-2 minta kalimat status ini sebagai **"output pertama"** begitu asal dan tujuan terisi — makanya dia duduk tepat di bawah dua field, sebelum kondisi langsung, dan tidak menunggu rute selesai dihitung (dia dari jarak lurus rumah↔sekolah, bukan dari graph routing).
+FR-2 asks for this status sentence as the **"first output"** as soon as origin and destination are filled in — that's why it sits right below the two fields, before live conditions, and doesn't wait for route computation to finish (it comes from the straight-line home↔school distance, not from graph routing).
 
-**Amendemen 2026-08-29 (Revan): teks bantuan drag-pin dikembalikan ke Origin, chip alamat contoh tetap dihapus.** Pin asal sudah bisa digeser sejak awal (`usePinMarker.tsx`), tapi itu satu-satunya jalur peta untuk memindahkan titik asal — tidak ada klik-di-peta, dan tanpa keterangan tertulis kemampuan itu tidak punya affordance visual sama sekali. Satu baris caption (`text-xs text-ink-subtle`) sekarang tampil permanen di bawah input Origin: *"Can't find your address? Drag the pin on the map."* Baris ini **berbagi satu slot** dengan pesan `not_found`/`error` yang sudah ada di situ — bukan elemen keempat yang ditumpuk di bawahnya — supaya panel tidak pernah menampilkan dua baris hint sekaligus atau melompat tinggi saat status pencarian berubah. Saat daftar saran terbuka, baris ini berganti jadi pesan status pencarian yang relevan; begitu ditutup atau blur, kembali ke teks drag-pin. Amendemen 2026-08-28 di atas tetap berlaku untuk bagian lain — chip alamat contoh tidak kembali.
+**2026-08-29 amendment (Revan): the drag-pin help text is restored to Origin, the example-address chip stays removed.** The origin pin has always been draggable (`usePinMarker.tsx`), but that's the map's only way to move the origin point — no click-on-map, and without written copy that ability has no visual affordance at all. One caption line (`text-xs text-ink-subtle`) now shows permanently under the Origin input: *"Can't find your address? Drag the pin on the map."* This line **shares one slot** with the existing `not_found`/`error` message — not a fourth stacked element — so the panel never shows two hint lines at once or jumps in height when search status changes. While the suggestion list is open, this line switches to the relevant search-status message; once closed or blurred, it reverts to the drag-pin text. The 2026-08-28 amendment above still applies to everything else — the example-address chip does not come back.
 
-**Amendemen 2026-08-28 (Revan, FR-13/FR-29): slider jam dihapus dari Mode 2.** Baris "Departure time" yang sebelumnya di sini dibingkai "Leave at" digantikan `LiveConditionsRow`, yang selalu menampilkan jam Orlando saat ini dalam format 12 jam ("Now · 7:00 AM", `formatHourAmPm` di `lib/units.ts`) — jam ini dihitung otomatis dari `clampToSchoolHour(currentOrlandoHour())`, bukan dipilih pengguna. Kalau suhu live FortyGuard berhasil didapat untuk sekolah dan jam itu, baris yang sama menambahkan suhu live dan selisihnya terhadap hari model. FR-13 (slider) selanjutnya murni kontrol Mode 1, dan tetap memakai format 24 jam di sana (tick jam mengikuti granularitas data `meta.hours`, bukan gaya "usual map").
+**2026-08-28 amendment (Revan, FR-13/FR-29): the hour slider is removed from Mode 2.** The "Departure time" row previously framed as "Leave at" is replaced by `LiveConditionsRow`, which always shows the current Orlando hour in 12-hour format ("Now · 7:00 AM", `formatHourAmPm` in `lib/units.ts`) — this hour is computed automatically from `clampToSchoolHour(currentOrlandoHour())`, not chosen by the user. If live FortyGuard temperature is successfully fetched for that school and hour, the same row adds the live temperature and its delta against the model day. FR-13 (slider) is henceforth purely a Mode 1 control, and still uses the 24-hour format there (tick granularity follows the `meta.hours` data, not the "usual map" style).
 
-Pada viewport ≥768px, panel peta dipakai sebagai **panel samping**: field, kalimat status, baris kondisi langsung, dan kartu-kartu rute selalu terlihat tanpa scroll berlebihan; `Details` dibuka di tempat (bukan overlay), scroll ikut panel.
+At viewport ≥768px, the map panel is used as a **side panel**: fields, status sentence, live-conditions row, and route cards are always visible without excessive scrolling; `Details` expands in place (not an overlay), scrolling with the panel.
 
-Di bawah 768px, panel yang sama dirender sebagai **bottom sheet** dua detent: peek (field + kalimat status + kondisi langsung) dan expanded (kartu-kartu rute + `Details`). Target sentuh minimum 44px.
+Below 768px, the same panel renders as a **two-detent bottom sheet**: peek (fields + status sentence + live conditions) and expanded (route cards + `Details`). Minimum 44px touch target.
 
-`Details` adalah `<button>` polos yang men-toggle satu section — **bukan** komponen `accordion` (itu jatah khusus halaman Metodologi & Limitations, lihat §Component library). Monokrom seperti seluruh kontrol lain — kartu rute tidak boleh memakai warna, karena warna hanya untuk peta, legend peta, dan badge status klasifikasi. Kartu terpilih dibedakan lewat border/latar netral (`border-ink` + `bg-surface`), bukan warna.
+`Details` is a plain `<button>` that toggles one section — **not** the `accordion` component (that's reserved for the Methodology page, see §Component library). Monochrome like every other control — route cards must not use color, since color is reserved for the map, the map legend, and classification status badges. The selected card is distinguished by a neutral border/background (`border-ink` + `bg-surface`), not color.
 
-Hierarki di layar pertama: field Origin/Destination → kondisi langsung → kartu-kartu rute di panel + rute-rute di peta.
+Hierarchy on the first screen: Origin/Destination fields → live conditions → route cards in the panel + routes on the map.
 
-Angka terbesar di kartu Coolest adalah **suhu rata-rata rute teradem pada jam yang sedang dipilih** — `41,2°C (106,2°F)` — bukan selisih antar rute. Selisih antar rute kecil dan hadir sebagai baris tabel biasa di dalam `Details`, tidak dibesarkan (PRD FR-4). °C·menit hadir tapi lebih kecil dan selalu di sebelah °C-nya (NFR §7).
+The largest number on the Coolest card is the **coolest route's mean temperature at the currently selected hour** — `41.2°C (106.2°F)` — not the delta between routes. The delta between routes is small and appears as an ordinary table row inside `Details`, not enlarged (PRD FR-4). °C·min is present but smaller and always next to its °C (NFR §7).
 
-Kalimat `Aman kalau pulang sebelum 13:00` (`safe_until_hour`) tampil di baris sendiri antara kartu rute dan `Details`, bila blok belum merah sepanjang hari. Ini kalimat paling berguna di seluruh Mode 2 — jangan diselipkan ke dalam tabel.
+The sentence `Safe if you leave before 1:00 PM` (`safe_until_hour`) appears on its own row between the route cards and `Details`, when the block hasn't been red all day. This is the single most useful sentence in all of Mode 2 — don't tuck it into a table.
 
-### Mode 1 — distrik (desktop, 1280px naik)
+### Mode 1 — district (desktop, 1280px up)
 
-Satu panel peta yang sama, dipakai sebagai **tumpukan tiga tampilan** yang saling menggantikan (bukan menumpuk), dinavigasi dengan tombol kembali di baris atas panel:
+The same map panel, used as a **stack of three views** that replace each other (not stacked on top of each other), navigated with a back button in the panel's top row:
 
-1. **Daftar sekolah** — pencarian + daftar sekolah teranalisis dan (opsional) sekolah nasional belum teranalisis.
-2. **Sekolah terpilih** — ringkasan sekolah (FR-12) sebagai grid metrik dua kolom (bukan baris horizontal — lebar panel 380px tidak cukup untuk baris), legend zona, toggle layer (A/B/C), slider jam, lalu (kalau ada) export CSV. Kembali → daftar sekolah.
+1. **School list** — search + list of analyzed schools and (optionally) unanalyzed national schools.
+2. **Selected school** — school summary (FR-12) as a two-column metric grid (not a horizontal row — the 380px panel width isn't wide enough for a row), zone legend, layer toggles (A/B/C), hour slider, then (if available) CSV export. Back → school list.
 
-**Amendemen 2026-08-28 (Revan): dua baris salah klasifikasi di ringkasan sekolah (FR-12) masing-masing dapat `<Switch>` yang menyorot blok bersangkutan di peta.** Sorotan digambar sebagai garis netral di atas choropleth — casing 4px `--bg` lalu garis 2px `--ink`, nol warna baru — bukan fill baru, supaya tetap patuh aturan warna hanya di peta/legend/badge. Dua kategori independen, bisa menyala bersamaan. Switch redup dan nonaktif saat FR-16 aktif **atau** saat hitungannya nol (mis. "Gets bus, doesn't need it" nol di seluruh 42 sekolah wave-1 hari ini) — bukan disembunyikan, supaya angka nol tetap terbaca sebagai fakta, bukan hilang diam-diam.
+**2026-08-28 amendment (Revan): the two misclassification rows in the school summary (FR-12) each get a `<Switch>` that highlights the relevant blocks on the map.** The highlight is drawn as a neutral outline over the choropleth — a 4px `--bg` casing then a 2px `--ink` line, zero new color — not a new fill, staying compliant with "color only in map/legend/badge." The two categories are independent and can both be on at once. The switch is dimmed and disabled when FR-16 is active **or** when its count is zero (e.g. "Gets bus, doesn't need it" is zero across all 42 wave-1 schools today) — not hidden, so the zero still reads as a fact, not as something silently missing.
 
-**Amendemen (Revan): FR-15 tabel prioritas segmen dicabut dari panel.** Terlalu banyak diagnostik di satu layar untuk keputusan yang seharusnya sederhana ("blok ini hijau/merah, kenapa"); FR-15 memang yang pertama di daftar korban dev plan setelah animasi. `SegmentPriorityTable.tsx` dan `useSegmentPriority.ts` dihapus dari `web/src/`, bukan disembunyikan.
+**Amendment (Revan): the FR-15 segment priority table is dropped from the panel.** Too much diagnostic detail on one screen for what should be a simple decision ("this block is green/red, why"); FR-15 was already the first item on the dev plan's cut list after animations. `SegmentPriorityTable.tsx` and `useSegmentPriority.ts` were removed from `web/src/`, not hidden. Neither was ever rebuilt, and the related map highlight (FR-24) was never built either — the pipeline still produces `segments.json` (`docs/CONTRACT.md`), but nothing in the frontend currently reads it.
 
-**Status 2026-08-28: ketidaksesuaian di atas sudah diperbaiki.** Legend zona kini hidup di kartu mengambang kanan-bawah (`MapLegend.tsx` + `MapLegendContent.tsx`, FR-27), bisa dilipat, sadar-tema, meredup saat FR-16 — bukan lagi hanya di dalam panel sekolah. `ZoneLegend.tsx` dihapus. Salinan `MapLegendContent` tetap dirender **di dalam** panel sekolah pada viewport di bawah `SIDE_PANEL_MIN_VIEWPORT_PX` (768px), karena di sana kartu mengambang akan bertabrakan dengan bottom sheet yang menempati seluruh sisi bawah layar — bukan duplikasi konten, satu sumber (`legendContent.ts`) dirender di salah satu dari dua tempat tergantung viewport. `map.setPadding` ikut me-reserve lebar legend lewat `useMapPanelPadding`'s `rightReservedPx`. Yang belum: legend sisi Mode 2 (rute + lingkaran kebijakan) dan garis top-5 FR-24 di Mode 1 — FR-27 belum selesai penuh, lihat status di `heatwalk-prd.md`.
-3. **Blok terpilih** — panel detail blok (FR-9), termasuk "lihat kenapa" (FR-10) dan panel outcome (FR-11) saat kategori merah. Kembali → sekolah terpilih.
+**Status as of 2026-08-28: the mismatches above have been fixed.** The zone legend now lives in a floating bottom-right card (`MapLegend.tsx` + `MapLegendContent.tsx`, FR-27), collapsible, theme-aware, dimmed when FR-16 is active — no longer only inside the school panel. `ZoneLegend.tsx` is removed. A copy of `MapLegendContent` is still rendered **inside** the school panel on viewports below `SIDE_PANEL_MIN_VIEWPORT_PX` (768px), because the floating card would collide with the bottom sheet that occupies the entire bottom of the screen there — not duplicated content, one source (`legendContent.ts`) rendered in one of two places depending on viewport. `map.setPadding` reserves the legend's width via `useMapPanelPadding`'s `rightReservedPx`. **The Mode 2 side of FR-27 (routes + policy circle) is now built too**, via `ParentMapLegendContent.tsx`, wired into `ParentRoute.tsx` — FR-27 is complete for both modes. The top-5 segment line (FR-24) referenced in earlier drafts of this legend spec was never built (see the Mode 1 amendment above) and isn't part of the legend.
+3. **Selected block** — block detail panel (FR-9), with the outcome panel (FR-11) shown for red-category blocks. Back → selected school.
 
-Slider jam ada di tampilan 2, di dalam panel. Di mode ini dia mengontrol layer zona: menggesernya mengganti warna choropleth, bukan angka panel.
-
----
-
-## Bahasa UI
-
-**Bahasa Inggris.** Penggunanya Transportation Director di distrik sekolah AS dan jurinya panitia FortyGuard — keduanya berbahasa Inggris. Contoh teks berbahasa Indonesia di PRD adalah spesifikasi isi, bukan string final; terjemahkan saat implementasi dan jaga strukturnya persis.
-
-Nada: kalimat pendek, deklaratif, tanpa tanda seru. Angka dulu, penjelasan belakangan.
-
-Format angka konsisten di seluruh produk: suhu satu desimal dengan °C dan °F berdampingan, dosis bilangan bulat, jarak dua desimal untuk km dan satu desimal untuk mil, persentase bilangan bulat dengan tanda. Semuanya lewat util tunggal `web/src/lib/units.ts`.
+The hour slider lives in view 2, inside the panel. In this mode it controls the zone layer: moving it changes the choropleth color, not panel numbers.
 
 ---
 
-## Aksesibilitas
+## UI language
 
-Bukan tambahan — produknya soal keselamatan anak dan akan dipresentasikan ke lembaga publik.
+**English.** The audience is a Transportation Director at a US school district and the FortyGuard judges — both English-speaking.
 
-- Kontras teks minimum 4,5:1, teks besar 3:1. Verifikasi, jangan diperkirakan.
-- Focus ring `2px solid --ink` dengan `outline-offset: 2px`. **Jangan pernah** `outline: none` tanpa pengganti.
-- Kategori zona tidak boleh dibedakan hanya lewat warna (lihat aturan redundansi di atas).
-- Seluruh alur Mode 2 dapat diselesaikan pakai keyboard.
-- Peta bukan satu-satunya jalan ke informasi: daftar reklasifikasi berbentuk tabel yang dapat dibaca screen reader adalah jalur setara.
-- Layout tidak boleh pecah di 390px.
+Tone: short, declarative sentences, no exclamation marks. Numbers first, explanation after.
+
+Consistent number formatting across the product: temperature to one decimal with °C and °F side by side, dose as a whole number, distance to two decimals for km and one decimal for miles, percentages as a signed whole number. All of it through the single util `web/src/lib/units.ts`.
 
 ---
 
-## Checklist sebelum bilang selesai
+## Accessibility
 
-- [ ] Tidak ada warna di luar peta, legend, dan badge status. Grep `#` di `src/` bersih kecuali `theme.css`.
-- [ ] Semua angka memakai `tabular-nums`.
-- [ ] Setiap °C·menit punya °C di sebelahnya; setiap angka headline punya °F.
-- [ ] Kategori zona terbaca dalam grayscale (uji: buat screenshot, filter saturate 0).
-- [ ] Light mode default; toggle tidak berkedip saat reload.
-- [ ] Layout utuh di 390px dan 1280px.
-- [ ] `prefers-reduced-motion` mematikan seluruh transisi.
-- [ ] Focus ring terlihat di setiap elemen interaktif.
-- [ ] Tidak ada komentar tersisa di `components/ui/`.
-- [ ] Basemap memakai style `liberty` dari OpenFreeMap, dan atribusi OpenStreetMap terlihat.
-- [ ] Semua layer symbol memakai `Noto Sans Regular`/`Bold`/`Italic` (fontstack lain 404 di glyph server).
-- [ ] FR-16 mematikan **semua** sinyal panas: zona, label suhu, top-5 segmen, tooltip radius dosis, rute alternatif (FR-30) — tersisa lingkaran kebijakan + rute teradem netral putus-putus saja, warna `--zone-bus`-nya ikut mati (Mode 2; Mode 1 tidak punya rute).
-- [ ] Overlay dosis panas, legend, dan badge klasifikasi tetap kontras jelas terhadap basemap berwarna (cek merah/kuning zona vs warna jalan/bangunan basemap).
-- [ ] Slider jam (Mode 1) monokrom, diskrit, dan jumlah tick-nya sama dengan panjang `meta.hours`.
-- [ ] Angka berganti tanpa tween saat jam digeser (Mode 1) atau saat suhu live tiba (Mode 2); hanya geometri rute yang fade (Mode 2).
-- [ ] Slider (Mode 1) dapat digeser penuh dengan keyboard, dan `aria-valuetext` berisi jam.
-- [ ] Mode 2 tidak punya slider jam — kondisi langsung ("Now · 7:00 AM", format 12 jam) selalu tampil di panel, dan hilang bersama field origin/destination saja, bukan lewat FR-16.
-- [ ] Kartu rute alternatif (FR-30) monokrom, jumlahnya bisa 0, 1, atau 2 (total 1–3 kartu) tanpa merusak layout panel.
-- [ ] Memilih kartu rute mana pun menebalkan garisnya **dan** membuat peta `fitBounds` ke rute itu (`hooks/useRouteFocus.ts`) — verifikasi khususnya saat rute yang dipilih berbagi jalur identik dengan rute lain (kasus paling umum, G8), karena di situ lebar garis saja tidak akan terlihat.
-- [ ] Origin tidak punya chip alamat contoh — hanya input pencarian dengan saran langsung, ditambah satu baris caption drag-pin permanen di bawahnya yang berbagi slot dengan pesan `not_found`/`error` (tidak pernah dua baris sekaligus, tidak menggeser layout Destination).
-- [ ] Destination adalah input pencarian, bukan `<select>`; mengetik nama yang tidak cocok apa pun tidak pernah mengganti sekolah terpilih, dan field kembali ke nama sekolah terakhir saat kehilangan fokus.
-- [ ] Berpindah `/` ↔ `/district` tidak me-remount peta: basemap tidak berkedip, tile tidak dimuat ulang.
-- [ ] Peta terlihat di keempat sisi panel (atas, bawah, kanan, dan celah kiri) — tidak ada bar opaque penuh-lebar tersisa.
-- [ ] Collapse panel mengembalikan peta ke tampilan penuh, dan cluster kontrol tetap dapat diakses saat panel collapsed.
-- [ ] `map.setPadding` cocok dengan geometri panel yang benar-benar tampil (samping vs bottom sheet vs collapsed) di kedua mode — uji dengan memilih sekolah dan cek pusat `flyTo` tidak tersembunyi di belakang panel.
-- [ ] Di bawah 768px, panel peta menjadi bottom sheet; di atasnya, panel samping tetap 380px dan tidak melebar.
-- [ ] Setiap sekolah di peta punya ikon pin dan nama pada zoom ≥ 10.
-- [ ] Penanda rumah dan sekolah tetap bisa dibedakan setelah screenshot difilter `saturate(0)`.
-- [ ] Seluruh teks peta punya halo `--bg` dan terbaca di atas basemap berwarna, di kedua tema.
+Not an add-on — this product is about child safety and will be presented to a public institution.
+
+- Minimum text contrast 4.5:1, large text 3:1. Verify it, don't estimate it.
+- Focus ring `2px solid --ink` with `outline-offset: 2px`. **Never** `outline: none` without a replacement.
+- Zone categories must not be distinguished by color alone (see the redundancy rule above).
+- The entire Mode 2 flow must be completable with a keyboard.
+- The map is not the only path to information: a screen-reader-readable table of the reclassification list is an equivalent path.
+- Layout must not break at 390px.
+
+---
+
+## Checklist before calling it done
+
+- [ ] No color outside the map, legend, and status badges. A grep for `#` in `src/` is clean except in `theme.css`.
+- [ ] All numbers use `tabular-nums`.
+- [ ] Every °C·min has a °C next to it; every headline number has a °F.
+- [ ] Zone categories read correctly in grayscale (test: take a screenshot, apply a saturate-0 filter).
+- [ ] Light mode is the default; the toggle doesn't flash on reload.
+- [ ] Layout holds at 390px and 1280px.
+- [ ] `prefers-reduced-motion` turns off every transition.
+- [ ] A visible focus ring on every interactive element.
+- [ ] No leftover comments in `components/ui/`.
+- [ ] The basemap uses OpenFreeMap's `liberty` style, and OpenStreetMap attribution is visible.
+- [ ] Every symbol layer uses `Noto Sans Regular`/`Bold`/`Italic` (any other fontstack 404s on the glyph server).
+- [ ] FR-16 turns off **every** heat signal: zones, temperature labels, route (Mode 2), tooltip radius dose — leaving only the policy circle + the neutral dashed coolest route (Mode 2; Mode 1 has no routes at all).
+- [ ] The heat-dose overlay, legend, and classification badges still contrast clearly against the colored basemap (check red/yellow zones vs. basemap road/building colors).
+- [ ] The hour slider (Mode 1) is monochrome, discrete, and has as many ticks as `meta.hours` is long.
+- [ ] Numbers change with no tween when the hour is dragged (Mode 1) or when live temperature arrives (Mode 2); only route geometry fades (Mode 2).
+- [ ] The slider (Mode 1) is fully draggable with a keyboard, and `aria-valuetext` contains the hour.
+- [ ] Mode 2 has no hour slider — live conditions ("Now · 7:00 AM", 12-hour format) are always shown in the panel, and disappear only along with the origin/destination fields, not via FR-16.
+- [ ] Alternate route cards (FR-30) are monochrome, their count can be 0, 1, or 2 (1–3 cards total) without breaking the panel layout.
+- [ ] Selecting any route card thickens its line **and** makes the map `fitBounds` to that route (`hooks/useRouteFocus.ts`) — verify this especially when the selected route shares an identical path with another route (the most common case, G8), since line width alone won't be visible there.
+- [ ] Origin has no example-address chip — only a search input with live suggestions, plus one permanent drag-pin caption line beneath it that shares a slot with the `not_found`/`error` message (never two lines at once, never shifting Destination's layout).
+- [ ] Destination is a search input, not a `<select>`; typing a name that matches nothing never changes the selected school, and the field reverts to the last-selected school's name on blur.
+- [ ] Switching `/` ↔ `/district` does not remount the map: no basemap flash, no tile reload.
+- [ ] The map is visible on all four sides of the panel (top, bottom, right, and the left gap) — no full-width opaque bar left anywhere.
+- [ ] Collapsing the panel returns the map to full view, and the control cluster stays reachable while the panel is collapsed.
+- [ ] `map.setPadding` matches the panel geometry actually showing (side panel vs. bottom sheet vs. collapsed) in both modes — test by selecting a school and checking the `flyTo` center isn't hidden behind the panel.
+- [ ] Below 768px, the map panel becomes a bottom sheet; above it, the side panel stays 380px and doesn't widen.
+- [ ] Every school on the map has a pin icon and name at zoom ≥ 10.
+- [ ] The home and school markers stay distinguishable after a `saturate(0)` filter on a screenshot.
+- [ ] All map text has a `--bg` halo and reads clearly over the colored basemap, in both themes.

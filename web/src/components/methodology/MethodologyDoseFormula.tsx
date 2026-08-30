@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom'
-
 export default function MethodologyDoseFormula() {
   return (
     <div className="flex flex-col gap-3 text-ink-muted">
@@ -19,11 +17,8 @@ export default function MethodologyDoseFormula() {
         and a cool segment must never earn a credit that lets a longer route win.
       </p>
       <p>
-        <span className="font-medium text-ink">Walking speed is one constant for every child</span>, 1.2 m/s. See{' '}
-        <Link to="/limitations" className="underline underline-offset-3 hover:text-ink">
-          Limitations
-        </Link>{' '}
-        for what that flattens.
+        <span className="font-medium text-ink">Walking speed is one constant for every child</span>, 1.2 m/s,
+        regardless of age or mobility differences.
       </p>
       <p>
         Routing runs twice over the same graph: once weighted by raw distance, once by{' '}

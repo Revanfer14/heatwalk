@@ -59,8 +59,7 @@ export default function MethodologyRoute() {
           This is the summary. The full record — every hourly curve, every school&rsquo;s calibration table, every
           gate outcome, every bug found and what it changed — lives in{' '}
           <code className="text-sm">docs/METHODOLOGY.md</code> in the repository, written as the work happened
-          rather than after it. Known weaknesses are listed separately under Limitations, including the ones that
-          make the numbers here smaller or messier than they could have been made to look.
+          rather than after it.
         </p>
       </section>
       <section className="flex flex-col gap-3">

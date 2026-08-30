@@ -6,7 +6,6 @@ import FloatingControls from '@/components/FloatingControls'
 import ParentRoute from '@/routes/ParentRoute'
 import DistrictRoute from '@/routes/DistrictRoute'
 import MethodologyRoute from '@/routes/MethodologyRoute'
-import LimitationsRoute from '@/routes/LimitationsRoute'
 
 export default function App() {
   return (
@@ -18,7 +17,6 @@ export default function App() {
           <Route path="/" element={<ParentRoute />} />
           <Route path="/district" element={<DistrictRoute />} />
           <Route path="/methodology" element={<MethodologyRoute />} />
-          <Route path="/limitations" element={<LimitationsRoute />} />
         </Routes>
       </AppStateProvider>
     </MapInstanceProvider>

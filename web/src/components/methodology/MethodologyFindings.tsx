@@ -15,11 +15,7 @@ export default function MethodologyFindings() {
         temperature ranges from 0.00°C down to −0.75°C. For most origin–school pairs the coolest route{' '}
         <em>is</em> the shortest route: there is no cooler alternative to find. Shade maps and surface-temperature
         maps imply a much larger benefit; measured 2m air temperature does not support it. This is why
-        HeatWalk&rsquo;s recommendation is a change of mode — walk to bus — rather than a change of street. See{' '}
-        <Link to="/limitations" className="underline underline-offset-3 hover:text-ink">
-          Limitations
-        </Link>{' '}
-        point 10.
+        HeatWalk&rsquo;s recommendation is a change of mode — walk to bus — rather than a change of street.
       </p>
       <p>
         <span className="font-medium text-ink">The yellow category is thin by construction.</span> Yellow

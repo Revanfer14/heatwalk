@@ -51,9 +51,6 @@ export default function AboutDialog() {
           <Button variant="ghost" onClick={() => goToDoc('/methodology')}>
             Methodology
           </Button>
-          <Button variant="ghost" onClick={() => goToDoc('/limitations')}>
-            Limitations
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

@@ -1,129 +1,125 @@
 # CLAUDE.md
 
-Panduan kerja untuk Claude Code di repo ini. Baca sampai habis sebelum menulis baris pertama.
+Working guide for Claude Code in this repo. Read it in full before writing the first line.
 
 ---
 
-## Konteks proyek
+## Project context
 
-HeatWalk menggambar ulang walk zone sekolah di AS memakai **dosis panas kumulatif (°C·menit)** sebagai fungsi impedance, bukan jarak. Output utamanya adalah daftar reklasifikasi blok dari status "jalan kaki" ke "eligible bus", beserta bukti yang bisa dibawa ke rapat school board.
+HeatWalk redraws US school walk zones using **cumulative heat dose (°C·minutes)** as the impedance function, instead of distance. The main output is a list of block reclassifications from "walk" status to "eligible for bus," along with evidence that can be brought to a school board meeting.
 
-Dibangun untuk FortyGuard Hackathon '26. Deadline 30 Agustus 2026, 23:59 GST.
-
----
-
-## Sumber kebenaran
-
-| Dokumen                | Isinya                                                                   | Dibaca sebelum                              |
-| ---------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
-| `heatwalk-prd.md`      | Product overview, persona, FR-x, US-x, data requirements, batasan produk | memutuskan **apa** yang dibangun            |
-| `heatwalk-dev-plan.md` | Fase 0–8, urutan eksekusi, definition of done, gerbang                   | memutuskan **urutan dan cara**              |
-| `docs/CONTRACT.md`     | Skema file di `data/out/`                                                | menyentuh pipeline atau data layer frontend |
-| `DESIGN.md`            | Sistem visual: token, tipografi, warna, komponen, layout per mode        | menulis apa pun di `web/`                   |
-
-Kalau dev plan bentrok dengan PRD: **PRD menang untuk soal _apa_, dev plan menang untuk soal _urutan dan cara_.** Jangan tambal konflik sendiri — berhenti dan lapor.
-
-Jangan bangun apa pun yang tidak punya nomor FR-x atau US-x di PRD. Kalau ada ide bagus di luar itu, usulkan dulu, jangan langsung tulis.
+Built for the FortyGuard Hackathon '26. Deadline August 30, 2026, 23:59 GST.
 
 ---
 
-## Desain
+## Sources of truth
 
-Seluruh keputusan visual tunduk pada `DESIGN.md`. Baca sampai habis sebelum menulis komponen pertama, dan jalankan checklist di bagian akhirnya sebelum menyatakan sebuah layar selesai.
+| Document            | Contains                                                                  | Read before                                  |
+| ------------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
+| `heatwalk-prd.md`   | Product overview, personas, FR-x, US-x, data requirements, product constraints | deciding **what** to build                    |
+| `docs/CONTRACT.md`  | File schemas in `data/out/`                                                 | touching the pipeline or the frontend data layer |
+| `DESIGN.md`         | Visual system: tokens, typography, color, components, per-mode layout      | writing anything in `web/`                    |
 
-Ringkasnya: monokrom, Inter, shadcn/ui, light mode default. **Warna hanya boleh muncul di dalam peta, legend peta, dan badge status klasifikasi** — tombol, tautan, border, teks, ikon, dan chart semuanya netral di kedua mode. Tidak ada nilai warna literal di komponen; semuanya lewat token di `web/src/styles/theme.css`.
-
-Kalau sebuah kebutuhan visual tidak tertulis di `DESIGN.md`, ikuti prinsipnya dan lapor — jangan improvisasi diam-diam. Menambah warna, font, library komponen, atau efek visual baru adalah keputusan produk, bukan keputusan implementasi.
-
-Catatan untuk file hasil generate shadcn CLI: **hapus seluruh komentar bawaannya.** Aturan nol-komentar di atas berlaku penuh untuk `components/ui/`.
+Don't build anything that doesn't have an FR-x or US-x number in the PRD. If you have a good idea outside of that, propose it first — don't just write it.
 
 ---
 
-## Empat aturan yang tidak bisa ditawar
+## Design
 
-### 1. Nol komentar di dalam kode
+Every visual decision is bound by `DESIGN.md`. Read it in full before writing the first component, and run the checklist at the end of it before declaring a screen done.
 
-Tidak ada `//`, `/* */`, `#`, docstring, JSDoc, TSDoc, `MARK:`, `TODO:`, `NOTE:`, `FIXME:`, banner pemisah seksi (`// ===== Helpers =====`), maupun komentar yang cuma mengulang isi baris di bawahnya.
+In short: monochrome, Inter, shadcn/ui, light mode by default. **Color may only appear inside the map, the map legend, and classification status badges** — buttons, links, borders, text, icons, and charts are all neutral in both modes. No literal color values in components; everything goes through tokens in `web/src/styles/theme.css`.
 
-Satu-satunya pengecualian: komentar yang **otomatis dihasilkan tool** saat scaffolding (mis. header bawaan `npm create vite`, file generated). Itu boleh dibiarkan, tapi jangan ditambah.
+If a visual requirement isn't written in `DESIGN.md`, follow its principles and report it — don't improvise silently. Adding a new color, font, component library, or visual effect is a product decision, not an implementation decision.
 
-Konsekuensinya: **penamaan yang menanggung beban penjelasan.** Kalau sebuah blok kode terasa butuh komentar, itu sinyal blok tersebut harus diekstrak jadi fungsi bernama jelas, bukan sinyal untuk menulis komentar.
+Note for files generated by the shadcn CLI: **strip all of their built-in comments.** The zero-comments rule below applies in full to `components/ui/`.
 
-Penjelasan "kenapa" yang memang perlu ada tempatnya di `docs/METHODOLOGY.md`, `docs/LIMITATIONS.md`, atau README — bukan di dalam file kode.
+---
 
-Catatan: contoh skema berkomentar di `heatwalk-dev-plan.md` itu JSONC untuk dokumentasi, bukan kode produksi. Jangan dijadikan preseden.
+## Four non-negotiable rules
+
+### 1. Zero comments in code
+
+No `//`, `/* */`, `#`, docstrings, JSDoc, TSDoc, `MARK:`, `TODO:`, `NOTE:`, `FIXME:`, section-separator banners (`// ===== Helpers =====`), or comments that just restate the line below them.
+
+The only exception: comments **auto-generated by a tool** during scaffolding (e.g. the default `npm create vite` header, generated files). Those may be left alone, but don't add to them.
+
+Consequence: **naming carries the burden of explanation.** If a block of code feels like it needs a comment, that's a signal the block should be extracted into a clearly named function, not a signal to write a comment.
+
+The "why" explanations that are genuinely needed belong in `docs/METHODOLOGY.md` or the README — not inside code files.
+
+Note: the commented schema examples in `heatwalk-dev-plan.md` are JSONC for documentation purposes, not production code. Don't treat them as precedent.
 
 ### 2. Readable, maintainable, reusable
 
-- Nama variabel dan fungsi ditulis lengkap. `meanTemperatureC`, bukan `mtc`. `coolestRoute`, bukan `cr2`.
-- Satu fungsi = satu tanggung jawab. Kalau namanya mengandung "and", pecah.
-- Konstanta bernama, bukan angka telanjang. `BASELINE_C`, `WALK_SPEED_MPS`, `THRESHOLD`, `LAMBDA_DETOUR` semuanya hidup di `pipeline/config.py` dan padanannya di frontend — jangan sebar nilai literal ke seluruh kode.
-- Logika perhitungan dosis, konversi °C↔°F, dan format angka ditulis **sekali** di modul util, lalu dipakai ulang. Duplikasi rumus antara Mode 1 dan Mode 2 adalah bug yang menunggu terjadi.
-- Frontend tidak menghitung ulang apa pun yang sudah dihitung pipeline. Angka di UI dibaca dari `data/out/`, tidak diturunkan ulang.
-- Tidak ada angka hardcoded di frontend, kecuali di fixture dev.
-- Fungsi murni sedapat mungkin: hitungan dipisah dari rendering, dipisah dari I/O.
-- Error ditangani eksplisit. Jangan `try/except: pass`, jangan `catch {}` kosong.
+- Variable and function names are written out in full. `meanTemperatureC`, not `mtc`. `coolestRoute`, not `cr2`.
+- One function = one responsibility. If its name contains "and," split it.
+- Named constants, not bare numbers. `BASELINE_C`, `WALK_SPEED_MPS`, `THRESHOLD`, `LAMBDA_DETOUR` all live in `pipeline/config.py` and their frontend counterparts — don't scatter literal values across the code.
+- Dose calculation logic, °C↔°F conversion, and number formatting are written **once** in a util module, then reused. Duplicating formulas between Mode 1 and Mode 2 is a bug waiting to happen.
+- The frontend never recomputes anything the pipeline has already computed. Numbers in the UI are read from `data/out/`, not re-derived.
+- No hardcoded numbers in the frontend, except in dev fixtures.
+- Pure functions wherever possible: computation separated from rendering, separated from I/O.
+- Errors are handled explicitly. No `try/except: pass`, no empty `catch {}`.
 
-### 3. Struktur file jelas, file pendek
+### 3. Clear file structure, short files
 
-- Ikuti struktur repo di `heatwalk-dev-plan.md` bagian "Struktur repo". Jangan bikin folder baru tanpa alasan yang bisa dijelaskan.
-- **Batas lunak: 200 baris per file Python, 150 baris per file React/TS.** Lewat dari itu, pecah. Kalau sebuah file memang harus panjang, lapor alasannya sebelum menulisnya.
-- Satu komponen React per file, nama file = nama komponen.
-- Konvensi penamaan:
-  - Python: `snake_case.py`, fungsi `snake_case`, konstanta `UPPER_SNAKE`
+- Follow the repo structure in the "Repo structure" section of `heatwalk-dev-plan.md`. Don't create new folders without an explainable reason.
+- **Soft limit: 200 lines per Python file, 150 lines per React/TS file.** Past that, split it. If a file genuinely needs to be long, report why before writing it.
+- One React component per file, filename = component name.
+- Naming conventions:
+  - Python: `snake_case.py`, functions `snake_case`, constants `UPPER_SNAKE`
   - React component: `PascalCase.tsx`
   - Hook: `useSomething.ts`
   - Util/lib: `camelCase.ts`
-  - Tipe TS: `types.ts` per domain, interface `PascalCase`
-- Nama file harus menjelaskan isinya tanpa dibuka. `step3_routes.py`, `RouteComparisonPanel.tsx`, `petition.ts` — bukan `utils.ts`, `helpers.py`, `misc.tsx`, `index.ts` yang isinya campur aduk.
-- Pengecualian batas baris: `web/src/components/ui/` berisi file hasil generate shadcn CLI. Jangan dipecah, cukup hapus komentarnya.
-- Hindari file `utils` raksasa. Kalau butuh util, kelompokkan per domain: `lib/dose.ts`, `lib/units.ts`, `lib/dijkstra.ts`.
+  - TS types: `types.ts` per domain, interface `PascalCase`
+- File names must explain their contents without opening them. `step3_routes.py`, `RouteComparisonPanel.tsx`, `petition.ts` — not `utils.ts`, `helpers.py`, `misc.tsx`, `index.ts` full of mixed concerns.
+- Line-limit exception: `web/src/components/ui/` contains files generated by the shadcn CLI. Don't split them, just strip their comments.
+- Avoid giant `utils` files. If you need a util, group it by domain: `lib/dose.ts`, `lib/units.ts`, `lib/dijkstra.ts`.
 
-### 4. Nol operasi git
+### 4. Zero git operations
 
-**Jangan pernah** menjalankan `git commit`, `git push`, `git add`, `git merge`, `git rebase`, `git checkout -b`, `git tag`, atau perintah `gh` apa pun. Revan yang melakukan itu manual.
+**Never** run `git commit`, `git push`, `git add`, `git merge`, `git rebase`, `git checkout -b`, `git tag`, or any `gh` command. Revan does that manually.
 
-Boleh dijalankan untuk inspeksi: `git status`, `git diff`, `git log`.
+OK to run for inspection: `git status`, `git diff`, `git log`.
 
-Setelah selesai satu unit kerja, cukup **laporkan file mana saja yang dibuat/diubah** dan usulkan pesan commit-nya dalam format `phase-N: <ringkasan>`. Jangan eksekusi.
+After finishing a unit of work, just **report which files were created/changed** and propose a commit message in the format `phase-N: <summary>`. Don't execute it.
 
-Jangan menyentuh `.env`. Jangan mencetak isi API key ke terminal, log, atau file mana pun.
-
----
-
-## Arsitektur yang tidak boleh dilanggar
-
-Detail lengkap di PRD §6 dan dev plan bagian "Prinsip arsitektur".
-
-- **Tidak ada backend server, kecuali satu fungsi serverless read-only untuk FR-29** (suhu live Mode 2, `web/api/`) yang menahan kunci API FortyGuard — tanpa database, tanpa state, di luar jalur render rute. Pipeline Python offline → file statis di `data/out/` → React membaca file, tetap prinsip utama. Selain FR-29, satu-satunya panggilan API saat runtime adalah tombol refresh (FR-17, tidak dibangun), dan itu terisolasi total.
-- **Engine graph, bukan raster.** Raster cost-distance (`skimage.graph.MCP_Geometric`) hanya fallback darurat, hanya untuk Mode 1.
-- **GeoJSON di-`fetch()`, bukan di-`import`.**
-- **Tidak ada autentikasi, tidak ada database.** Live demo wajib terbuka di incognito tanpa login (submission form field 12). Dua mode dipisah lewat route `/` dan `/district`, bukan lewat akun.
-- **Basemap dari OpenFreeMap** (`tiles.openfreemap.org`, style `liberty`), tanpa API key. Keputusan produk 2026-08-27: basemap self-hosted `.pmtiles` diganti karena cakupan bbox lokal (13 MB–128 GB tergantung luas) tidak bisa menutupi AOI penuh dengan biaya wajar; lihat `docs/METHODOLOGY.md` §Fase 8. Konsekuensinya, gerbang "demo jalan offline" dan "basemap `206`" gugur — peta sekarang butuh internet.
-- **Satu instance MapLibre untuk kedua mode.** Peta hidup di atas router dan tidak pernah di-unmount saat pindah route.
-- Setiap angka yang muncul di UI harus bisa ditelusuri ke satu file di `data/out/`.
-- Setiap tempat yang menampilkan °C·menit **wajib** menampilkan °C di sebelahnya. Setiap angka headline wajib punya °F di samping °C.
-- Ditolak permanen: `deck.gl`, `react-map-gl`, PostGIS, DuckDB, Parquet, backend apa pun, ORM apa pun, autentikasi, tile server yang butuh API key.
-
-Stack yang dipakai: Python 3.11 (`geopandas`, `rasterio`, `numpy`, `osmnx`, `networkx`, `httpx`) · React 19 + TypeScript + Vite + Tailwind v4 + MapLibre GL JS v5 + OpenFreeMap (vector tiles, tanpa API key) + shadcn/ui + Inter + Recharts · Vercel statis.
+Don't touch `.env`. Don't print API key contents to the terminal, logs, or any file.
 
 ---
 
-## Cara kerja per fase
+## Architecture that must not be violated
 
-1. Kerjakan fase **berurutan**. Jangan mulai fase berikutnya sebelum seluruh checklist **Verification** fase sekarang lulus.
-2. Kalau verifikasi gagal → **berhenti dan lapor.** Jangan diam-diam ganti pendekatan, jangan geser ambang sampai angkanya kelihatan bagus. Tiap fase punya _fail branch_ eksplisit di dev plan; ikuti itu.
-3. Gerbang yang menghentikan pekerjaan (dev plan, tabel "Ringkasan gerbang"): verifikasi `tcm`, kontras AOI, delta rute ≥4°C, kategori merah terisi, demo jalan offline, live link di incognito. Semua ini keputusan produk, bukan keputusan teknis — jangan diambil sendiri.
-4. Kalau skema data berubah, **update `pipeline/make_fixtures.py` di perubahan yang sama.** Frontend tidak boleh pernah tahu bedanya fixture dan data asli.
+Full detail in PRD §6 and the dev plan's "Architecture principles" section.
 
-## Yang dikorbankan lebih dulu kalau waktu mepet
+- **No backend server, except one read-only serverless function for FR-29** (Mode 2 live temperature, `web/api/`) that holds the FortyGuard API key — no database, no state, outside the route-render path. Offline Python pipeline → static files in `data/out/` → React reads the files, remains the core principle. Besides FR-29, the only runtime API call is the refresh button (FR-17, not built), and that is fully isolated.
+- **Graph engine, not raster.** Raster cost-distance (`skimage.graph.MCP_Geometric`) is an emergency fallback only, for Mode 1 only.
+- **GeoJSON is `fetch()`ed, not `import`ed.**
+- **No authentication, no database.** The live demo must be accessible in incognito without login (submission form field 12). The two modes are split via the `/` and `/district` routes, not via accounts.
+- **Basemap from OpenFreeMap** (`tiles.openfreemap.org`, style `liberty`), no API key. Product decision 2026-08-27: the self-hosted `.pmtiles` basemap was replaced because local bbox coverage (13 MB–128 GB depending on area) couldn't cover the full AOI at a reasonable cost; see `docs/METHODOLOGY.md` §Phase 8. Consequence: the "demo works offline" and "basemap `206`" gates are dropped — the map now needs internet.
+- **One MapLibre instance for both modes.** The map lives above the router and is never unmounted when switching routes.
+- Every number shown in the UI must be traceable to one file in `data/out/`.
+- Every place that displays °C·minutes **must** show °C next to it. Every headline number must have °F next to °C.
 
-Urut dari yang paling boleh dibuang: animasi & mikrointeraksi → FR-15 tabel prioritas segmen → FR-13 slider waktu → FR-17 refresh forecast → interaktivitas Mode 1 jadi tabel statis.
-
-**Tidak boleh dipotong dalam keadaan apa pun:** FR-8 kategori merah, FR-16 tombol sembunyikan data panas, halaman Limitations, kolom °F di semua angka headline.
+Stack in use: Python 3.11 (`geopandas`, `rasterio`, `numpy`, `osmnx`, `networkx`, `httpx`) · React 19 + TypeScript + Vite + Tailwind v4 + MapLibre GL JS v5 + OpenFreeMap (vector tiles, no API key) + shadcn/ui + Inter + Recharts · static Vercel.
 
 ---
 
-## Kalau ragu
+## How to work through phases
 
-Tanya sebelum menulis, bukan sesudah. Khususnya untuk: perubahan skema data, penambahan dependency, pemilihan AOI, kalibrasi `BASELINE_C` / `THRESHOLD` / `LAMBDA`, dan apa pun yang menyentuh gerbang di atas.
+1. Work through phases **sequentially**. Don't start the next phase before the current phase's **Verification** checklist fully passes.
+2. If verification fails → **stop and report.** Don't silently switch approaches, don't move a threshold until the numbers look good. Every phase has an explicit *fail branch* in the dev plan; follow it.
+3. Gates that halt work (dev plan, "Gate summary" table): `tcm` verification, AOI contrast, route delta ≥4°C, red category populated, offline demo works, live link in incognito. These are all product decisions, not technical ones — don't make them on your own.
+4. If the data schema changes, **update `pipeline/make_fixtures.py` in the same change.** The frontend must never be able to tell the difference between a fixture and real data.
+
+## What gets cut first if time runs short
+
+In order of what can be dropped first: animations & microinteractions → FR-15 segment priority table → FR-13 hour slider → FR-17 forecast refresh → Mode 1 interactivity reduced to a static table.
+
+**Must never be cut under any circumstances:** FR-8 red category, FR-16 hide-heat-data toggle, °F column on all headline numbers.
+
+---
+
+## When in doubt
+
+Ask before writing, not after. Especially for: data schema changes, adding a dependency, AOI selection, calibrating `BASELINE_C` / `THRESHOLD` / `LAMBDA`, and anything that touches the gates above.
